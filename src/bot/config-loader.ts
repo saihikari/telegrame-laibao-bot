@@ -63,7 +63,21 @@ export const backupConfig = (): { success: boolean; filename?: string } => {
   }
 };
 
-export const getConfig = (): Config => currentConfig;
+export const getConfig = (): Config => {
+  // 每次获取配置时，检查文件是否被修改，如果被修改过就重新加载
+  try {
+    if (fs.existsSync(CONFIG_PATH)) {
+      const stats = fs.statSync(CONFIG_PATH);
+      if (stats.mtime > lastModified) {
+        console.log('[Config] Detected routes.json change, reloading...');
+        loadConfig();
+      }
+    }
+  } catch (err) {
+    console.error('[Config] Error checking file stats:', err);
+  }
+  return currentConfig;
+};
 export const getLastModified = (): Date => lastModified;
 export const getBackupCount = (): number => {
   try {

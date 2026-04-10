@@ -75,6 +75,7 @@ export const startBot = () => {
   });
 
   bot.onText(/^\/customer$/, (msg) => {
+    // 强制重新加载最新配置
     const config = getConfig();
     let text = '当前已配置的客户：\n';
     config.customers.forEach(c => {
@@ -90,13 +91,11 @@ export const startBot = () => {
     const results = processMessage(msg.text, config);
 
     if (results.length > 0) {
-      // 5.1 Send to internal groups
-      for (const chatId of internalChatIds) {
-        try {
-          await bot.sendMessage(chatId, '⚠️ 来包信息清洗中');
-        } catch (err) {
-          console.error(`[Bot] Failed to send cleaning message to ${chatId}:`, err);
-        }
+      // Send initial cleaning notification to the same chat where the message was received
+      try {
+        await bot.sendMessage(msg.chat.id, '⚠️ 来包信息清洗中', { reply_to_message_id: msg.message_id });
+      } catch (err) {
+        console.error(`[Bot] Failed to send cleaning message to ${msg.chat.id}:`, err);
       }
 
       // 5.2 Format summary
@@ -109,25 +108,24 @@ export const startBot = () => {
         if (idx < results.length - 1) summaryText += '\n';
       });
 
-      // 5.3 Send inline keyboard to internal groups
-      for (const chatId of internalChatIds) {
-        try {
-          const sentMsg = await bot.sendMessage(chatId, summaryText, {
-            reply_markup: {
-              inline_keyboard: [[
-                { text: 'Y录入', callback_data: `record_yes` },
-                { text: 'N不录', callback_data: `record_no` }
-              ]]
-            }
-          });
-          
-          // Store results temporarily to process on callback
-          const key = `${chatId}_${sentMsg.message_id}`;
-          pendingRecords.set(key, results);
-          
-        } catch (err) {
-          console.error(`[Bot] Failed to send summary to ${chatId}:`, err);
-        }
+      // Send the summary with inline keyboard back to the same chat
+      try {
+        const sentMsg = await bot.sendMessage(msg.chat.id, summaryText, {
+          reply_markup: {
+            inline_keyboard: [[
+              { text: 'Y录入', callback_data: `record_yes` },
+              { text: 'N不录', callback_data: `record_no` }
+            ]]
+          },
+          reply_to_message_id: msg.message_id
+        });
+        
+        // Store both results and the exact summary text we generated
+        const key = `${msg.chat.id}_${sentMsg.message_id}`;
+        pendingRecords.set(key, { results, summaryText } as any);
+        
+      } catch (err) {
+        console.error(`[Bot] Failed to send summary to ${msg.chat.id}:`, err);
       }
     }
   });
@@ -138,23 +136,25 @@ export const startBot = () => {
     if (!msg) return;
 
     const key = `${msg.chat.id}_${msg.message_id}`;
-    const results = pendingRecords.get(key);
+    const pendingData = pendingRecords.get(key) as any;
 
-    if (!results) {
+    if (!pendingData) {
       bot.answerCallbackQuery(query.id, { text: '数据已过期或不存在' });
       return;
     }
 
+    const { results, summaryText } = pendingData;
+
     if (data === 'record_no') {
-      bot.editMessageText('已取消录入，本次来包信息不作记录。', {
+      bot.editMessageText(summaryText + '\n\n❌ 已取消录入，本次来包信息不作记录。', {
         chat_id: msg.chat.id,
         message_id: msg.message_id
       });
       pendingRecords.delete(key);
       bot.answerCallbackQuery(query.id);
     } else if (data === 'record_yes') {
-      // 5.4 Edit to loading state
-      await bot.editMessageText('⏳ 正在录入，请稍候...', {
+      // Use the summaryText we explicitly saved, instead of msg.text which might be the original uncleaned user message
+      await bot.editMessageText(summaryText + '\n\n⏳ 正在录入，请稍候...', {
         chat_id: msg.chat.id,
         message_id: msg.message_id
       });
@@ -162,6 +162,7 @@ export const startBot = () => {
 
       let successCount = 0;
       let failCount = 0;
+      const successDetails: string[] = [];
       const failDetails: string[] = [];
 
       for (const res of results) {
@@ -171,19 +172,23 @@ export const startBot = () => {
         }
 
         try {
-          await appendRecord(res.customerName, formattedString.trim());
+          const rowInfo = await appendRecord(res.customerName, formattedString.trim());
           successCount++;
+          successDetails.push(`[${res.customerName}] 录入至 ${rowInfo}`);
         } catch (error: any) {
           failCount++;
           failDetails.push(`[${res.customerName}] ${error.message}`);
         }
       }
 
-      let finalText = `✅ 录入完成！成功${successCount}条`;
+      let finalText = summaryText + `\n\n✅ 录入处理完成！成功 ${successCount} 条，失败 ${failCount} 条。\n`;
+      
+      if (successCount > 0) {
+        finalText += `\n📈 成功详情：\n${successDetails.join('\n')}`;
+      }
+      
       if (failCount > 0) {
-        finalText += `，失败${failCount}条。\n失败详情：\n${failDetails.join('\n')}`;
-      } else {
-        finalText += '。';
+        finalText += `\n\n⚠️ 失败详情：\n${failDetails.join('\n')}`;
       }
 
       await bot.editMessageText(finalText, {
