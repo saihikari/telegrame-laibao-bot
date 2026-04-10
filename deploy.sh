@@ -22,13 +22,20 @@ if command -v apt-get &> /dev/null; then
 elif command -v dnf &> /dev/null || command -v yum &> /dev/null; then
     # CentOS/RHEL/OpenCloudOS
     echo "检测到 RPM 包管理器 (CentOS/RHEL/OpenCloudOS 等)"
-    # 跳过 nodesource 脚本的环境检测直接安装，或者使用 NVM/官方二进制包
-    # OpenCloudOS 可能会被 nodesource 拦截，因此我们直接下载预编译二进制包或使用内置源
     if command -v dnf &> /dev/null; then
         sudo dnf update -y
+        # 清理可能残留的旧版本 Node.js 避免冲突
+        sudo dnf remove -y nodejs npm || true
     else
         sudo yum update -y
+        sudo yum remove -y nodejs npm || true
     fi
+    
+    echo "清理可能冲突的旧 npm 文件..."
+    sudo rm -rf /usr/local/lib/node_modules
+    sudo rm -rf /usr/local/bin/node
+    sudo rm -rf /usr/local/bin/npm
+    sudo rm -rf /usr/local/bin/npx
     
     echo "尝试通过官方预编译包安装 Node.js 20..."
     NODE_VERSION="v20.12.2"
@@ -43,9 +50,12 @@ else
     exit 1
 fi
 
+# 确保环境变量生效
+export PATH=/usr/local/bin:$PATH
+
 # 验证安装
-node -v
-npm -v
+echo "Node 版本: $(node -v)"
+echo "NPM 版本: $(npm -v)"
 
 # 3. 安装 pnpm
 echo ">> 3. 全局安装 pnpm..."
