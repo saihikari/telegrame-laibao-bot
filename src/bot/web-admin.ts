@@ -1,11 +1,17 @@
 import express from 'express';
 import basicAuth from 'basic-auth';
 import { getConfig, saveConfig, backupConfig, getLastModified, getBackupCount } from './config-loader';
+import { processMessage } from './rule-engine';
 import { isSheetsReady } from './sheets-service';
 import bodyParser from 'body-parser';
 
+import path from 'path';
+
 const app = express();
 app.use(bodyParser.json());
+
+// 提供前端静态文件服务
+app.use('/admin/config-visual', express.static(path.join(__dirname, '../../public')));
 
 const startTimestamp = Date.now();
 
@@ -228,6 +234,21 @@ app.get('/api/status', (req, res) => {
     backups_count: getBackupCount(),
     google_sheets_ready: isSheetsReady()
   });
+});
+
+app.post('/api/test', (req, res) => {
+  try {
+    const { text, config } = req.body;
+    if (!text || !config) {
+      return res.status(400).json({ success: false, error: 'Missing text or config in request body' });
+    }
+    
+    // Call the rule engine with the provided text and config
+    const data = processMessage(text, config);
+    res.json({ success: true, data });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 export const startWebServer = (port: number) => {
