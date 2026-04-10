@@ -133,7 +133,14 @@ export const processMessage = (text: string, config: Config): ParsedData[] => {
         extractedValue = rule.value;
       }
       data[field] = extractedValue;
-      console.log(`[RuleEngine] Extracted field '${field}': ${extractedValue}`);
+      
+      // 全局清理：移除所有提取出的值中的特殊emoji字符（如🔥、📱、‼️等）
+      // 这里使用正则表达式去掉大部分常见的 emoji 和特殊符号
+      if (typeof data[field] === 'string') {
+        data[field] = data[field].replace(/[\u{1F300}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1F1E6}-\u{1F1FF}\u{1F201}-\u{1F251}\u{1F004}\u{1F0CF}\u{1F170}-\u{1F171}\u{1F17E}-\u{1F17F}\u{1F18E}\u{3030}\u{2B50}\u{2B55}\u{2934}-\u{2935}\u{2B05}-\u{2B07}\u{2B1B}-\u{2B1C}\u{3297}\u{3299}\u{303D}\u{00A9}\u{00AE}\u{2122}\u{23F3}\u{24C2}\u{23E9}-\u{23EF}\u{25B6}\u{23F8}-\u{23FA}\u{200D}]/gu, '').trim();
+      }
+      
+      console.log(`[RuleEngine] Extracted field '${field}': ${data[field]}`);
     }
 
     results.push({
