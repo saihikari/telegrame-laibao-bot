@@ -43,7 +43,7 @@ export const processMessage = (text: string, config: Config): ParsedData[] => {
     const hasGodAndUp = b.includes('神包') && b.includes('上');
     // 新增：只要包含 http 链接，或者包含马甲包等明显特征，也算触发
     const hasUrl = /https?:\/\//.test(b);
-    const hasClientTag = b.includes('S97') || b.includes('BA99') || b.includes('pak') || b.includes('VIP') || b.includes('APP0');
+    const hasClientTag = b.includes('S97') || b.includes('BA99') || b.includes('pak') || b.includes('VIP') || b.includes('APP0') || b.includes('150244');
 
     console.log(`[RuleEngine] Block ${i + 1} trigger conditions: hasNameAndLink=${hasNameAndLink}, hasLinkAndNaming=${hasLinkAndNaming}, hasGodAndUp=${hasGodAndUp}, hasUrl=${hasUrl}, hasClientTag=${hasClientTag}`);
 

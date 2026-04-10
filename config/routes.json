@@ -36,5 +36,19 @@
         "TT识别码": { "type": "keyword_line", "keyword": "识别码", "strip_chars": "：: " }
       }
     }
+    {
+      "name": "150244",
+      "match_keywords": ["150244"],
+      "priority": 4,
+      "exclude_keywords": [],
+      "rules": {
+        "客户": { "type": "constant", "value": "150244" },
+        "编号": { "type": "keyword_line", "keyword": "渠道编号", "strip_chars": "：: " },
+        "应用名称": { "type": "keyword_line", "keyword": "应用名称", "strip_chars": "：: " },
+        "APP链接": { "type": "url" },
+        "TT识别码": { "type": "constant", "value": "未匹配" },
+        "媒体类型": { "type": "constant", "value": "GG" }
+      }
+    }
   ]
 }
