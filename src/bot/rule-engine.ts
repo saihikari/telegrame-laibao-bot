@@ -71,7 +71,7 @@ export const processMessage = (text: string, config: Config): ParsedData[] => {
       const matchKws = customer.match_keywords || [];
       const excludeKws = customer.exclude_keywords || [];
 
-      const isMatch = matchKws.some(kw => b.includes(kw));
+      const isMatch = matchKws.every(kw => b.includes(kw));
       const isExclude = excludeKws.some(kw => b.includes(kw));
 
       console.log(`[RuleEngine] Checking customer '${customer.name}': isMatch=${isMatch}, isExclude=${isExclude}`);
