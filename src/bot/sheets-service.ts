@@ -8,35 +8,41 @@ let isReady = false;
 
 export const initSheetsClient = async () => {
   try {
-    const credPath = path.resolve(process.cwd(), process.env.GOOGLE_CREDENTIALS_PATH || 'config/google-credentials.json');
+    const credPath = process.env.GOOGLE_CREDENTIALS_PATH 
+      ? path.resolve(process.cwd(), process.env.GOOGLE_CREDENTIALS_PATH)
+      : path.resolve(__dirname, '../../config/google-credentials.json');
+      
     if (!fs.existsSync(credPath)) {
       console.warn(`[Sheets] Credentials not found at ${credPath}. Google Sheets integration is disabled.`);
       return;
     }
+    
+    if (!spreadsheetId) {
+      console.warn('[Sheets] GOOGLE_SHEET_ID not provided in environment variables.');
+      return;
+    }
+    
     const auth = new google.auth.GoogleAuth({
       keyFile: credPath,
       scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
+    
     const client = await auth.getClient();
     sheetsAPI = google.sheets({ version: 'v4', auth: client as any });
     
-    // Test connection
-    if (spreadsheetId) {
-      await sheetsAPI.spreadsheets.get({ spreadsheetId });
-      isReady = true;
-      console.log('[Sheets] Google Sheets API initialized successfully.');
-    } else {
-      console.warn('[Sheets] GOOGLE_SHEET_ID not provided.');
-    }
-  } catch (error) {
-    console.error('[Sheets] Initialization failed:', error);
+    await sheetsAPI.spreadsheets.get({ spreadsheetId });
+    isReady = true;
+    console.log(`[Sheets] Google Sheets API initialized successfully. Connected to spreadsheet: ${spreadsheetId}`);
+  } catch (error: any) {
+    console.error('[Sheets] Initialization failed:', error.message || error);
+    isReady = false;
   }
 };
 
 export const isSheetsReady = () => isReady;
 
-export const appendRecord = async (customerName: string, formattedString: string) => {
-  if (!isReady || !sheetsAPI || !spreadsheetId) throw new Error('Sheets API not ready');
+export const appendRecord = async (customerName: string, formattedString: string): Promise<string> => {
+  if (!isReady || !sheetsAPI || !spreadsheetId) throw new Error('Sheets API not ready. 请检查服务器日志。');
 
   const res = await sheetsAPI.spreadsheets.get({ spreadsheetId });
   const sheets = res.data.sheets || [];
@@ -67,12 +73,32 @@ export const appendRecord = async (customerName: string, formattedString: string
     });
   }
 
-  await sheetsAPI.spreadsheets.values.append({
+  // 查找 A 列第一个空单元格的行号
+  const getRes = await sheetsAPI.spreadsheets.values.get({
     spreadsheetId,
     range: `${customerName}!A:A`,
+  });
+
+  const values = getRes.data.values || [];
+  let insertRowIndex = values.length + 1;
+
+  for (let i = 0; i < values.length; i++) {
+    const row = values[i];
+    if (!row || row.length === 0 || row[0] === null || row[0] === undefined || row[0].toString().trim() === '') {
+      insertRowIndex = i + 1;
+      break;
+    }
+  }
+
+  const updateRange = `${customerName}!A${insertRowIndex}`;
+  const updateRes = await sheetsAPI.spreadsheets.values.update({
+    spreadsheetId,
+    range: updateRange,
     valueInputOption: 'USER_ENTERED',
     requestBody: {
       values: [[formattedString]]
     }
   });
+
+  return `第 ${insertRowIndex} 行`;
 };
