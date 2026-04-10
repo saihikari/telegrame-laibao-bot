@@ -19,22 +19,33 @@ if command -v apt-get &> /dev/null; then
     sudo apt-get update -y
     curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
     sudo apt-get install -y nodejs
-elif command -v dnf &> /dev/null; then
-    # CentOS 8+/RHEL 8+/Fedora/OpenCloudOS 9 (使用 dnf)
-    echo "检测到 DNF 包管理器 (CentOS 8+/RHEL 8+/OpenCloudOS 9 等)"
-    sudo dnf update -y
-    curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
-    sudo dnf install -y nodejs
-elif command -v yum &> /dev/null; then
-    # CentOS 7/RHEL 7/OpenCloudOS 8 (使用 yum)
-    echo "检测到 YUM 包管理器 (CentOS 7/RHEL 7/OpenCloudOS 8 等)"
-    sudo yum update -y
-    curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
-    sudo yum install -y nodejs
+elif command -v dnf &> /dev/null || command -v yum &> /dev/null; then
+    # CentOS/RHEL/OpenCloudOS
+    echo "检测到 RPM 包管理器 (CentOS/RHEL/OpenCloudOS 等)"
+    # 跳过 nodesource 脚本的环境检测直接安装，或者使用 NVM/官方二进制包
+    # OpenCloudOS 可能会被 nodesource 拦截，因此我们直接下载预编译二进制包或使用内置源
+    if command -v dnf &> /dev/null; then
+        sudo dnf update -y
+    else
+        sudo yum update -y
+    fi
+    
+    echo "尝试通过官方预编译包安装 Node.js 20..."
+    NODE_VERSION="v20.12.2"
+    NODE_DIST="linux-x64"
+    cd /tmp
+    curl -fsSLO https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-${NODE_DIST}.tar.xz
+    sudo tar -xJf node-${NODE_VERSION}-${NODE_DIST}.tar.xz -C /usr/local --strip-components=1
+    rm -f node-${NODE_VERSION}-${NODE_DIST}.tar.xz
+    cd -
 else
     echo "⚠️ 未知的包管理器！请手动安装 Node.js 20。"
     exit 1
 fi
+
+# 验证安装
+node -v
+npm -v
 
 # 3. 安装 pnpm
 echo ">> 3. 全局安装 pnpm..."
