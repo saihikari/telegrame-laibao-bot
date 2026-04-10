@@ -63,15 +63,15 @@ export const startBot = () => {
   /customer - 列出所有客户名称
 - 常见问题：
   若机器人未回复，请检查是否包含必填关键词（如名称、链接等）。
-- 管理界面：http://<服务器IP>:${adminPort}/admin/config
-- 状态页：http://<服务器IP>:${adminPort}/admin/status
+- 管理界面：http://www.runtoads.top:${adminPort}/admin/config
+- 状态页：http://www.runtoads.top:${adminPort}/admin/status
     `;
     bot.sendMessage(msg.chat.id, helpText, { parse_mode: 'Markdown' });
   });
 
   bot.onText(/^\/status$/, (msg) => {
-    // Note: the IP address should be the real server IP. Using placeholder.
-    bot.sendMessage(msg.chat.id, `机器人状态页面：http://<服务器IP>:${adminPort}/admin/status`);
+    // 使用真实的域名
+    bot.sendMessage(msg.chat.id, `机器人状态页面：http://www.runtoads.top:${adminPort}/admin/status`);
   });
 
   bot.onText(/^\/customer$/, (msg) => {
