@@ -11,14 +11,30 @@ echo "=========================================================="
 echo "    开始部署 RuntoAds Telegram Bot (OpenCloud OS 9)       "
 echo "=========================================================="
 
-# 1. 更新系统
-echo ">> 1. 更新系统软件包..."
-sudo yum update -y || sudo dnf update -y
-
-# 2. 安装 Node.js 20
-echo ">> 2. 安装 Node.js 20..."
-curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
-sudo yum install -y nodejs || sudo dnf install -y nodejs
+# 1. 更新系统并安装 Node.js 20
+echo ">> 1. 更新系统并安装 Node.js 20..."
+if command -v apt-get &> /dev/null; then
+    # Debian/Ubuntu 系列
+    echo "检测到 APT 包管理器 (Debian/Ubuntu/Linux Mint 等)"
+    sudo apt-get update -y
+    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+    sudo apt-get install -y nodejs
+elif command -v dnf &> /dev/null; then
+    # CentOS 8+/RHEL 8+/Fedora/OpenCloudOS 9 (使用 dnf)
+    echo "检测到 DNF 包管理器 (CentOS 8+/RHEL 8+/OpenCloudOS 9 等)"
+    sudo dnf update -y
+    curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
+    sudo dnf install -y nodejs
+elif command -v yum &> /dev/null; then
+    # CentOS 7/RHEL 7/OpenCloudOS 8 (使用 yum)
+    echo "检测到 YUM 包管理器 (CentOS 7/RHEL 7/OpenCloudOS 8 等)"
+    sudo yum update -y
+    curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
+    sudo yum install -y nodejs
+else
+    echo "⚠️ 未知的包管理器！请手动安装 Node.js 20。"
+    exit 1
+fi
 
 # 3. 安装 pnpm
 echo ">> 3. 全局安装 pnpm..."
@@ -91,13 +107,17 @@ sudo systemctl daemon-reload
 sudo systemctl enable runtoads-tg-bot
 sudo systemctl start runtoads-tg-bot
 
-# 9. 开放防火墙 (OpenCloud OS 默认使用 firewalld)
+# 9. 开放防火墙 (适配 UFW 和 Firewalld)
 echo ">> 9. 开放防火墙端口 8090..."
-if systemctl is-active --quiet firewalld; then
+if command -v ufw &> /dev/null && sudo ufw status | grep -qw "active"; then
+    echo "检测到 UFW，正在放行 8090 端口..."
+    sudo ufw allow 8090/tcp
+elif command -v firewall-cmd &> /dev/null && systemctl is-active --quiet firewalld; then
+    echo "检测到 Firewalld，正在放行 8090 端口..."
     sudo firewall-cmd --zone=public --add-port=8090/tcp --permanent
     sudo firewall-cmd --reload
 else
-    echo "firewalld 未运行，跳过防火墙配置。请确保云服务商安全组已放行 8090 端口。"
+    echo "未检测到活跃的 UFW 或 Firewalld，跳过防火墙配置。请确保云服务商安全组已放行 8090 端口。"
 fi
 
 echo "=========================================================="
