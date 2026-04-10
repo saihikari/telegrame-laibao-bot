@@ -25,9 +25,9 @@ export const startBot = () => {
     request: {
       agentOptions: {
         keepAlive: true,
-        family: 4 // Force IPv4 to prevent Node.js 20+ IPv6/IPv4 connection issues with Telegram API
+        family: 4
       }
-    }
+    } as any // Bypass strict TS check for request options
   });
 
   console.log('[Bot] Telegram Bot started in polling mode.');
