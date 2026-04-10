@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.env
+config/backups/
+config/google-credentials.json
+.DS_Store

@@ -1,0 +1,40 @@
+{
+  "customers": [
+    {
+      "name": "VIP234-1212",
+      "match_keywords": ["VIP234"],
+      "priority": 1,
+      "exclude_keywords": [],
+      "rules": {
+        "编号": { "type": "regex", "pattern": "VIP234-APK-(\\d+)", "transform": "APK$1" },
+        "应用名称": { "type": "keyword_line", "keyword": "应用名称", "strip_chars": "：: " },
+        "APP链接": { "type": "url" },
+        "TT识别码": { "type": "keyword_line", "keyword": "识别码", "strip_chars": "：: " }
+      }
+    },
+    {
+      "name": "22666-1351",
+      "match_keywords": ["22666"],
+      "priority": 2,
+      "exclude_keywords": [],
+      "rules": {
+        "编号": { "type": "regex", "pattern": "22666-([^\\s]+)", "transform": "toUpperCase" },
+        "应用名称": { "type": "keyword_line", "keyword": "APP名称", "strip_chars": "：: " },
+        "APP链接": { "type": "url" },
+        "TT识别码": { "type": "keyword_line", "keyword": "识别码", "strip_chars": "：: " }
+      }
+    },
+    {
+      "name": "59Y-1207",
+      "match_keywords": ["59Y"],
+      "priority": 3,
+      "exclude_keywords": [],
+      "rules": {
+        "编号": { "type": "regex", "pattern": "59Y-([^\\s]+)", "transform": "replace:包=>APK" },
+        "应用名称": { "type": "constant", "value": "请手动确认" },
+        "APP链接": { "type": "url" },
+        "TT识别码": { "type": "keyword_line", "keyword": "识别码", "strip_chars": "：: " }
+      }
+    }
+  ]
+}
