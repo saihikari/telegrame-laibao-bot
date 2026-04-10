@@ -80,9 +80,15 @@ export const appendRecord = async (customerName: string, formattedString: string
   });
 
   const values = getRes.data.values || [];
+  // 确保至少有 5 行，如果不够，补充空行
+  while (values.length < 5) {
+    values.push([]);
+  }
+  
   let insertRowIndex = values.length + 1;
 
-  for (let i = 0; i < values.length; i++) {
+  // 从第 6 行（索引 5）开始往下找空白行
+  for (let i = 5; i < values.length; i++) {
     const row = values[i];
     if (!row || row.length === 0 || row[0] === null || row[0] === undefined || row[0].toString().trim() === '') {
       insertRowIndex = i + 1;
