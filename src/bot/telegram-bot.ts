@@ -65,6 +65,7 @@ export const startBot = () => {
   若机器人未回复，请检查是否包含必填关键词（如名称、链接等）。
 - 管理界面：http://www.runtoads.top:${adminPort}/admin/config
 - 状态页：http://www.runtoads.top:${adminPort}/admin/status
+- 机器人定制服务：http://www.runtoads.top:${adminPort}/admin/customize
     `;
     bot.sendMessage(msg.chat.id, helpText, { parse_mode: 'Markdown' });
   });
