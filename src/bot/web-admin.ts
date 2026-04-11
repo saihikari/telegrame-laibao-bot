@@ -10,9 +10,8 @@ import path from 'path';
 const app = express();
 app.use(bodyParser.json());
 
-// 提供前端静态文件服务 (统一部署)
-app.use('/admin', express.static(path.join(__dirname, '../../public')));
-
+// 提供前端静态文件服务 (统一部署)，放在 Auth 之后
+// ...
 const startTimestamp = Date.now();
 
 // Basic Authentication Middleware
@@ -32,6 +31,8 @@ const authMiddleware = (req: express.Request, res: express.Response, next: expre
 
 app.use('/admin', authMiddleware);
 app.use('/api', authMiddleware);
+
+app.use('/admin', express.static(path.join(__dirname, '../../public')));
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
