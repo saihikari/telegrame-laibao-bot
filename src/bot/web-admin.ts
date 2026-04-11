@@ -43,19 +43,26 @@ app.get('/admin/config', (req, res) => {
         <style>
           body { font-family: Arial, sans-serif; padding: 20px; background-color: #f9f9f9; }
           .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-          textarea { width: 100%; height: 400px; font-family: monospace; padding: 10px; margin-top: 10px; }
+          textarea { width: 100%; height: 600px; font-family: monospace; padding: 10px; margin-top: 10px; font-size: 14px; }
           button { padding: 10px 15px; margin-top: 10px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 4px; }
+          .btn-success { background: #28a745; }
           .footer { margin-top: 30px; text-align: center; color: #777; font-size: 14px; }
+          .nav-link { display: inline-block; margin-bottom: 15px; color: #007bff; text-decoration: none; }
+          .nav-link:hover { text-decoration: underline; }
         </style>
       </head>
       <body>
-        <div class="container">
-          <h2>Config Management</h2>
-          <button onclick="backupConfig()">Backup Config</button>
+        <div class="container" style="max-width: 95%;">
+          <a href="/admin/config-visual" class="nav-link">← 切换到可视化配置模式</a>
+          <h2>Config Management (高级 JSON 模式)</h2>
+          <p style="color: #666; font-size: 14px; margin-bottom: 15px;">
+            提示：在这里直接修改 JSON 结构，点击下方保存即可生效。如果您不熟悉 JSON 格式，建议使用左上角的“可视化配置模式”。
+          </p>
+          <button onclick="backupConfig()">备份当前配置 (Backup Config)</button>
           <textarea id="configText"></textarea>
           <br>
-          <button onclick="saveConfig()">Save & Reload Config</button>
-          <div class="footer">机器人系统由RuntoAds技术团队提供支持</div>
+          <button onclick="saveConfig()" class="btn-success">保存并重载配置 (Save & Reload Config)</button>
+          <div class="footer">机器人系统由RuntoAds技术团队提供支持 | https://www.runtoads.top</div>
         </div>
         <script>
           fetch('/api/config').then(res => res.json()).then(data => {
