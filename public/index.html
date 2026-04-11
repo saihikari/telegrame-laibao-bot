@@ -363,7 +363,7 @@
                     </div>
 
                     {/* 中右侧：配置表单 */}
-                    <div className="flex-1 bg-background flex flex-col min-w-0">
+                    <div className="flex-[2] bg-background flex flex-col min-w-[500px]">
                         {activeCustomer ? (
                             <div className="flex-1 overflow-y-auto p-6 lg:p-8">
                                 <div className="max-w-4xl mx-auto">
@@ -528,7 +528,7 @@
                                 </div>
                             </div>
                         ) : (
-                            <div className="flex-1 flex flex-col items-center justify-center text-gray-400 bg-gray-50/30">
+                            <div className="flex-1 flex flex-col items-center justify-center text-gray-400 bg-gray-50/30 p-6 lg:p-8 w-full h-full border-r border-gray-200">
                                 <Icon name="mouse-pointer-click" size={48} className="mb-4 text-gray-300" />
                                 <p className="text-lg">请在左侧选择一个客户进行配置</p>
                             </div>
@@ -536,7 +536,7 @@
                     </div>
 
                     {/* 右侧：沙盒测试区 */}
-                    <div className="w-96 bg-white border-l border-gray-200 flex flex-col shrink-0">
+                    <div className="flex-1 min-w-[320px] max-w-[400px] bg-white border-l border-gray-200 flex flex-col shrink-0">
                         <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50/50">
                             <h2 className="font-semibold text-gray-800 flex items-center gap-2">
                                 <Icon name="play-circle" size={18} className="text-secondary" />
@@ -884,54 +884,54 @@
             return (
                 <div className="flex h-screen overflow-hidden bg-background w-full">
                     {/* 左侧：全局侧边栏导航 */}
-                    <div className="w-16 bg-[#1e293b] text-slate-300 flex flex-col items-center py-4 shrink-0 border-r border-slate-700/50 z-50">
-                        <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center mb-8 font-bold text-xl text-white shadow-sm">
+                    <div className="w-24 bg-[#1e293b] text-slate-300 flex flex-col items-center py-4 shrink-0 border-r border-slate-700/50 z-50">
+                        <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mb-8 font-bold text-2xl text-white shadow-sm">
                             R
                         </div>
                         
-                        <div className="flex-1 flex flex-col w-full px-2 space-y-2">
+                        <div className="flex-1 flex flex-col w-full px-2 space-y-3">
                             <button 
                                 onClick={() => setActiveTab('visual')} 
-                                className={`w-full aspect-square flex flex-col items-center justify-center rounded-lg transition-colors relative group ${activeTab === 'visual' ? 'bg-blue-600/20 text-blue-400' : 'hover:bg-slate-800 hover:text-slate-100'}`}
-                                title="可视化配置"
+                                className={`w-full py-3 flex flex-col items-center justify-center rounded-lg transition-colors relative group ${activeTab === 'visual' ? 'bg-blue-600/20 text-blue-400' : 'hover:bg-slate-800 hover:text-slate-100'}`}
                             >
-                                <Icon name="layout-dashboard" size={20} />
+                                <Icon name="layout-dashboard" size={22} className="mb-1" />
+                                <span className="text-[11px] font-medium">可视化</span>
                             </button>
                             
                             <button 
                                 onClick={() => setActiveTab('json')} 
-                                className={`w-full aspect-square flex flex-col items-center justify-center rounded-lg transition-colors relative group ${activeTab === 'json' ? 'bg-blue-600/20 text-blue-400' : 'hover:bg-slate-800 hover:text-slate-100'}`}
-                                title="高级 JSON"
+                                className={`w-full py-3 flex flex-col items-center justify-center rounded-lg transition-colors relative group ${activeTab === 'json' ? 'bg-blue-600/20 text-blue-400' : 'hover:bg-slate-800 hover:text-slate-100'}`}
                             >
-                                <Icon name="code" size={20} />
+                                <Icon name="code" size={22} className="mb-1" />
+                                <span className="text-[11px] font-medium">高级 JSON</span>
                             </button>
 
-                            <div className="w-6 h-px bg-slate-700/50 mx-auto my-2"></div>
+                            <div className="w-10 h-px bg-slate-700/50 mx-auto my-2"></div>
 
                             <button 
                                 onClick={() => setActiveTab('status')} 
-                                className={`w-full aspect-square flex flex-col items-center justify-center rounded-lg transition-colors relative group ${activeTab === 'status' ? 'bg-blue-600/20 text-blue-400' : 'hover:bg-slate-800 hover:text-slate-100'}`}
-                                title="运行状态"
+                                className={`w-full py-3 flex flex-col items-center justify-center rounded-lg transition-colors relative group ${activeTab === 'status' ? 'bg-blue-600/20 text-blue-400' : 'hover:bg-slate-800 hover:text-slate-100'}`}
                             >
-                                <Icon name="activity" size={20} />
+                                <Icon name="activity" size={22} className="mb-1" />
+                                <span className="text-[11px] font-medium">运行状态</span>
                             </button>
                             
                             <button 
                                 onClick={() => setActiveTab('guide')} 
-                                className={`w-full aspect-square flex flex-col items-center justify-center rounded-lg transition-colors relative group ${activeTab === 'guide' ? 'bg-blue-600/20 text-blue-400' : 'hover:bg-slate-800 hover:text-slate-100'}`}
-                                title="使用向导"
+                                className={`w-full py-3 flex flex-col items-center justify-center rounded-lg transition-colors relative group ${activeTab === 'guide' ? 'bg-blue-600/20 text-blue-400' : 'hover:bg-slate-800 hover:text-slate-100'}`}
                             >
-                                <Icon name="book-open" size={20} />
+                                <Icon name="book-open" size={22} className="mb-1" />
+                                <span className="text-[11px] font-medium">使用向导</span>
                             </button>
                         </div>
 
                         <div className="mt-auto w-full px-2">
                             <button 
                                 onClick={() => setActiveTab('customize')} 
-                                className={`w-full aspect-square flex flex-col items-center justify-center rounded-lg transition-colors relative group ${activeTab === 'customize' ? 'bg-orange-500/20 text-orange-400' : 'hover:bg-slate-800 text-orange-500/70 hover:text-orange-400'}`}
-                                title="定制开发服务"
+                                className={`w-full py-3 flex flex-col items-center justify-center rounded-lg transition-colors relative group ${activeTab === 'customize' ? 'bg-orange-500/20 text-orange-400' : 'hover:bg-slate-800 text-orange-500/70 hover:text-orange-400'}`}
                             >
-                                <Icon name="gem" size={20} />
+                                <Icon name="gem" size={22} className="mb-1" />
+                                <span className="text-[11px] font-medium">定制开发</span>
                             </button>
                         </div>
                     </div>
