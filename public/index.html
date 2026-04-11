@@ -470,6 +470,19 @@
                                         <p className="text-sm text-gray-500 mt-1">优先级: {activeCustomer.priority} (通过左侧拖拽调整)</p>
                                     </div>
 
+                                    {/* 帮助提示 */}
+                                    <div className="bg-blue-50 text-blue-800 text-sm p-4 rounded-lg mb-6 border border-blue-100">
+                                        <p className="font-semibold mb-1 flex items-center gap-1">
+                                            <Icon name="info" size={16} /> 提示与说明
+                                        </p>
+                                        <ul className="list-disc pl-5 space-y-1 text-blue-700/80">
+                                            <li>在这里的任何修改都不会立即生效，除非你点击左侧的<strong>“保存并应用配置”</strong>按钮。</li>
+                                            <li>你可以放心地在这里随意修改，然后使用右侧的<strong>沙盒测试</strong>功能验证你的规则是否正确。</li>
+                                            <li>如果你修改乱了，只要不点击保存，直接刷新页面即可恢复。</li>
+                                            <li>保存失败？或者习惯手写？你依然可以访问 <a href="/admin/config" className="underline hover:text-blue-900">高级 JSON 模式</a> 或直接修改服务器上的 <code>routes.json</code> 文件。</li>
+                                        </ul>
+                                    </div>
+
                                     {/* 基础设置 */}
                                     <div className="bg-white rounded-xl card-shadow p-6 mb-6">
                                         <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
