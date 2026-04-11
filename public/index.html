@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>规则引擎可视化配置台</title>
+    <title>规则引擎综合管理后台</title>
     <!-- 使用 CDN 引入 React, ReactDOM, Babel (开发环境) 和 Tailwind CSS -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
@@ -42,6 +42,8 @@
             background-color: #F8FAFC;
             color: #1F2937;
             font-family: 'Inter', 'Roboto', sans-serif;
+            margin: 0;
+            overflow: hidden;
         }
         /* 自定义滚动条 */
         ::-webkit-scrollbar {
@@ -86,8 +88,6 @@
         const { useState, useEffect, useRef, useCallback } = React;
 
         // --- 组件库 ---
-        
-        // 图标组件封装
         const Icon = ({ name, size = 20, className = "" }) => {
             const iconRef = useRef(null);
             useEffect(() => {
@@ -106,7 +106,6 @@
             return <i data-lucide={name} className={className}></i>;
         };
 
-        // 标签输入组件
         const TagInput = ({ value = [], onChange, placeholder }) => {
             const [inputValue, setInputValue] = useState('');
             
@@ -153,89 +152,26 @@
             );
         };
 
-        // --- 主应用 ---
-        const App = () => {
-            const [config, setConfig] = useState({ customers: [] });
-            const [loading, setLoading] = useState(true);
-            const [saving, setSaving] = useState(false);
+        // --- 页面组件: 可视化配置 ---
+        const VisualConfig = ({ config, setConfig, loading, handleSaveConfig, saving }) => {
             const [activeCustomerIndex, setActiveCustomerIndex] = useState(null);
-            
-            // 沙盒状态
             const [testText, setTestText] = useState('');
             const [testResult, setTestResult] = useState(null);
             const [testing, setTesting] = useState(false);
 
-            // 获取配置
-            const fetchConfig = async () => {
-                try {
-                    setLoading(true);
-                    const res = await fetch('/api/config');
-                    if (res.ok) {
-                        const data = await res.json();
-                        // 确保按优先级排序
-                        data.customers.sort((a, b) => (a.priority || 0) - (b.priority || 0));
-                        setConfig(data);
-                    }
-                } catch (error) {
-                    console.error('Failed to fetch config:', error);
-                    alert('获取配置失败，请检查网络或刷新重试。');
-                } finally {
-                    setLoading(false);
-                }
-            };
-
-            useEffect(() => {
-                fetchConfig();
-            }, []);
-
-            // 保存配置
-            const handleSaveConfig = async () => {
-                try {
-                    setSaving(true);
-                    // 保存前重置一下 priority 确保顺序正确
-                    const configToSave = {
-                        ...config,
-                        customers: config.customers.map((c, i) => ({ ...c, priority: i + 1 }))
-                    };
-                    
-                    const res = await fetch('/api/config', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(configToSave)
-                    });
-                    
-                    const data = await res.json();
-                    if (data.success) {
-                        alert('配置保存成功！');
-                        setConfig(configToSave);
-                    } else {
-                        alert('保存失败！');
-                    }
-                } catch (error) {
-                    console.error('Failed to save config:', error);
-                    alert('保存请求出错。');
-                } finally {
-                    setSaving(false);
-                }
-            };
-
-            // 沙盒测试
             const handleTest = async () => {
                 if (!testText.trim()) return;
-                
                 try {
                     setTesting(true);
                     const configToTest = {
                         ...config,
                         customers: config.customers.map((c, i) => ({ ...c, priority: i + 1 }))
                     };
-                    
                     const res = await fetch('/api/test', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ text: testText, config: configToTest })
                     });
-                    
                     const data = await res.json();
                     if (data.success) {
                         setTestResult(data.data);
@@ -250,7 +186,6 @@
                 }
             };
 
-            // 客户列表拖拽排序 (简易实现)
             const handleDragStart = (e, index) => {
                 e.dataTransfer.setData('draggedIndex', index);
                 e.dataTransfer.effectAllowed = 'move';
@@ -269,27 +204,18 @@
                 const newCustomers = [...config.customers];
                 const [draggedItem] = newCustomers.splice(draggedIndex, 1);
                 newCustomers.splice(dropIndex, 0, draggedItem);
-                
-                // 更新优先级
                 newCustomers.forEach((c, i) => { c.priority = i + 1; });
-                
                 setConfig({ ...config, customers: newCustomers });
                 
-                // 调整当前激活的索引
                 if (activeCustomerIndex === draggedIndex) {
                     setActiveCustomerIndex(dropIndex);
-                } else if (
-                    (activeCustomerIndex > draggedIndex && activeCustomerIndex <= dropIndex)
-                ) {
+                } else if ((activeCustomerIndex > draggedIndex && activeCustomerIndex <= dropIndex)) {
                     setActiveCustomerIndex(activeCustomerIndex - 1);
-                } else if (
-                    (activeCustomerIndex < draggedIndex && activeCustomerIndex >= dropIndex)
-                ) {
+                } else if ((activeCustomerIndex < draggedIndex && activeCustomerIndex >= dropIndex)) {
                     setActiveCustomerIndex(activeCustomerIndex + 1);
                 }
             };
 
-            // 客户操作
             const addCustomer = () => {
                 const newCustomer = {
                     name: `New Customer ${config.customers.length + 1}`,
@@ -315,7 +241,6 @@
             const deleteCustomer = (index, e) => {
                 e.stopPropagation();
                 if (!confirm('确定要删除这个客户配置吗？')) return;
-                
                 const newCustomers = config.customers.filter((_, i) => i !== index);
                 setConfig({ ...config, customers: newCustomers });
                 if (activeCustomerIndex === index) {
@@ -325,7 +250,6 @@
                 }
             };
 
-            // 更新当前编辑的客户
             const updateActiveCustomer = (updates) => {
                 if (activeCustomerIndex === null) return;
                 const newCustomers = [...config.customers];
@@ -333,7 +257,6 @@
                 setConfig({ ...config, customers: newCustomers });
             };
 
-            // 规则操作
             const updateRule = (fieldName, ruleUpdates) => {
                 if (activeCustomerIndex === null) return;
                 const customer = config.customers[activeCustomerIndex];
@@ -345,13 +268,11 @@
             const addRuleField = () => {
                 const fieldName = prompt('输入新的提取字段名称（例如：时区）：');
                 if (!fieldName || !fieldName.trim()) return;
-                
                 const customer = config.customers[activeCustomerIndex];
                 if (customer.rules[fieldName]) {
                     alert('该字段已存在！');
                     return;
                 }
-                
                 const newRules = { ...customer.rules };
                 newRules[fieldName] = { type: 'constant', value: '' };
                 updateActiveCustomer({ rules: newRules });
@@ -365,36 +286,12 @@
                 updateActiveCustomer({ rules: newRules });
             };
 
-            if (loading) {
-                return <div className="flex items-center justify-center h-screen"><div className="text-xl text-primary font-semibold">加载配置中...</div></div>;
-            }
+            if (loading) return <div className="flex items-center justify-center h-full"><div className="text-xl text-primary font-semibold">加载配置中...</div></div>;
 
             const activeCustomer = activeCustomerIndex !== null ? config.customers[activeCustomerIndex] : null;
 
             return (
-                <div className="flex h-screen overflow-hidden bg-background">
-                    {/* 左侧：导航/全局操作 */}
-                    <div className="w-16 bg-primary text-white flex flex-col items-center py-6 shrink-0">
-                        <div className="w-10 h-10 bg-secondary rounded-xl flex items-center justify-center mb-8 font-bold text-xl shadow-lg">
-                            R
-                        </div>
-                        <button 
-                            onClick={handleSaveConfig} 
-                            disabled={saving}
-                            className="p-3 rounded-xl hover:bg-white/10 transition-colors mb-4 relative group"
-                            title="保存并应用配置"
-                        >
-                            <Icon name="save" size={24} />
-                            {saving && <span className="absolute top-0 right-0 w-2 h-2 bg-green-400 rounded-full animate-ping"></span>}
-                        </button>
-                        <a href="/admin/status" className="p-3 rounded-xl hover:bg-white/10 transition-colors mb-4 text-white" title="状态监控">
-                            <Icon name="activity" size={24} />
-                        </a>
-                        <a href="/admin/config" className="p-3 rounded-xl hover:bg-white/10 transition-colors mb-4 text-white" title="高级 JSON 模式">
-                            <Icon name="code" size={24} />
-                        </a>
-                    </div>
-
+                <div className="flex h-full overflow-hidden">
                     {/* 中左侧：客户列表 */}
                     <div className="w-80 bg-white border-r border-gray-200 flex flex-col shrink-0">
                         <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50/50">
@@ -402,13 +299,23 @@
                                 <Icon name="users" size={18} className="text-primary" />
                                 客户路由 ({config.customers.length})
                             </h2>
-                            <button 
-                                onClick={addCustomer}
-                                className="p-1.5 bg-secondary text-white rounded-md hover:bg-secondary/90 transition-colors"
-                                title="添加新客户"
-                            >
-                                <Icon name="plus" size={16} />
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button 
+                                    onClick={handleSaveConfig}
+                                    disabled={saving}
+                                    className="px-3 py-1.5 bg-green-500 text-white text-sm rounded-md hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                                >
+                                    {saving ? <Icon name="loader" size={14} className="animate-spin" /> : <Icon name="save" size={14} />}
+                                    保存
+                                </button>
+                                <button 
+                                    onClick={addCustomer}
+                                    className="p-1.5 bg-secondary text-white rounded-md hover:bg-secondary/90 transition-colors"
+                                    title="添加新客户"
+                                >
+                                    <Icon name="plus" size={16} />
+                                </button>
+                            </div>
                         </div>
                         
                         <div className="flex-1 overflow-y-auto p-3 space-y-3">
@@ -452,11 +359,6 @@
                                     </button>
                                 </div>
                             ))}
-                            {config.customers.length === 0 && (
-                                <div className="text-center py-10 text-gray-400 text-sm">
-                                    暂无客户配置，点击右上角添加。
-                                </div>
-                            )}
                         </div>
                     </div>
 
@@ -468,19 +370,6 @@
                                     <div className="mb-6 pb-4 border-b border-gray-200">
                                         <h1 className="text-2xl font-bold text-gray-900">编辑客户配置</h1>
                                         <p className="text-sm text-gray-500 mt-1">优先级: {activeCustomer.priority} (通过左侧拖拽调整)</p>
-                                    </div>
-
-                                    {/* 帮助提示 */}
-                                    <div className="bg-blue-50 text-blue-800 text-sm p-4 rounded-lg mb-6 border border-blue-100">
-                                        <p className="font-semibold mb-1 flex items-center gap-1">
-                                            <Icon name="info" size={16} /> 提示与说明
-                                        </p>
-                                        <ul className="list-disc pl-5 space-y-1 text-blue-700/80">
-                                            <li>在这里的任何修改都不会立即生效，除非你点击左侧的<strong>“保存并应用配置”</strong>按钮。</li>
-                                            <li>你可以放心地在这里随意修改，然后使用右侧的<strong>沙盒测试</strong>功能验证你的规则是否正确。</li>
-                                            <li>如果你修改乱了，只要不点击保存，直接刷新页面即可恢复。</li>
-                                            <li>保存失败？或者习惯手写？你依然可以访问 <a href="/admin/config" className="underline hover:text-blue-900">高级 JSON 模式</a> 或直接修改服务器上的 <code>routes.json</code> 文件。</li>
-                                        </ul>
                                     </div>
 
                                     {/* 基础设置 */}
@@ -573,7 +462,6 @@
                                                                         value={rule.value || ''} 
                                                                         onChange={(e) => updateRule(field, { value: e.target.value })}
                                                                         className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-secondary focus:border-secondary text-sm"
-                                                                        placeholder="例如：GG 或 客户A"
                                                                     />
                                                                 </div>
                                                             )}
@@ -595,7 +483,6 @@
                                                                             value={rule.keyword || ''} 
                                                                             onChange={(e) => updateRule(field, { keyword: e.target.value })}
                                                                             className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-secondary focus:border-secondary text-sm"
-                                                                            placeholder="例如：应用名称"
                                                                         />
                                                                     </div>
                                                                     <div>
@@ -605,7 +492,6 @@
                                                                             value={rule.strip_chars || ''} 
                                                                             onChange={(e) => updateRule(field, { strip_chars: e.target.value })}
                                                                             className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-secondary focus:border-secondary text-sm font-mono"
-                                                                            placeholder="例如：：: "
                                                                         />
                                                                     </div>
                                                                 </div>
@@ -620,7 +506,6 @@
                                                                             value={rule.pattern || ''} 
                                                                             onChange={(e) => updateRule(field, { pattern: e.target.value })}
                                                                             className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-secondary focus:border-secondary text-sm font-mono text-primary"
-                                                                            placeholder="例如：pak\\d+-([^\\s]+)"
                                                                         />
                                                                     </div>
                                                                     <div>
@@ -630,7 +515,6 @@
                                                                             value={rule.transform || ''} 
                                                                             onChange={(e) => updateRule(field, { transform: e.target.value })}
                                                                             className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-secondary focus:border-secondary text-sm font-mono text-secondary"
-                                                                            placeholder="例如：toUpperCase 或 APK$1"
                                                                         />
                                                                     </div>
                                                                 </div>
@@ -639,12 +523,6 @@
                                                     </div>
                                                 </div>
                                             ))}
-                                            
-                                            {Object.keys(activeCustomer.rules || {}).length === 0 && (
-                                                <div className="text-center py-6 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-lg">
-                                                    还没有配置任何提取规则，点击右上角添加。
-                                                </div>
-                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -705,8 +583,369 @@
             );
         };
 
+        // --- 页面组件: 高级 JSON 配置 ---
+        const JsonConfig = ({ config, fetchConfig }) => {
+            const [jsonText, setJsonText] = useState('');
+            const [saving, setSaving] = useState(false);
+
+            useEffect(() => {
+                setJsonText(JSON.stringify(config, null, 2));
+            }, [config]);
+
+            const handleSave = async () => {
+                try {
+                    setSaving(true);
+                    const parsed = JSON.parse(jsonText);
+                    const res = await fetch('/api/config', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(parsed)
+                    });
+                    if (res.ok) {
+                        alert('高级配置保存成功！');
+                        fetchConfig();
+                    } else {
+                        alert('保存失败，请检查格式');
+                    }
+                } catch (e) {
+                    alert('JSON 格式错误: ' + e.message);
+                } finally {
+                    setSaving(false);
+                }
+            };
+
+            const handleBackup = async () => {
+                try {
+                    const res = await fetch('/api/config/backup', { method: 'POST' });
+                    const data = await res.json();
+                    if (data.success) {
+                        alert('配置备份成功: ' + data.filename);
+                    } else {
+                        alert('备份失败');
+                    }
+                } catch (e) {
+                    alert('请求备份失败');
+                }
+            };
+
+            return (
+                <div className="flex-1 flex flex-col p-6 bg-gray-50 overflow-y-auto">
+                    <div className="max-w-6xl mx-auto w-full">
+                        <div className="flex justify-between items-center mb-6">
+                            <div>
+                                <h1 className="text-2xl font-bold text-gray-900">高级 JSON 配置</h1>
+                                <p className="text-sm text-gray-500 mt-1">在这里直接修改 JSON 结构，点击下方保存即可生效。</p>
+                            </div>
+                            <div className="flex gap-3">
+                                <button onClick={handleBackup} className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors flex items-center gap-2">
+                                    <Icon name="archive" size={16} /> 备份当前配置
+                                </button>
+                                <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors flex items-center gap-2">
+                                    {saving ? <Icon name="loader" size={16} className="animate-spin" /> : <Icon name="save" size={16} />} 
+                                    保存并重载配置
+                                </button>
+                            </div>
+                        </div>
+                        <div className="bg-white rounded-xl card-shadow p-2 h-[700px]">
+                            <textarea
+                                value={jsonText}
+                                onChange={(e) => setJsonText(e.target.value)}
+                                className="w-full h-full p-4 font-mono text-sm bg-[#1E1E1E] text-[#D4D4D4] rounded-lg focus:outline-none resize-none"
+                                spellCheck="false"
+                            ></textarea>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- 页面组件: 系统状态 ---
+        const StatusPage = () => {
+            const [status, setStatus] = useState(null);
+            const [loading, setLoading] = useState(true);
+
+            useEffect(() => {
+                const fetchStatus = async () => {
+                    try {
+                        const res = await fetch('/api/status');
+                        if (res.ok) {
+                            const data = await res.json();
+                            setStatus(data);
+                        }
+                    } catch (e) {
+                        console.error(e);
+                    } finally {
+                        setLoading(false);
+                    }
+                };
+                fetchStatus();
+                const timer = setInterval(fetchStatus, 5000);
+                return () => clearInterval(timer);
+            }, []);
+
+            if (loading && !status) return <div className="flex-1 flex items-center justify-center">加载中...</div>;
+
+            return (
+                <div className="flex-1 p-8 bg-gray-50 overflow-y-auto">
+                    <div className="max-w-5xl mx-auto">
+                        <h1 className="text-3xl font-bold text-gray-900 mb-8 flex items-center gap-3">
+                            <Icon name="activity" size={32} className="text-secondary" />
+                            系统运行状态
+                        </h1>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                            <div className="bg-white p-6 rounded-xl card-shadow border-l-4 border-blue-500">
+                                <p className="text-sm font-medium text-gray-500 mb-1">运行时间 (Uptime)</p>
+                                <p className="text-2xl font-bold text-gray-800">{Math.floor(status?.uptime || 0)} 秒</p>
+                            </div>
+                            <div className="bg-white p-6 rounded-xl card-shadow border-l-4 border-green-500">
+                                <p className="text-sm font-medium text-gray-500 mb-1">Google Sheets API</p>
+                                <p className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                                    {status?.sheetsReady ? <><span className="w-3 h-3 rounded-full bg-green-500"></span> 已连接</> : <><span className="w-3 h-3 rounded-full bg-red-500"></span> 未连接</>}
+                                </p>
+                            </div>
+                            <div className="bg-white p-6 rounded-xl card-shadow border-l-4 border-purple-500">
+                                <p className="text-sm font-medium text-gray-500 mb-1">加载的客户数</p>
+                                <p className="text-2xl font-bold text-gray-800">{status?.configCustomersCount || 0} 个</p>
+                            </div>
+                            <div className="bg-white p-6 rounded-xl card-shadow border-l-4 border-orange-500">
+                                <p className="text-sm font-medium text-gray-500 mb-1">配置备份数量</p>
+                                <p className="text-2xl font-bold text-gray-800">{status?.backupCount || 0} 份</p>
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-xl card-shadow p-6">
+                            <h2 className="text-xl font-bold mb-4 border-b pb-2">运行环境信息</h2>
+                            <div className="grid grid-cols-2 gap-y-4 text-sm">
+                                <div className="text-gray-500">最后配置修改时间</div>
+                                <div className="font-mono">{new Date(status?.lastConfigModified).toLocaleString() || '未知'}</div>
+                                <div className="text-gray-500">Node.js 内存使用</div>
+                                <div className="font-mono">{(status?.memoryUsage?.rss / 1024 / 1024).toFixed(2)} MB</div>
+                                <div className="text-gray-500">服务器时间</div>
+                                <div className="font-mono">{new Date().toLocaleString()}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- 页面组件: 使用向导 ---
+        const GuidePage = () => (
+            <div className="flex-1 p-8 bg-gray-50 overflow-y-auto">
+                <div className="max-w-4xl mx-auto bg-white rounded-xl card-shadow p-8">
+                    <h1 className="text-3xl font-bold text-primary mb-6 flex items-center gap-3">
+                        <Icon name="book-open" size={32} />
+                        机器人使用向导
+                    </h1>
+                    
+                    <div className="prose max-w-none text-gray-700 space-y-6">
+                        <section>
+                            <h2 className="text-xl font-bold text-gray-900 mb-3">1. 机器人工作原理</h2>
+                            <p>本机器人通过监听 Telegram 群聊消息，利用预设的“触发条件”捕获包含发包信息的文本。捕获后，机器人将使用“配置管理”中的正则表达式或关键词规则，将杂乱的文本清洗成结构化数据，并最终写入到指定的 Google Sheets 中。</p>
+                        </section>
+
+                        <section>
+                            <h2 className="text-xl font-bold text-gray-900 mb-3">2. 触发条件</h2>
+                            <p>机器人在后台会自动判断一段文字是否是“发包信息”。只要文本中满足以下<strong>任意一个条件</strong>，就会被抓取并解析：</p>
+                            <ul className="list-disc pl-5 space-y-1 mt-2 bg-blue-50 p-4 rounded-lg">
+                                <li>包含“神包”且包含“上”</li>
+                                <li>包含“名称”且包含“链接”</li>
+                                <li>包含“链接”且包含“命名”</li>
+                                <li>包含任何合法的 `http://` 或 `https://` 链接</li>
+                                <li>包含特定客户标签（如 S97, BA99, pak, VIP, APP0, 150244 等）</li>
+                            </ul>
+                        </section>
+
+                        <section>
+                            <h2 className="text-xl font-bold text-gray-900 mb-3">3. 常用命令</h2>
+                            <div className="bg-gray-100 p-4 rounded-lg font-mono text-sm space-y-2">
+                                <p><span className="font-bold text-primary">/help</span> - 查看简易帮助列表</p>
+                                <p><span className="font-bold text-primary">/status</span> - 获取本管理后台的链接</p>
+                                <p><span className="font-bold text-primary">/customer</span> - 列出当前系统内已配置的所有客户名称</p>
+                                <p><span className="font-bold text-primary">/id</span> - 获取当前所在群组的 Chat ID（用于绑定内部管理群）</p>
+                            </div>
+                        </section>
+
+                        <section>
+                            <h2 className="text-xl font-bold text-gray-900 mb-3">4. 常见问题排查</h2>
+                            <div className="space-y-4">
+                                <div>
+                                    <h3 className="font-semibold text-red-600">Q: 机器人在群里没有任何反应？</h3>
+                                    <p className="mt-1">A: 请检查该群是否关闭了“Group Privacy”模式。你必须在 BotFather 中将机器人的 <code>Group Privacy</code> 设置为 <code>Disabled</code>，机器人才能读取群内所有的普通消息。</p>
+                                </div>
+                                <div>
+                                    <h3 className="font-semibold text-red-600">Q: 机器人提示 "Sheets API not ready"？</h3>
+                                    <p className="mt-1">A: 请进入“系统状态”页面查看 Sheets API 状态。如果是红色的“未连接”，说明服务器上缺少 <code>google-credentials.json</code> 授权文件，或者该服务号没有被添加为您 Google 表格的“编辑者”。</p>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            </div>
+        );
+
+        // --- 页面组件: 定制服务 ---
+        const CustomizePage = () => (
+            <div className="flex-1 p-8 bg-gradient-to-br from-blue-50 to-cyan-50 overflow-y-auto">
+                <div className="max-w-4xl mx-auto bg-white rounded-xl card-shadow p-10 text-center">
+                    <div className="w-20 h-20 bg-gradient-to-r from-primary to-secondary rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                        <Icon name="diamond" size={40} className="text-white" />
+                    </div>
+                    <h1 className="text-4xl font-bold text-gray-900 mb-4">RuntoAds 自动化技术支持</h1>
+                    <p className="text-lg text-gray-600 mb-10 max-w-2xl mx-auto">
+                        我们致力于为出海广告团队、媒介投放团队提供最顶尖的工具链自动化支持。如果你需要更深度的定制功能，欢迎联系我们。
+                    </p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10 text-left">
+                        <div className="p-6 border border-gray-100 rounded-xl bg-gray-50 hover:shadow-md transition-shadow">
+                            <Icon name="bot" size={28} className="text-primary mb-3" />
+                            <h3 className="font-bold text-lg mb-2">定制机器人开发</h3>
+                            <p className="text-sm text-gray-600">自动建群、自动拉人、消息定时群发、自动财务报表统计等复杂的 Telegram 机器人定制。</p>
+                        </div>
+                        <div className="p-6 border border-gray-100 rounded-xl bg-gray-50 hover:shadow-md transition-shadow">
+                            <Icon name="database" size={28} className="text-secondary mb-3" />
+                            <h3 className="font-bold text-lg mb-2">多系统数据打通</h3>
+                            <p className="text-sm text-gray-600">将 Telegram 数据无缝同步到自建 CRM 后台、钉钉、飞书、或者海外各种 SaaS 平台。</p>
+                        </div>
+                        <div className="p-6 border border-gray-100 rounded-xl bg-gray-50 hover:shadow-md transition-shadow">
+                            <Icon name="server" size={28} className="text-blue-600 mb-3" />
+                            <h3 className="font-bold text-lg mb-2">私有化高可用部署</h3>
+                            <p className="text-sm text-gray-600">为您搭建支持万人高并发的高可用服务架构，确保数据隐私与系统稳定不宕机。</p>
+                        </div>
+                    </div>
+                    
+                    <div className="inline-flex items-center gap-2 px-6 py-3 bg-gray-900 text-white rounded-full font-medium">
+                        <Icon name="mail" size={18} />
+                        联系我们：support@runtoads.top
+                    </div>
+                </div>
+            </div>
+        );
+
+        // --- 根应用路由 ---
+        const Main = () => {
+            const [activeTab, setActiveTab] = useState('visual');
+            const [config, setConfig] = useState({ customers: [] });
+            const [loading, setLoading] = useState(true);
+
+            const fetchConfig = async () => {
+                try {
+                    setLoading(true);
+                    const res = await fetch('/api/config');
+                    if (res.ok) {
+                        const data = await res.json();
+                        data.customers.sort((a, b) => (a.priority || 0) - (b.priority || 0));
+                        setConfig(data);
+                    }
+                } catch (error) {
+                    console.error('Failed to fetch config:', error);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            useEffect(() => {
+                fetchConfig();
+            }, []);
+
+            const renderContent = () => {
+                switch (activeTab) {
+                    case 'visual':
+                        return <VisualConfig config={config} setConfig={setConfig} loading={loading} handleSaveConfig={async () => {
+                            try {
+                                const configToSave = { ...config, customers: config.customers.map((c, i) => ({ ...c, priority: i + 1 })) };
+                                const res = await fetch('/api/config', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify(configToSave)
+                                });
+                                if (res.ok) {
+                                    alert('配置保存成功！');
+                                    setConfig(configToSave);
+                                }
+                            } catch (e) {
+                                alert('保存失败');
+                            }
+                        }} saving={false} />;
+                    case 'json':
+                        return <JsonConfig config={config} fetchConfig={fetchConfig} />;
+                    case 'status':
+                        return <StatusPage />;
+                    case 'guide':
+                        return <GuidePage />;
+                    case 'customize':
+                        return <CustomizePage />;
+                    default:
+                        return <VisualConfig config={config} setConfig={setConfig} loading={loading} />;
+                }
+            };
+
+            return (
+                <div className="flex h-screen overflow-hidden bg-background w-full">
+                    {/* 左侧：全局侧边栏导航 */}
+                    <div className="w-20 bg-[#0F172A] text-white flex flex-col items-center py-6 shrink-0 shadow-2xl z-50">
+                        <div className="w-12 h-12 bg-gradient-to-br from-secondary to-blue-600 rounded-xl flex items-center justify-center mb-8 font-bold text-2xl shadow-lg shadow-cyan-500/30">
+                            R
+                        </div>
+                        
+                        <div className="flex-1 flex flex-col w-full px-3 space-y-4">
+                            <button 
+                                onClick={() => setActiveTab('visual')} 
+                                className={`w-full aspect-square flex flex-col items-center justify-center rounded-xl transition-all duration-200 group relative ${activeTab === 'visual' ? 'bg-primary shadow-inner text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                            >
+                                <Icon name="layout-dashboard" size={24} className={activeTab === 'visual' ? 'text-secondary' : 'group-hover:scale-110 transition-transform'} />
+                                <span className="text-[10px] mt-1 opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-1">可视化</span>
+                            </button>
+                            
+                            <button 
+                                onClick={() => setActiveTab('json')} 
+                                className={`w-full aspect-square flex flex-col items-center justify-center rounded-xl transition-all duration-200 group relative ${activeTab === 'json' ? 'bg-primary shadow-inner text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                            >
+                                <Icon name="code" size={24} className={activeTab === 'json' ? 'text-secondary' : 'group-hover:scale-110 transition-transform'} />
+                                <span className="text-[10px] mt-1 opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-1">JSON</span>
+                            </button>
+
+                            <div className="w-8 h-px bg-slate-700 mx-auto my-2"></div>
+
+                            <button 
+                                onClick={() => setActiveTab('status')} 
+                                className={`w-full aspect-square flex flex-col items-center justify-center rounded-xl transition-all duration-200 group relative ${activeTab === 'status' ? 'bg-primary shadow-inner text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                            >
+                                <Icon name="activity" size={24} className={activeTab === 'status' ? 'text-secondary' : 'group-hover:scale-110 transition-transform'} />
+                                <span className="text-[10px] mt-1 opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-1">状态</span>
+                            </button>
+                            
+                            <button 
+                                onClick={() => setActiveTab('guide')} 
+                                className={`w-full aspect-square flex flex-col items-center justify-center rounded-xl transition-all duration-200 group relative ${activeTab === 'guide' ? 'bg-primary shadow-inner text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                            >
+                                <Icon name="book-open" size={24} className={activeTab === 'guide' ? 'text-secondary' : 'group-hover:scale-110 transition-transform'} />
+                                <span className="text-[10px] mt-1 opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-1">向导</span>
+                            </button>
+                        </div>
+
+                        <div className="mt-auto w-full px-3">
+                            <button 
+                                onClick={() => setActiveTab('customize')} 
+                                className={`w-full aspect-square flex flex-col items-center justify-center rounded-xl transition-all duration-200 group relative ${activeTab === 'customize' ? 'bg-gradient-to-br from-amber-500 to-orange-600 text-white' : 'text-amber-500 hover:text-white hover:bg-slate-800'}`}
+                            >
+                                <Icon name="gem" size={24} className={activeTab === 'customize' ? 'animate-pulse' : 'group-hover:scale-110 transition-transform'} />
+                                <span className="text-[10px] mt-1 opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-1">定制</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* 右侧：主内容区 */}
+                    <div className="flex-1 flex overflow-hidden">
+                        {renderContent()}
+                    </div>
+                </div>
+            );
+        };
+
         const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        root.render(<Main />);
     </script>
 </body>
 </html>

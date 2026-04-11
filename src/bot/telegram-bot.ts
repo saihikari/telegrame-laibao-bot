@@ -6,7 +6,9 @@ import { appendRecord } from './sheets-service';
 
 const token = process.env.BOT_TOKEN || '';
 const internalChatIds = (process.env.INTERNAL_CHAT_IDS || '').split(',').map(id => id.trim());
-const adminPort = process.env.ADMIN_PORT || '8090';
+const adminPort = process.env.ADMIN_PORT || '8070';
+const webDomain = process.env.WEB_DOMAIN || 'http://www.runtoads.top';
+const baseUrl = `${webDomain}:${adminPort}`;
 
 let bot: TelegramBot;
 
@@ -63,16 +65,14 @@ export const startBot = () => {
   /customer - 列出所有客户名称
 - 常见问题：
   若机器人未回复，请检查是否包含必填关键词（如名称、链接等）。
-- 管理界面：http://www.runtoads.top:${adminPort}/admin/config
-- 状态页：http://www.runtoads.top:${adminPort}/admin/status
-- 机器人定制服务：http://www.runtoads.top:${adminPort}/admin/customize
+- 综合管理后台：${baseUrl}/admin/config-visual
     `;
     bot.sendMessage(msg.chat.id, helpText, { parse_mode: 'Markdown' });
   });
 
   bot.onText(/^\/status$/, (msg) => {
     // 使用真实的域名
-    bot.sendMessage(msg.chat.id, `机器人状态页面：http://www.runtoads.top:${adminPort}/admin/status`);
+    bot.sendMessage(msg.chat.id, `综合管理后台：${baseUrl}/admin/config-visual`);
   });
 
   bot.onText(/^\/customer$/, (msg) => {
