@@ -119,6 +119,18 @@
         "TT识别码": { "type": "constant", "value": "未匹配" },
         "媒体类型": { "type": "constant", "value": "GG" }
       }
+    },
+    {
+      "name": "dm",
+      "match_keywords": ["代理线", "dm12"],
+      "priority": 10,
+      "exclude_keywords": [],
+      "rules": {
+        "客户": { "type": "constant", "value": "dm" },
+        "代理线": { "type": "regex", "pattern": "代理线：\\s*([a-zA-Z0-9]+)" },
+        "APP链接": { "type": "url" },
+        "关联ID": { "type": "regex", "pattern": "关联ID：\\s*([A-Za-z0-9]+)" }
+      }
     }
   ]
 }

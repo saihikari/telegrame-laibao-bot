@@ -20,11 +20,12 @@ export const processMessage = (text: string, config: Config): ParsedData[] => {
     console.log('[RuleEngine] Detected multiple URLs in a single block, attempting intelligent split...');
     // 尝试根据常见的“客户包标识”或者“应用名称”前面加空行来强制切分
     // 这里我们可以根据 "S97" 或者 "BA99" 或者 "pak" 这种作为每个包的开头
-    // 为了稳妥，我们直接在 "S97包"、"BA99-"、"pak" 前面强制插入双换行
+    // 为了稳妥，我们直接在 "S97包"、"BA99-"、"pak"、"代理线" 前面强制插入双换行
     let newText = text;
     newText = newText.replace(/(\n)(S97包)/g, '$1\n$2');
     newText = newText.replace(/(\n)(BA99-)/g, '$1\n$2');
     newText = newText.replace(/(\n)(pak)/g, '$1\n$2');
+    newText = newText.replace(/(\s*)(代理线：)/g, '\n\n$2'); // 针对空格或无换行连着写的“代理线”强制切分
     blocks = newText.split(/\n[ \t\r\f]*\n/);
   }
   console.log(`[RuleEngine] Split message into ${blocks.length} blocks.`);
@@ -43,7 +44,7 @@ export const processMessage = (text: string, config: Config): ParsedData[] => {
     const hasGodAndUp = b.includes('神包') && b.includes('上');
     // 新增：只要包含 http 链接，或者包含马甲包等明显特征，也算触发
     const hasUrl = /https?:\/\//.test(b);
-    const hasClientTag = b.includes('S97') || b.includes('BA99') || b.includes('pak') || b.includes('VIP') || b.includes('APP0') || b.includes('150244');
+    const hasClientTag = b.includes('S97') || b.includes('BA99') || b.includes('pak') || b.includes('VIP') || b.includes('APP0') || b.includes('150244') || b.includes('dm12');
 
     console.log(`[RuleEngine] Block ${i + 1} trigger conditions: hasNameAndLink=${hasNameAndLink}, hasLinkAndNaming=${hasLinkAndNaming}, hasGodAndUp=${hasGodAndUp}, hasUrl=${hasUrl}, hasClientTag=${hasClientTag}`);
 
