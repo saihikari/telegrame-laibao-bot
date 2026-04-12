@@ -60,19 +60,19 @@ export const startBot = () => {
 - 指令列表：
   /id - 获取当前群Chat ID
   /test - 测试内部群连通性
-  /help - 查看帮助和FQA
+  /help - 查看帮助和FAQ
   /status - 获取状态页URL
   /customer - 列出所有客户名称
 - 常见问题：
   若机器人未回复，请检查是否包含必填关键词（如名称、链接等）。
-- 综合管理后台：${baseUrl}/admin/config-visual
+- 综合管理后台：${baseUrl}/admin/
     `;
     bot.sendMessage(msg.chat.id, helpText, { parse_mode: 'Markdown' });
   });
 
   bot.onText(/^\/status$/, (msg) => {
     // 使用真实的域名
-    bot.sendMessage(msg.chat.id, `综合管理后台：${baseUrl}/admin/config-visual`);
+    bot.sendMessage(msg.chat.id, `综合管理后台：${baseUrl}/admin/`);
   });
 
   bot.onText(/^\/customer$/, (msg) => {
