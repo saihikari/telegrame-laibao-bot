@@ -127,7 +127,8 @@
       "exclude_keywords": [],
       "rules": {
         "客户": { "type": "constant", "value": "CL" },
-        "应用名称": { "type": "regex", "pattern": "代理线：\\s*([a-zA-Z0-9]+)" },
+        "编号": { "type": "regex", "pattern": "代理线：\\s*([a-zA-Z0-9]+)" },
+        "应用名称": { "type": "constant", "value": "未匹配" },
         "链接": { "type": "url" },
         "TT识别码": { "type": "constant", "value": "未匹配" },
         "媒体类型": { "type": "constant", "value": "GG" }
