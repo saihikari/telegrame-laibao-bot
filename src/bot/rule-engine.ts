@@ -25,7 +25,7 @@ export const processMessage = (text: string, config: Config): ParsedData[] => {
     newText = newText.replace(/(\n)(S97包)/g, '$1\n$2');
     newText = newText.replace(/(\n)(BA99-)/g, '$1\n$2');
     newText = newText.replace(/(\n)(pak)/g, '$1\n$2');
-    newText = newText.replace(/(\s*)(代理线：)/g, '\n\n$2'); // 针对空格或无换行连着写的“代理线”强制切分
+    newText = newText.replace(/(\s*)(google\s+代理线：|代理线：)/g, '\n\n$2'); // 针对空格或无换行连着写的“代理线”或“google 代理线”强制切分
     blocks = newText.split(/\n[ \t\r\f]*\n/);
   }
   console.log(`[RuleEngine] Split message into ${blocks.length} blocks.`);
