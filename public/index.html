@@ -313,9 +313,9 @@
             const activeCustomer = activeCustomerIndex !== null ? config.customers[activeCustomerIndex] : null;
 
             return (
-                <div className="flex flex-col md:flex-row h-full w-full overflow-y-auto md:overflow-hidden">
+                <div className="block md:flex md:flex-row h-full w-full overflow-y-auto md:overflow-hidden">
                     {/* 中左侧：客户列表 */}
-                    <div className="w-full md:w-80 bg-white border-b md:border-r border-gray-200 flex flex-col shrink-0 h-[40vh] md:h-full">
+                    <div className="w-full md:w-80 bg-white border-b md:border-r border-gray-200 flex flex-col h-[40vh] md:h-full">
                         <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50/50">
                             <h2 className="font-semibold text-gray-800 flex items-center gap-2">
                                 <Icon name="users" size={18} className="text-primary" />
@@ -379,7 +379,7 @@
                     </div>
 
                     {/* 中右侧：配置表单 */}
-                    <div className="w-full md:flex-[2] bg-background flex flex-col min-w-0 md:min-w-[500px] min-h-[60vh] md:min-h-0 border-b md:border-b-0">
+                    <div className="w-full md:flex-[2] bg-background flex flex-col min-w-0 md:min-w-[500px] border-b md:border-b-0">
                         {activeCustomer ? (
                             <div className="flex-1 overflow-y-auto p-6 lg:p-8">
                                 <div className="max-w-4xl mx-auto">
@@ -562,9 +562,10 @@
                                 </div>
                             </div>
                         ) : (
-                            <div className="flex-1 flex flex-col items-center justify-center text-gray-400 bg-gray-50/30 p-6 lg:p-8 w-full h-full border-r border-gray-200">
+                            <div className="flex-1 flex flex-col items-center justify-center text-gray-400 bg-gray-50/30 p-10 md:p-6 lg:p-8 w-full min-h-[30vh] md:h-full border-r border-gray-200">
                                 <Icon name="mouse-pointer-click" size={48} className="mb-4 text-gray-300" />
-                                <p className="text-lg">请在左侧选择一个客户进行配置</p>
+                                <p className="text-lg hidden md:block">请在左侧选择一个客户进行配置</p>
+                                <p className="text-lg md:hidden">请在上方选择一个客户进行配置</p>
                             </div>
                         )}
                     </div>
