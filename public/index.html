@@ -318,7 +318,12 @@
                     <div className="w-full md:w-80 bg-white border-b md:border-r border-gray-200 flex flex-col h-auto md:h-full shrink-0">
                         <div className="p-3 md:p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50/50">
                             <h2 className="font-semibold text-gray-800 flex items-center gap-2 text-sm md:text-base">
-                                <Icon name="users" size={16} className="text-primary md:w-[18px] md:h-[18px]" />
+                                <div className="w-6 h-6 rounded-full overflow-hidden md:hidden shadow-sm border border-gray-200 flex-shrink-0 bg-black">
+                                    <img src="/admin/logo.jpg" alt="Logo" className="w-full h-full object-cover object-center" 
+                                         onError={(e) => { e.target.style.display='none'; e.target.parentElement.innerHTML='<div class="w-full h-full bg-blue-600 flex items-center justify-center font-bold text-xs text-white">R</div>'; }}
+                                    />
+                                </div>
+                                <Icon name="users" size={16} className="hidden md:block text-primary md:w-[18px] md:h-[18px]" />
                                 客户路由 ({config.customers.length})
                             </h2>
                             <div className="flex items-center gap-1.5 md:gap-2">
@@ -964,8 +969,13 @@
                 <div className="flex flex-col-reverse md:flex-row h-screen overflow-hidden bg-background w-full">
                     {/* 左侧/底部：全局导航 */}
                     <div className="w-full md:w-24 h-16 md:h-full bg-[#1e293b] text-slate-300 flex flex-row md:flex-col items-center justify-around md:justify-start md:py-4 shrink-0 border-t md:border-r border-slate-700/50 z-50 overflow-x-auto">
-                        <div className="hidden md:flex w-12 h-12 bg-blue-600 rounded-lg items-center justify-center mb-8 font-bold text-2xl text-white shadow-sm">
-                            R
+                        <div className="hidden md:flex w-14 h-14 rounded-full overflow-hidden mb-6 shadow-md border-2 border-slate-700/50 flex-shrink-0">
+                            <img src="/admin/logo.jpg" alt="Logo" className="w-full h-full object-cover object-center" 
+                                 onError={(e) => {
+                                     e.target.style.display = 'none';
+                                     e.target.parentElement.innerHTML = '<div class="w-full h-full bg-blue-600 flex items-center justify-center font-bold text-2xl text-white">R</div>';
+                                 }} 
+                            />
                         </div>
                         
                         <div className="flex flex-row md:flex-col w-full px-2 gap-2 md:space-y-3 justify-around md:justify-start">
