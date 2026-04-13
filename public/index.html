@@ -328,12 +328,12 @@
                                     className="px-3 py-1.5 bg-green-500 text-white text-sm rounded-md hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                                 >
                                     {saving ? <Icon name="loader" size={14} className="animate-spin" /> : <Icon name="save" size={14} />}
-                                    保存
+                                    保存所有客户配置
                                 </button>
                                 <button 
                                     onClick={addCustomer}
                                     className="p-1.5 bg-secondary text-white rounded-md hover:bg-secondary/90 transition-colors"
-                                    title="添加新客户"
+                                    title="添加新客户配置"
                                 >
                                     <Icon name="plus" size={16} />
                                 </button>
@@ -394,14 +394,14 @@
                                                 className="px-3 py-1.5 bg-blue-50 text-blue-600 text-sm rounded-md hover:bg-blue-100 transition-colors flex items-center gap-1 border border-blue-200 font-medium"
                                                 title="复制当前客户的所有配置"
                                             >
-                                                <Icon name="copy" size={14} /> 克隆
+                                                <Icon name="copy" size={14} /> 克隆本客户配置
                                             </button>
                                             <button 
                                                 onClick={(e) => deleteCustomer(activeCustomerIndex, e)}
                                                 className="px-3 py-1.5 bg-red-50 text-red-600 text-sm rounded-md hover:bg-red-100 transition-colors flex items-center gap-1 border border-red-200 font-medium"
                                                 title="永久删除当前客户"
                                             >
-                                                <Icon name="trash-2" size={14} /> 删除
+                                                <Icon name="trash-2" size={14} /> 删除本客户配置
                                             </button>
                                         </div>
                                     </div>
