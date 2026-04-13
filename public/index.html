@@ -315,66 +315,69 @@
             return (
                 <div className="block md:flex md:flex-row h-full w-full overflow-y-auto md:overflow-hidden">
                     {/* 中左侧：客户列表 */}
-                    <div className="w-full md:w-80 bg-white border-b md:border-r border-gray-200 flex flex-col h-[40vh] md:h-full">
-                        <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50/50">
-                            <h2 className="font-semibold text-gray-800 flex items-center gap-2">
-                                <Icon name="users" size={18} className="text-primary" />
+                    <div className="w-full md:w-80 bg-white border-b md:border-r border-gray-200 flex flex-col h-auto md:h-full shrink-0">
+                        <div className="p-3 md:p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50/50">
+                            <h2 className="font-semibold text-gray-800 flex items-center gap-2 text-sm md:text-base">
+                                <Icon name="users" size={16} className="text-primary md:w-[18px] md:h-[18px]" />
                                 客户路由 ({config.customers.length})
                             </h2>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1.5 md:gap-2">
                                 <button 
                                     onClick={handleSaveConfig}
                                     disabled={saving}
-                                    className="px-3 py-1.5 bg-green-500 text-white text-sm rounded-md hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                                    className="px-2 md:px-3 py-1 md:py-1.5 bg-green-500 text-white text-xs md:text-sm rounded-md hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                                 >
-                                    {saving ? <Icon name="loader" size={14} className="animate-spin" /> : <Icon name="save" size={14} />}
-                                    保存所有客户配置
+                                    {saving ? <Icon name="loader" size={12} className="animate-spin md:w-[14px] md:h-[14px]" /> : <Icon name="save" size={12} className="md:w-[14px] md:h-[14px]" />}
+                                    <span className="hidden md:inline">保存所有客户配置</span>
+                                    <span className="inline md:hidden">保存全部</span>
                                 </button>
                                 <button 
                                     onClick={addCustomer}
-                                    className="p-1.5 bg-secondary text-white rounded-md hover:bg-secondary/90 transition-colors"
+                                    className="p-1 md:p-1.5 bg-secondary text-white rounded-md hover:bg-secondary/90 transition-colors"
                                     title="添加新客户配置"
                                 >
-                                    <Icon name="plus" size={16} />
+                                    <Icon name="plus" size={14} className="md:w-[16px] md:h-[16px]" />
                                 </button>
                             </div>
                         </div>
                         
-                        <div className="flex-1 overflow-y-auto p-3 space-y-3">
-                            {config.customers.map((c, index) => (
-                                <div 
-                                    key={`${c.name}-${index}`}
-                                    draggable
-                                    onDragStart={(e) => handleDragStart(e, index)}
-                                    onDragOver={handleDragOver}
-                                    onDrop={(e) => handleDrop(e, index)}
-                                    onClick={() => setActiveCustomerIndex(index)}
-                                    className={`
-                                        p-3 rounded-lg border-2 cursor-pointer transition-all relative group card-shadow
-                                        ${activeCustomerIndex === index ? 'border-secondary bg-cyan-50/30' : 'border-transparent bg-white hover:border-gray-200'}
-                                    `}
-                                >
-                                    <div className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-300 opacity-0 group-hover:opacity-100 drag-handle">
-                                        <Icon name="grip-vertical" size={16} />
-                                    </div>
-                                    <div className="pl-6">
-                                        <div className="flex justify-between items-start mb-2">
-                                            <h3 className="font-semibold text-gray-800 truncate pr-4">{c.name}</h3>
-                                            <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-mono shrink-0">#{index + 1}</span>
+                        <div className="flex-none md:flex-1 overflow-y-visible md:overflow-y-auto p-2 md:p-3">
+                            <div className="grid grid-cols-4 md:grid-cols-1 gap-2 md:gap-3 md:space-y-0">
+                                {config.customers.map((c, index) => (
+                                    <div 
+                                        key={`${c.name}-${index}`}
+                                        draggable
+                                        onDragStart={(e) => handleDragStart(e, index)}
+                                        onDragOver={handleDragOver}
+                                        onDrop={(e) => handleDrop(e, index)}
+                                        onClick={() => setActiveCustomerIndex(index)}
+                                        className={`
+                                            p-1.5 md:p-3 rounded-lg border-2 cursor-pointer transition-all relative group card-shadow flex flex-col justify-center items-center md:items-stretch md:justify-start
+                                            ${activeCustomerIndex === index ? 'border-secondary bg-cyan-50/30' : 'border-transparent bg-white hover:border-gray-200'}
+                                        `}
+                                    >
+                                        <div className="hidden md:block absolute left-2 top-1/2 -translate-y-1/2 text-gray-300 opacity-0 group-hover:opacity-100 drag-handle">
+                                            <Icon name="grip-vertical" size={16} />
                                         </div>
-                                        <div className="flex flex-wrap gap-1">
-                                            {c.match_keywords?.slice(0, 3).map((kw, i) => (
-                                                <span key={i} className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-primary rounded truncate max-w-[80px]">
-                                                    {kw}
-                                                </span>
-                                            ))}
-                                            {c.match_keywords?.length > 3 && (
-                                                <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded">+{c.match_keywords.length - 3}</span>
-                                            )}
+                                        <div className="md:pl-6 w-full text-center md:text-left">
+                                            <div className="flex flex-col md:flex-row justify-center md:justify-between items-center md:items-start mb-1 md:mb-2">
+                                                <h3 className="font-semibold text-gray-800 truncate w-full text-xs md:text-base md:pr-4" title={c.name}>{c.name}</h3>
+                                                <span className="hidden md:inline-block text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-mono shrink-0">#{index + 1}</span>
+                                            </div>
+                                            <div className="hidden md:flex flex-wrap gap-1">
+                                                {c.match_keywords?.slice(0, 3).map((kw, i) => (
+                                                    <span key={i} className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-primary rounded truncate max-w-[80px]">
+                                                        {kw}
+                                                    </span>
+                                                ))}
+                                                {c.match_keywords?.length > 3 && (
+                                                    <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded">+{c.match_keywords.length - 3}</span>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
                     </div>
 
@@ -383,76 +386,76 @@
                         {activeCustomer ? (
                             <div className="flex-1 overflow-y-auto p-6 lg:p-8">
                                 <div className="max-w-4xl mx-auto">
-                                    <div className="mb-6 pb-4 border-b border-gray-200 flex justify-between items-start">
+                                    <div className="mb-4 md:mb-6 pb-3 md:pb-4 border-b border-gray-200 flex flex-col md:flex-row justify-between items-start gap-3 md:gap-0">
                                         <div>
-                                            <h1 className="text-2xl font-bold text-gray-900">编辑客户配置</h1>
-                                            <p className="text-sm text-gray-500 mt-1">优先级: {activeCustomer.priority} (通过左侧拖拽调整)</p>
+                                            <h1 className="text-xl md:text-2xl font-bold text-gray-900">编辑客户配置</h1>
+                                            <p className="text-xs md:text-sm text-gray-500 mt-1">优先级: {activeCustomer.priority} (通过电脑端左侧拖拽调整)</p>
                                         </div>
-                                        <div className="flex gap-2">
+                                        <div className="flex gap-2 w-full md:w-auto">
                                             <button 
                                                 onClick={(e) => duplicateCustomer(activeCustomerIndex, e)}
-                                                className="px-3 py-1.5 bg-blue-50 text-blue-600 text-sm rounded-md hover:bg-blue-100 transition-colors flex items-center gap-1 border border-blue-200 font-medium"
+                                                className="flex-1 md:flex-none justify-center px-2 md:px-3 py-1.5 md:py-1.5 bg-blue-50 text-blue-600 text-xs md:text-sm rounded-md hover:bg-blue-100 transition-colors flex items-center gap-1 border border-blue-200 font-medium whitespace-nowrap"
                                                 title="复制当前客户的所有配置"
                                             >
-                                                <Icon name="copy" size={14} /> 克隆本客户配置
+                                                <Icon name="copy" size={14} className="w-[12px] h-[12px] md:w-[14px] md:h-[14px]" /> <span className="hidden md:inline">克隆本客户配置</span><span className="md:hidden">克隆</span>
                                             </button>
                                             <button 
                                                 onClick={(e) => deleteCustomer(activeCustomerIndex, e)}
-                                                className="px-3 py-1.5 bg-red-50 text-red-600 text-sm rounded-md hover:bg-red-100 transition-colors flex items-center gap-1 border border-red-200 font-medium"
+                                                className="flex-1 md:flex-none justify-center px-2 md:px-3 py-1.5 md:py-1.5 bg-red-50 text-red-600 text-xs md:text-sm rounded-md hover:bg-red-100 transition-colors flex items-center gap-1 border border-red-200 font-medium whitespace-nowrap"
                                                 title="永久删除当前客户"
                                             >
-                                                <Icon name="trash-2" size={14} /> 删除本客户配置
+                                                <Icon name="trash-2" size={14} className="w-[12px] h-[12px] md:w-[14px] md:h-[14px]" /> <span className="hidden md:inline">删除本客户配置</span><span className="md:hidden">删除</span>
                                             </button>
                                         </div>
                                     </div>
 
                                     {/* 基础设置 */}
-                                    <div className="bg-white rounded-xl card-shadow p-6 mb-6">
-                                        <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                                            <Icon name="settings" size={18} className="text-primary" /> 
+                                    <div className="bg-white rounded-xl card-shadow p-4 md:p-6 mb-4 md:mb-6">
+                                        <h2 className="text-base md:text-lg font-semibold text-gray-800 mb-3 md:mb-4 flex items-center gap-2">
+                                            <Icon name="settings" size={16} className="text-primary md:w-[18px] md:h-[18px]" /> 
                                             基础设置
                                         </h2>
-                                        <div className="space-y-4">
+                                        <div className="space-y-3 md:space-y-4">
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">客户名称 (需与 Sheets 底部表名严格一致)</label>
+                                                <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">客户名称</label>
                                                 <input 
                                                     type="text" 
                                                     value={activeCustomer.name} 
                                                     onChange={(e) => updateActiveCustomer({ name: e.target.value })}
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-secondary focus:border-secondary"
+                                                    className="w-full px-2.5 py-1.5 md:px-3 md:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-secondary focus:border-secondary text-sm"
                                                 />
                                             </div>
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">匹配关键词 (包含任意一个即命中，Enter 键添加)</label>
+                                                <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">匹配关键词</label>
                                                 <TagInput 
                                                     value={activeCustomer.match_keywords || []} 
                                                     onChange={(tags) => updateActiveCustomer({ match_keywords: tags })}
-                                                    placeholder="输入关键词后按回车..."
+                                                    placeholder="输入词按回车..."
                                                 />
                                             </div>
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">排除关键词 (包含任意一个则跳过，优先级高于匹配)</label>
+                                                <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">排除关键词</label>
                                                 <TagInput 
                                                     value={activeCustomer.exclude_keywords || []} 
                                                     onChange={(tags) => updateActiveCustomer({ exclude_keywords: tags })}
-                                                    placeholder="可选：输入需排除的词..."
+                                                    placeholder="可选: 输入需排除的词..."
                                                 />
                                             </div>
                                         </div>
                                     </div>
 
                                     {/* 字段提取规则 */}
-                                    <div className="bg-white rounded-xl card-shadow p-6 mb-8">
-                                        <div className="flex justify-between items-center mb-4 pb-2 border-b border-gray-100">
-                                            <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                                                <Icon name="file-json" size={18} className="text-primary" /> 
+                                    <div className="bg-white rounded-xl card-shadow p-4 md:p-6 mb-6 md:mb-8">
+                                        <div className="flex justify-between items-center mb-3 md:mb-4 pb-2 border-b border-gray-100">
+                                            <h2 className="text-base md:text-lg font-semibold text-gray-800 flex items-center gap-2">
+                                                <Icon name="file-json" size={16} className="text-primary md:w-[18px] md:h-[18px]" /> 
                                                 字段提取规则
                                             </h2>
                                             <button 
                                                 onClick={addRuleField}
-                                                className="flex items-center gap-1 px-3 py-1.5 text-sm bg-primary/10 text-primary hover:bg-primary/20 rounded-md transition-colors font-medium"
+                                                className="flex items-center gap-1 px-2 md:px-3 py-1 md:py-1.5 text-xs md:text-sm bg-primary/10 text-primary hover:bg-primary/20 rounded-md transition-colors font-medium"
                                             >
-                                                <Icon name="plus" size={16} /> 添加字段
+                                                <Icon name="plus" size={14} className="md:w-[16px] md:h-[16px]" /> 添加字段
                                             </button>
                                         </div>
                                         
