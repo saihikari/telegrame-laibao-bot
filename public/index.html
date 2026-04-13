@@ -118,14 +118,19 @@
         const TagInput = ({ value = [], onChange, placeholder }) => {
             const [inputValue, setInputValue] = useState('');
             
+            const addTag = (e) => {
+                if (e) e.preventDefault();
+                const trimmed = inputValue.trim();
+                if (trimmed && !value.includes(trimmed)) {
+                    onChange([...value, trimmed]);
+                }
+                setInputValue('');
+            };
+
             const handleKeyDown = (e) => {
-                if (e.key === 'Enter' || e.key === ',') {
+                if (e.key === ',') {
                     e.preventDefault();
-                    const trimmed = inputValue.trim();
-                    if (trimmed && !value.includes(trimmed)) {
-                        onChange([...value, trimmed]);
-                    }
-                    setInputValue('');
+                    addTag();
                 } else if (e.key === 'Backspace' && !inputValue && value.length > 0) {
                     onChange(value.slice(0, -1));
                 }
@@ -149,14 +154,18 @@
                             </button>
                         </span>
                     ))}
-                    <input
-                        type="text"
-                        value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        placeholder={value.length === 0 ? placeholder : ''}
-                        className="flex-1 outline-none min-w-[120px] text-sm"
-                    />
+                    <form onSubmit={addTag} className="flex-1 min-w-[120px] m-0 p-0">
+                        <input
+                            type="text"
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            onBlur={() => { if (inputValue.trim()) addTag(); }}
+                            enterKeyHint="done"
+                            placeholder={value.length === 0 ? placeholder : ''}
+                            className="w-full outline-none text-sm bg-transparent"
+                        />
+                    </form>
                 </div>
             );
         };
