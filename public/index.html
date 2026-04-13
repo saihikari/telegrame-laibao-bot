@@ -86,6 +86,7 @@
     <!-- React 应用程序主体 -->
     <script type="text/babel" data-type="module">
         const { useState, useEffect, useRef, useCallback } = React;
+        const redirectToLogin = () => { window.location.href = '/admin/login'; };
 
         // --- 组件库 ---
         const Icon = ({ name, size = 20, className = "" }) => {
@@ -172,6 +173,10 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ text: testText, config: configToTest })
                     });
+                    if (res.status === 401) {
+                        redirectToLogin();
+                        return;
+                    }
                     const data = await res.json();
                     if (data.success) {
                         setTestResult(data.data);
@@ -628,6 +633,10 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(parsed)
                     });
+                    if (res.status === 401) {
+                        redirectToLogin();
+                        return;
+                    }
                     if (res.ok) {
                         alert('高级配置保存成功！');
                         fetchConfig();
@@ -644,6 +653,10 @@
             const handleBackup = async () => {
                 try {
                     const res = await fetch('/api/config/backup', { method: 'POST' });
+                    if (res.status === 401) {
+                        redirectToLogin();
+                        return;
+                    }
                     const data = await res.json();
                     if (data.success) {
                         alert('配置备份成功: ' + data.filename);
@@ -695,6 +708,10 @@
                 const fetchStatus = async () => {
                     try {
                         const res = await fetch('/api/status');
+                        if (res.status === 401) {
+                            redirectToLogin();
+                            return;
+                        }
                         if (res.ok) {
                             const data = await res.json();
                             setStatus(data);
@@ -860,6 +877,10 @@
                 try {
                     setLoading(true);
                     const res = await fetch('/api/config');
+                    if (res.status === 401) {
+                        redirectToLogin();
+                        return;
+                    }
                     if (res.ok) {
                         const data = await res.json();
                         data.customers.sort((a, b) => (a.priority || 0) - (b.priority || 0));
@@ -887,6 +908,10 @@
                                     headers: { 'Content-Type': 'application/json' },
                                     body: JSON.stringify(configToSave)
                                 });
+                                if (res.status === 401) {
+                                    redirectToLogin();
+                                    return;
+                                }
                                 if (res.ok) {
                                     alert('配置保存成功！');
                                     setConfig(configToSave);
@@ -958,15 +983,30 @@
                                 <Icon name="gem" size={20} className="mb-1" />
                                 <span className="text-[10px] font-medium whitespace-nowrap">定制</span>
                             </button>
+                            
+                            <button 
+                                onClick={() => { window.location.href = '/admin/logout'; }} 
+                                className="flex-1 md:hidden py-2 flex flex-col items-center justify-center rounded-lg transition-colors relative group hover:bg-slate-800 hover:text-slate-100 text-slate-300"
+                            >
+                                <Icon name="log-out" size={20} className="mb-1" />
+                                <span className="text-[10px] font-medium whitespace-nowrap">退出</span>
+                            </button>
                         </div>
 
-                        <div className="hidden md:flex mt-auto w-full px-2">
+                        <div className="hidden md:flex mt-auto w-full px-2 flex-col gap-2">
                             <button 
                                 onClick={() => setActiveTab('customize')} 
                                 className={`w-full py-3 flex flex-col items-center justify-center rounded-lg transition-colors relative group ${activeTab === 'customize' ? 'bg-orange-500/20 text-orange-400' : 'hover:bg-slate-800 text-orange-500/70 hover:text-orange-400'}`}
                             >
                                 <Icon name="gem" size={22} className="mb-1" />
                                 <span className="text-[11px] font-medium">定制开发</span>
+                            </button>
+                            <button 
+                                onClick={() => { window.location.href = '/admin/logout'; }} 
+                                className="w-full py-3 flex flex-col items-center justify-center rounded-lg transition-colors relative group hover:bg-slate-800 hover:text-slate-100 text-slate-300"
+                            >
+                                <Icon name="log-out" size={22} className="mb-1" />
+                                <span className="text-[11px] font-medium">退出</span>
                             </button>
                         </div>
                     </div>
