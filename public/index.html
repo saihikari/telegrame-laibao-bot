@@ -789,6 +789,7 @@
                         <section>
                             <h2 className="text-xl font-bold text-gray-900 mb-3">1. 机器人工作原理</h2>
                             <p>本机器人通过监听 Telegram 群聊消息，利用预设的“触发条件”捕获包含发包信息的文本。捕获后，机器人将使用“配置管理”中的正则表达式或关键词规则，将杂乱的文本清洗成结构化数据，并最终写入到指定的 Google Sheets 中。</p>
+                            <p className="mt-2 text-sm text-gray-500"><strong>💡 智能分块机制：</strong>当多条包数据连在一起发送时（如多行连写的“代理线：”或“S97包”等），机器人会自动将它们智能切分成多个独立包块进行解析。</p>
                         </section>
 
                         <section>
@@ -799,12 +800,30 @@
                                 <li>包含“名称”且包含“链接”</li>
                                 <li>包含“链接”且包含“命名”</li>
                                 <li>包含任何合法的 `http://` 或 `https://` 链接</li>
-                                <li>包含特定客户标签（如 S97, BA99, pak, VIP, APP0, 150244 等）</li>
+                                <li>包含特定客户标签（如 S97, BA99, pak, VIP, APP0, 150244, dm12, 代理线等）</li>
                             </ul>
                         </section>
 
                         <section>
-                            <h2 className="text-xl font-bold text-gray-900 mb-3">3. 常用命令</h2>
+                            <h2 className="text-xl font-bold text-gray-900 mb-3">3. 后台管理功能说明</h2>
+                            <div className="space-y-3 text-gray-700">
+                                <div>
+                                    <h3 className="font-semibold text-gray-900">✨ 快速克隆客户</h3>
+                                    <p className="text-sm">在“可视化”配置页，选中一个客户后点击右上角的 <strong>[克隆本客户配置]</strong>，可一键复制其所有规则，极大提高新增同类客户的效率。</p>
+                                </div>
+                                <div>
+                                    <h3 className="font-semibold text-gray-900">📱 移动端支持</h3>
+                                    <p className="text-sm">管理后台已深度适配手机和平板端，您可以随时随地在手机浏览器上完成规则的增删改查和实时测试。</p>
+                                </div>
+                                <div>
+                                    <h3 className="font-semibold text-gray-900">🔒 安全登录</h3>
+                                    <p className="text-sm">系统采用 Cookie + 独立表单页的登录机制，不再依赖弹窗，彻底杜绝浏览器幽灵缓存导致的卡死问题。</p>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section>
+                            <h2 className="text-xl font-bold text-gray-900 mb-3">4. 常用命令</h2>
                             <div className="bg-gray-100 p-4 rounded-lg font-mono text-sm space-y-2">
                                 <p><span className="font-bold text-primary">/help</span> - 查看简易帮助列表</p>
                                 <p><span className="font-bold text-primary">/status</span> - 获取本管理后台的链接</p>
@@ -814,7 +833,7 @@
                         </section>
 
                         <section>
-                            <h2 className="text-xl font-bold text-gray-900 mb-3">4. 常见问题排查</h2>
+                            <h2 className="text-xl font-bold text-gray-900 mb-3">5. 常见问题排查</h2>
                             <div className="space-y-4">
                                 <div>
                                     <h3 className="font-semibold text-red-600">Q: 机器人在群里没有任何反应？</h3>
