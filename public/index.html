@@ -238,6 +238,23 @@
                 setActiveCustomerIndex(config.customers.length);
             };
 
+            const duplicateCustomer = (index, e) => {
+                e.stopPropagation();
+                const customerToCopy = config.customers[index];
+                const copiedRules = JSON.parse(JSON.stringify(customerToCopy.rules || {}));
+                const newCustomer = {
+                    ...customerToCopy,
+                    name: `${customerToCopy.name} (副本)`,
+                    priority: config.customers.length + 1,
+                    rules: copiedRules
+                };
+                setConfig({
+                    ...config,
+                    customers: [...config.customers, newCustomer]
+                });
+                setActiveCustomerIndex(config.customers.length);
+            };
+
             const deleteCustomer = (index, e) => {
                 e.stopPropagation();
                 if (!confirm('确定要删除这个客户配置吗？')) return;
@@ -291,9 +308,9 @@
             const activeCustomer = activeCustomerIndex !== null ? config.customers[activeCustomerIndex] : null;
 
             return (
-                <div className="flex h-full overflow-hidden">
+                <div className="flex flex-col md:flex-row h-full w-full overflow-y-auto md:overflow-hidden">
                     {/* 中左侧：客户列表 */}
-                    <div className="w-80 bg-white border-r border-gray-200 flex flex-col shrink-0">
+                    <div className="w-full md:w-80 bg-white border-b md:border-r border-gray-200 flex flex-col shrink-0 h-[40vh] md:h-full">
                         <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50/50">
                             <h2 className="font-semibold text-gray-800 flex items-center gap-2">
                                 <Icon name="users" size={18} className="text-primary" />
@@ -351,19 +368,29 @@
                                             )}
                                         </div>
                                     </div>
-                                    <button 
-                                        onClick={(e) => deleteCustomer(index, e)}
-                                        className="absolute right-2 top-2 p-1 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                                    >
-                                        <Icon name="trash-2" size={14} />
-                                    </button>
+                                    <div className="absolute right-2 top-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button 
+                                            onClick={(e) => duplicateCustomer(index, e)}
+                                            className="p-1 text-gray-400 hover:text-blue-500 bg-white rounded shadow-sm border border-gray-100"
+                                            title="复制客户配置"
+                                        >
+                                            <Icon name="copy" size={14} />
+                                        </button>
+                                        <button 
+                                            onClick={(e) => deleteCustomer(index, e)}
+                                            className="p-1 text-gray-400 hover:text-red-500 bg-white rounded shadow-sm border border-gray-100"
+                                            title="删除客户配置"
+                                        >
+                                            <Icon name="trash-2" size={14} />
+                                        </button>
+                                    </div>
                                 </div>
                             ))}
                         </div>
                     </div>
 
                     {/* 中右侧：配置表单 */}
-                    <div className="flex-[2] bg-background flex flex-col min-w-[500px]">
+                    <div className="w-full md:flex-[2] bg-background flex flex-col min-w-0 md:min-w-[500px] min-h-[60vh] md:min-h-0 border-b md:border-b-0">
                         {activeCustomer ? (
                             <div className="flex-1 overflow-y-auto p-6 lg:p-8">
                                 <div className="max-w-4xl mx-auto">
@@ -536,7 +563,7 @@
                     </div>
 
                     {/* 右侧：沙盒测试区 */}
-                    <div className="flex-1 min-w-[320px] max-w-[400px] bg-white border-l border-gray-200 flex flex-col shrink-0">
+                    <div className="w-full md:flex-1 md:min-w-[320px] md:max-w-[400px] bg-white border-t md:border-l md:border-t-0 border-gray-200 flex flex-col shrink-0 min-h-[50vh] md:min-h-0">
                         <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50/50">
                             <h2 className="font-semibold text-gray-800 flex items-center gap-2">
                                 <Icon name="play-circle" size={18} className="text-secondary" />
@@ -631,22 +658,22 @@
             return (
                 <div className="flex-1 flex flex-col p-6 bg-gray-50 overflow-y-auto">
                     <div className="max-w-6xl mx-auto w-full">
-                        <div className="flex justify-between items-center mb-6">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
                             <div>
                                 <h1 className="text-2xl font-bold text-gray-900">高级 JSON 配置</h1>
                                 <p className="text-sm text-gray-500 mt-1">在这里直接修改 JSON 结构，点击下方保存即可生效。</p>
                             </div>
-                            <div className="flex gap-3">
-                                <button onClick={handleBackup} className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors flex items-center gap-2">
+                            <div className="flex flex-wrap gap-3 w-full md:w-auto">
+                                <button onClick={handleBackup} className="flex-1 md:flex-none justify-center px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors flex items-center gap-2">
                                     <Icon name="archive" size={16} /> 备份当前配置
                                 </button>
-                                <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors flex items-center gap-2">
+                                <button onClick={handleSave} disabled={saving} className="flex-1 md:flex-none justify-center px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors flex items-center gap-2">
                                     {saving ? <Icon name="loader" size={16} className="animate-spin" /> : <Icon name="save" size={16} />} 
                                     保存并重载配置
                                 </button>
                             </div>
                         </div>
-                        <div className="bg-white rounded-xl card-shadow p-2 h-[700px]">
+                        <div className="bg-white rounded-xl card-shadow p-2 flex-1 min-h-[50vh] md:h-[700px]">
                             <textarea
                                 value={jsonText}
                                 onChange={(e) => setJsonText(e.target.value)}
@@ -882,50 +909,58 @@
             };
 
             return (
-                <div className="flex h-screen overflow-hidden bg-background w-full">
-                    {/* 左侧：全局侧边栏导航 */}
-                    <div className="w-24 bg-[#1e293b] text-slate-300 flex flex-col items-center py-4 shrink-0 border-r border-slate-700/50 z-50">
-                        <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mb-8 font-bold text-2xl text-white shadow-sm">
+                <div className="flex flex-col-reverse md:flex-row h-screen overflow-hidden bg-background w-full">
+                    {/* 左侧/底部：全局导航 */}
+                    <div className="w-full md:w-24 h-16 md:h-full bg-[#1e293b] text-slate-300 flex flex-row md:flex-col items-center justify-around md:justify-start md:py-4 shrink-0 border-t md:border-r border-slate-700/50 z-50 overflow-x-auto">
+                        <div className="hidden md:flex w-12 h-12 bg-blue-600 rounded-lg items-center justify-center mb-8 font-bold text-2xl text-white shadow-sm">
                             R
                         </div>
                         
-                        <div className="flex-1 flex flex-col w-full px-2 space-y-3">
+                        <div className="flex flex-row md:flex-col w-full px-2 gap-2 md:space-y-3 justify-around md:justify-start">
                             <button 
                                 onClick={() => setActiveTab('visual')} 
-                                className={`w-full py-3 flex flex-col items-center justify-center rounded-lg transition-colors relative group ${activeTab === 'visual' ? 'bg-blue-600/20 text-blue-400' : 'hover:bg-slate-800 hover:text-slate-100'}`}
+                                className={`flex-1 md:w-full py-2 md:py-3 flex flex-col items-center justify-center rounded-lg transition-colors relative group ${activeTab === 'visual' ? 'bg-blue-600/20 text-blue-400' : 'hover:bg-slate-800 hover:text-slate-100'}`}
                             >
-                                <Icon name="layout-dashboard" size={22} className="mb-1" />
-                                <span className="text-[11px] font-medium">可视化</span>
+                                <Icon name="layout-dashboard" size={20} className="mb-1" />
+                                <span className="text-[10px] md:text-[11px] font-medium whitespace-nowrap">可视化</span>
                             </button>
                             
                             <button 
                                 onClick={() => setActiveTab('json')} 
-                                className={`w-full py-3 flex flex-col items-center justify-center rounded-lg transition-colors relative group ${activeTab === 'json' ? 'bg-blue-600/20 text-blue-400' : 'hover:bg-slate-800 hover:text-slate-100'}`}
+                                className={`flex-1 md:w-full py-2 md:py-3 flex flex-col items-center justify-center rounded-lg transition-colors relative group ${activeTab === 'json' ? 'bg-blue-600/20 text-blue-400' : 'hover:bg-slate-800 hover:text-slate-100'}`}
                             >
-                                <Icon name="code" size={22} className="mb-1" />
-                                <span className="text-[11px] font-medium">高级 JSON</span>
+                                <Icon name="code" size={20} className="mb-1" />
+                                <span className="text-[10px] md:text-[11px] font-medium whitespace-nowrap">高级</span>
                             </button>
 
-                            <div className="w-10 h-px bg-slate-700/50 mx-auto my-2"></div>
+                            <div className="hidden md:block w-10 h-px bg-slate-700/50 mx-auto my-2"></div>
 
                             <button 
                                 onClick={() => setActiveTab('status')} 
-                                className={`w-full py-3 flex flex-col items-center justify-center rounded-lg transition-colors relative group ${activeTab === 'status' ? 'bg-blue-600/20 text-blue-400' : 'hover:bg-slate-800 hover:text-slate-100'}`}
+                                className={`flex-1 md:w-full py-2 md:py-3 flex flex-col items-center justify-center rounded-lg transition-colors relative group ${activeTab === 'status' ? 'bg-blue-600/20 text-blue-400' : 'hover:bg-slate-800 hover:text-slate-100'}`}
                             >
-                                <Icon name="activity" size={22} className="mb-1" />
-                                <span className="text-[11px] font-medium">运行状态</span>
+                                <Icon name="activity" size={20} className="mb-1" />
+                                <span className="text-[10px] md:text-[11px] font-medium whitespace-nowrap">状态</span>
                             </button>
                             
                             <button 
                                 onClick={() => setActiveTab('guide')} 
-                                className={`w-full py-3 flex flex-col items-center justify-center rounded-lg transition-colors relative group ${activeTab === 'guide' ? 'bg-blue-600/20 text-blue-400' : 'hover:bg-slate-800 hover:text-slate-100'}`}
+                                className={`flex-1 md:w-full py-2 md:py-3 flex flex-col items-center justify-center rounded-lg transition-colors relative group ${activeTab === 'guide' ? 'bg-blue-600/20 text-blue-400' : 'hover:bg-slate-800 hover:text-slate-100'}`}
                             >
-                                <Icon name="book-open" size={22} className="mb-1" />
-                                <span className="text-[11px] font-medium">使用向导</span>
+                                <Icon name="book-open" size={20} className="mb-1" />
+                                <span className="text-[10px] md:text-[11px] font-medium whitespace-nowrap">向导</span>
+                            </button>
+
+                            <button 
+                                onClick={() => setActiveTab('customize')} 
+                                className={`flex-1 md:hidden py-2 flex flex-col items-center justify-center rounded-lg transition-colors relative group ${activeTab === 'customize' ? 'bg-orange-500/20 text-orange-400' : 'hover:bg-slate-800 text-orange-500/70 hover:text-orange-400'}`}
+                            >
+                                <Icon name="gem" size={20} className="mb-1" />
+                                <span className="text-[10px] font-medium whitespace-nowrap">定制</span>
                             </button>
                         </div>
 
-                        <div className="mt-auto w-full px-2">
+                        <div className="hidden md:flex mt-auto w-full px-2">
                             <button 
                                 onClick={() => setActiveTab('customize')} 
                                 className={`w-full py-3 flex flex-col items-center justify-center rounded-lg transition-colors relative group ${activeTab === 'customize' ? 'bg-orange-500/20 text-orange-400' : 'hover:bg-slate-800 text-orange-500/70 hover:text-orange-400'}`}
@@ -936,7 +971,7 @@
                         </div>
                     </div>
 
-                    {/* 右侧：主内容区 */}
+                    {/* 右侧/上方：主内容区 */}
                     <div className="flex-1 flex overflow-hidden">
                         {renderContent()}
                     </div>
