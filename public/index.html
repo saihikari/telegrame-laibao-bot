@@ -373,22 +373,6 @@
                                             )}
                                         </div>
                                     </div>
-                                    <div className="absolute right-2 top-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button 
-                                            onClick={(e) => duplicateCustomer(index, e)}
-                                            className="p-1 text-gray-400 hover:text-blue-500 bg-white rounded shadow-sm border border-gray-100"
-                                            title="复制客户配置"
-                                        >
-                                            <Icon name="copy" size={14} />
-                                        </button>
-                                        <button 
-                                            onClick={(e) => deleteCustomer(index, e)}
-                                            className="p-1 text-gray-400 hover:text-red-500 bg-white rounded shadow-sm border border-gray-100"
-                                            title="删除客户配置"
-                                        >
-                                            <Icon name="trash-2" size={14} />
-                                        </button>
-                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -399,9 +383,27 @@
                         {activeCustomer ? (
                             <div className="flex-1 overflow-y-auto p-6 lg:p-8">
                                 <div className="max-w-4xl mx-auto">
-                                    <div className="mb-6 pb-4 border-b border-gray-200">
-                                        <h1 className="text-2xl font-bold text-gray-900">编辑客户配置</h1>
-                                        <p className="text-sm text-gray-500 mt-1">优先级: {activeCustomer.priority} (通过左侧拖拽调整)</p>
+                                    <div className="mb-6 pb-4 border-b border-gray-200 flex justify-between items-start">
+                                        <div>
+                                            <h1 className="text-2xl font-bold text-gray-900">编辑客户配置</h1>
+                                            <p className="text-sm text-gray-500 mt-1">优先级: {activeCustomer.priority} (通过左侧拖拽调整)</p>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button 
+                                                onClick={(e) => duplicateCustomer(activeCustomerIndex, e)}
+                                                className="px-3 py-1.5 bg-blue-50 text-blue-600 text-sm rounded-md hover:bg-blue-100 transition-colors flex items-center gap-1 border border-blue-200 font-medium"
+                                                title="复制当前客户的所有配置"
+                                            >
+                                                <Icon name="copy" size={14} /> 克隆
+                                            </button>
+                                            <button 
+                                                onClick={(e) => deleteCustomer(activeCustomerIndex, e)}
+                                                className="px-3 py-1.5 bg-red-50 text-red-600 text-sm rounded-md hover:bg-red-100 transition-colors flex items-center gap-1 border border-red-200 font-medium"
+                                                title="永久删除当前客户"
+                                            >
+                                                <Icon name="trash-2" size={14} /> 删除
+                                            </button>
+                                        </div>
                                     </div>
 
                                     {/* 基础设置 */}
