@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getBackupCount = exports.getLastModified = exports.getConfig = exports.backupConfig = exports.saveConfig = exports.loadConfig = void 0;
+exports.restoreBackup = exports.listBackups = exports.getBackupCount = exports.getLastModified = exports.getConfig = exports.backupConfig = exports.saveConfig = exports.loadConfig = void 0;
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const CONFIG_PATH = path_1.default.join(__dirname, '../../config/routes.json');
@@ -96,3 +96,35 @@ const getBackupCount = () => {
     }
 };
 exports.getBackupCount = getBackupCount;
+const listBackups = () => {
+    try {
+        if (!fs_1.default.existsSync(BACKUP_DIR))
+            return [];
+        return fs_1.default.readdirSync(BACKUP_DIR)
+            .filter(f => f.endsWith('.json'))
+            .sort((a, b) => {
+            // sort descending by modified time or simply by filename (which includes timestamp)
+            return b.localeCompare(a);
+        });
+    }
+    catch {
+        return [];
+    }
+};
+exports.listBackups = listBackups;
+const restoreBackup = (filename) => {
+    try {
+        const backupPath = path_1.default.join(BACKUP_DIR, filename);
+        if (!fs_1.default.existsSync(backupPath)) {
+            return { success: false };
+        }
+        const fileContent = fs_1.default.readFileSync(backupPath, 'utf-8');
+        const parsed = JSON.parse(fileContent);
+        return { success: true, data: parsed };
+    }
+    catch (error) {
+        console.error('[Config] Failed to restore backup:', error);
+        return { success: false };
+    }
+};
+exports.restoreBackup = restoreBackup;

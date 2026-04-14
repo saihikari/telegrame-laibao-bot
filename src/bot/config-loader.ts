@@ -87,3 +87,32 @@ export const getBackupCount = (): number => {
     return 0;
   }
 };
+
+export const listBackups = (): string[] => {
+  try {
+    if (!fs.existsSync(BACKUP_DIR)) return [];
+    return fs.readdirSync(BACKUP_DIR)
+      .filter(f => f.endsWith('.json'))
+      .sort((a, b) => {
+        // sort descending by modified time or simply by filename (which includes timestamp)
+        return b.localeCompare(a);
+      });
+  } catch {
+    return [];
+  }
+};
+
+export const restoreBackup = (filename: string): { success: boolean; data?: Config } => {
+  try {
+    const backupPath = path.join(BACKUP_DIR, filename);
+    if (!fs.existsSync(backupPath)) {
+      return { success: false };
+    }
+    const fileContent = fs.readFileSync(backupPath, 'utf-8');
+    const parsed = JSON.parse(fileContent) as Config;
+    return { success: true, data: parsed };
+  } catch (error) {
+    console.error('[Config] Failed to restore backup:', error);
+    return { success: false };
+  }
+};

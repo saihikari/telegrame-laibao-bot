@@ -722,6 +722,10 @@
         const JsonConfig = ({ config, fetchConfig, showToast }) => {
             const [jsonText, setJsonText] = useState('');
             const [saving, setSaving] = useState(false);
+            const [showBackups, setShowBackups] = useState(false);
+            const [backups, setBackups] = useState([]);
+            const [loadingBackups, setLoadingBackups] = useState(false);
+            const [restoring, setRestoring] = useState(false);
 
             useEffect(() => {
                 setJsonText(JSON.stringify(config, null, 2));
@@ -779,9 +783,51 @@
                 });
             };
 
+            const loadBackupsList = async () => {
+                try {
+                    setLoadingBackups(true);
+                    const res = await fetch('/api/config/backups');
+                    if (res.status === 401) { redirectToLogin(); return; }
+                    const data = await res.json();
+                    if (data.success) {
+                        setBackups(data.backups);
+                        setShowBackups(true);
+                    }
+                } catch (e) {
+                    if (showToast) showToast('无法获取备份列表', 'error');
+                } finally {
+                    setLoadingBackups(false);
+                }
+            };
+
+            const handleRestore = async (filename) => {
+                if (!confirm(`确定要读取 ${filename} 吗？当前编辑框内的内容将被覆盖（保存后生效）`)) return;
+                try {
+                    setRestoring(true);
+                    const res = await fetch('/api/config/restore', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ filename })
+                    });
+                    if (res.status === 401) { redirectToLogin(); return; }
+                    const data = await res.json();
+                    if (data.success) {
+                        setJsonText(JSON.stringify(data.data, null, 2));
+                        setShowBackups(false);
+                        if (showToast) showToast('读取成功，请检查后点击【保存重载】以生效', 'success');
+                    } else {
+                        if (showToast) showToast('读取备份失败', 'error');
+                    }
+                } catch (e) {
+                    if (showToast) showToast('读取备份出错', 'error');
+                } finally {
+                    setRestoring(false);
+                }
+            };
+
             return (
-                <div className="w-full h-full bg-tg-secondary_bg flex flex-col">
-                    <div className="p-4 md:p-6 lg:p-8 max-w-6xl mx-auto w-full flex flex-col h-full">
+                <div className="w-full h-full bg-tg-secondary_bg flex flex-col relative">
+                    <div className="p-4 md:p-6 lg:p-8 max-w-6xl mx-auto w-full flex flex-col h-full relative z-10">
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 md:gap-4 mb-4 md:mb-6 shrink-0 border-b border-tg-hint/20 pb-3 md:pb-4 bg-tg-bg rounded-2xl p-4 card-shadow">
                             <div className="flex items-center gap-2 md:gap-3">
                                 <Icon name="code" size={24} className="text-[#8e8e93] md:w-[32px] md:h-[32px]" />
@@ -791,18 +837,51 @@
                                 </div>
                             </div>
                             <div className="flex flex-nowrap gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
-                                <button onClick={handleCopy} className="justify-center px-3 py-1.5 bg-tg-secondary_bg text-tg-text text-xs md:text-sm rounded-full hover:opacity-90 transition-colors flex items-center gap-1.5 whitespace-nowrap shadow-sm w-fit">
-                                    <Icon name="copy" size={14} /> <span>复制</span>
+                                <button onClick={loadBackupsList} disabled={loadingBackups} className="justify-center px-4 py-2 bg-tg-secondary_bg text-tg-text text-xs md:text-sm rounded-full hover:opacity-80 active:opacity-50 active:scale-95 transition-all flex items-center gap-1.5 whitespace-nowrap shadow-sm font-medium w-fit border border-tg-hint/10">
+                                    {loadingBackups ? <Icon name="loader" size={14} className="animate-spin" /> : <Icon name="history" size={14} />} <span>读取备份</span>
                                 </button>
-                                <button onClick={handleBackup} className="justify-center px-3 py-1.5 bg-tg-secondary_bg text-tg-text text-xs md:text-sm rounded-full hover:opacity-90 transition-colors flex items-center gap-1.5 whitespace-nowrap shadow-sm w-fit">
-                                    <Icon name="archive" size={14} /> <span>备份</span>
+                                <button onClick={handleCopy} className="justify-center px-4 py-2 bg-tg-secondary_bg text-tg-text text-xs md:text-sm rounded-full hover:opacity-80 active:opacity-50 active:scale-95 transition-all flex items-center gap-1.5 whitespace-nowrap shadow-sm font-medium w-fit border border-tg-hint/10">
+                                    <Icon name="copy" size={14} /> <span>复制内容</span>
                                 </button>
-                                <button onClick={handleSave} disabled={saving} className="justify-center px-3 py-1.5 bg-[#3390ec] text-white text-xs md:text-sm rounded-full hover:bg-[#3390ec]/90 transition-colors flex items-center gap-1.5 whitespace-nowrap shadow-sm w-fit">
+                                <button onClick={handleBackup} className="justify-center px-4 py-2 bg-tg-secondary_bg text-tg-text text-xs md:text-sm rounded-full hover:opacity-80 active:opacity-50 active:scale-95 transition-all flex items-center gap-1.5 whitespace-nowrap shadow-sm font-medium w-fit border border-tg-hint/10">
+                                    <Icon name="archive" size={14} /> <span>生成备份</span>
+                                </button>
+                                <button onClick={handleSave} disabled={saving} className="justify-center px-4 py-2 bg-[#3390ec] text-white text-xs md:text-sm rounded-full hover:bg-[#3390ec]/90 active:opacity-70 active:scale-95 transition-all flex items-center gap-1.5 whitespace-nowrap shadow-sm font-medium w-fit">
                                     {saving ? <Icon name="loader" size={14} className="animate-spin" /> : <Icon name="save" size={14} />} 
                                     <span>保存重载</span>
                                 </button>
                             </div>
                         </div>
+                        
+                        {/* 备份列表弹窗 */}
+                        {showBackups && (
+                            <div className="absolute top-[80px] right-4 md:right-8 bg-tg-bg border border-tg-hint/20 shadow-2xl rounded-2xl p-4 w-[300px] max-h-[300px] overflow-y-auto z-50 flex flex-col gap-2">
+                                <div className="flex justify-between items-center mb-2 pb-2 border-b border-tg-hint/10">
+                                    <h3 className="font-semibold text-sm text-tg-text">历史备份文件</h3>
+                                    <button onClick={() => setShowBackups(false)} className="text-tg-hint hover:text-tg-text"><Icon name="x" size={16} /></button>
+                                </div>
+                                {backups.length === 0 ? (
+                                    <div className="text-xs text-tg-hint text-center py-4">暂无历史备份</div>
+                                ) : (
+                                    backups.map(b => (
+                                        <button 
+                                            key={b} 
+                                            onClick={() => handleRestore(b)}
+                                            disabled={restoring}
+                                            className="text-left text-xs font-mono p-2 hover:bg-[#3390ec]/10 hover:text-[#3390ec] rounded-xl transition-colors truncate text-tg-text"
+                                        >
+                                            {b}
+                                        </button>
+                                    ))
+                                )}
+                            </div>
+                        )}
+                        
+                        {/* 遮罩层，点击关闭弹窗 */}
+                        {showBackups && (
+                            <div className="fixed inset-0 z-40" onClick={() => setShowBackups(false)}></div>
+                        )}
+
                         <div className="bg-tg-bg rounded-2xl card-shadow p-2 md:p-3 flex-1 min-h-0 mb-4 md:mb-0">
                             <textarea
                                 value={jsonText}

@@ -1,5 +1,5 @@
 import express from 'express';
-import { getConfig, saveConfig, backupConfig, getLastModified, getBackupCount } from './config-loader';
+import { getConfig, saveConfig, backupConfig, getLastModified, getBackupCount, listBackups, restoreBackup } from './config-loader';
 import { processMessage } from './rule-engine';
 import { isSheetsReady } from './sheets-service';
 import bodyParser from 'body-parser';
@@ -235,6 +235,18 @@ app.post('/api/config', (req, res) => {
 
 app.post('/api/config/backup', (req, res) => {
   const result = backupConfig();
+  res.json(result);
+});
+
+app.get('/api/config/backups', (req, res) => {
+  const list = listBackups();
+  res.json({ success: true, backups: list });
+});
+
+app.post('/api/config/restore', (req, res) => {
+  const { filename } = req.body;
+  if (!filename) return res.status(400).json({ success: false, error: 'Missing filename' });
+  const result = restoreBackup(filename);
   res.json(result);
 });
 
