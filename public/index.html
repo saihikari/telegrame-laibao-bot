@@ -726,6 +726,7 @@
             const [backups, setBackups] = useState([]);
             const [loadingBackups, setLoadingBackups] = useState(false);
             const [restoring, setRestoring] = useState(false);
+            const [confirmRestoreFile, setConfirmRestoreFile] = useState(null);
 
             useEffect(() => {
                 setJsonText(JSON.stringify(config, null, 2));
@@ -801,7 +802,6 @@
             };
 
             const handleRestore = async (filename) => {
-                if (!confirm(`确定要读取 ${filename} 吗？当前编辑框内的内容将被覆盖（保存后生效）`)) return;
                 try {
                     setRestoring(true);
                     const res = await fetch('/api/config/restore', {
@@ -814,6 +814,7 @@
                     if (data.success) {
                         setJsonText(JSON.stringify(data.data, null, 2));
                         setShowBackups(false);
+                        setConfirmRestoreFile(null);
                         if (showToast) showToast('读取成功，请检查后点击【保存重载】以生效', 'success');
                     } else {
                         if (showToast) showToast('读取备份失败', 'error');
@@ -884,7 +885,7 @@
                                             backups.map(b => (
                                                 <button 
                                                     key={b} 
-                                                    onClick={() => handleRestore(b)}
+                                                    onClick={() => setConfirmRestoreFile(b)}
                                                     disabled={restoring}
                                                     className="w-full text-left text-[11px] md:text-xs font-mono p-3 hover:bg-[#3390ec]/10 hover:text-[#3390ec] rounded-xl transition-all text-tg-text flex justify-between items-center group border border-transparent hover:border-[#3390ec]/20"
                                                 >
@@ -893,6 +894,46 @@
                                                 </button>
                                             ))
                                         )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 自定义二次确认弹窗 */}
+                        {confirmRestoreFile && (
+                            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                                <div 
+                                    className="absolute inset-0 bg-black/50 backdrop-blur-md transition-opacity" 
+                                    onClick={() => !restoring && setConfirmRestoreFile(null)}
+                                ></div>
+                                <div className="relative bg-tg-bg border border-tg-hint/20 shadow-2xl rounded-2xl p-6 w-full max-w-sm flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-200">
+                                    <div className="flex flex-col items-center text-center gap-3">
+                                        <div className="w-12 h-12 rounded-full bg-[#ff9500]/10 flex items-center justify-center text-[#ff9500]">
+                                            <Icon name="alert-triangle" size={24} />
+                                        </div>
+                                        <h3 className="font-bold text-lg text-tg-text">确认读取备份？</h3>
+                                        <p className="text-sm text-tg-hint leading-relaxed">
+                                            当前编辑框内的配置内容将被 <strong className="text-tg-text break-all">{confirmRestoreFile}</strong> 的内容覆盖。
+                                            <br /><br />
+                                            <span className="text-xs opacity-70">读取后不会立即生效，需手动点击【保存重载】</span>
+                                        </p>
+                                    </div>
+                                    <div className="flex gap-3 mt-2">
+                                        <button 
+                                            onClick={() => setConfirmRestoreFile(null)}
+                                            disabled={restoring}
+                                            className="flex-1 px-4 py-2.5 bg-tg-secondary_bg text-tg-text text-sm font-medium rounded-xl hover:opacity-80 transition-all disabled:opacity-50"
+                                        >
+                                            取消
+                                        </button>
+                                        <button 
+                                            onClick={() => handleRestore(confirmRestoreFile)}
+                                            disabled={restoring}
+                                            className="flex-1 px-4 py-2.5 bg-[#ff9500] text-white text-sm font-medium rounded-xl hover:bg-[#ff9500]/90 transition-all flex items-center justify-center gap-2 shadow-md disabled:opacity-50"
+                                        >
+                                            {restoring ? <Icon name="loader" size={16} className="animate-spin" /> : <Icon name="check" size={16} />}
+                                            确认覆盖
+                                        </button>
                                     </div>
                                 </div>
                             </div>
