@@ -204,7 +204,16 @@ app.get('/admin/logout', (req, res) => {
 app.use('/admin', requireAuth);
 app.use('/api', requireAuth);
 
-app.use('/admin', express.static(path.join(__dirname, '../../public')));
+// 添加全局无缓存中间件，强制浏览器不缓存 HTML 静态资源
+const noCacheMiddleware = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  res.setHeader('Surrogate-Control', 'no-store');
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  next();
+};
+
+app.use('/admin', noCacheMiddleware, express.static(path.join(__dirname, '../../public')));
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
