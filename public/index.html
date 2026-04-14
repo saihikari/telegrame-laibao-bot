@@ -205,16 +205,16 @@
             };
 
             return (
-                <div className="flex flex-wrap gap-2 p-2 border rounded-xl border-tg-hint/20 focus-within:border-tg-button focus-within:ring-1 focus-within:ring-tg-button bg-tg-bg min-h-[42px] items-center transition-all">
+                <div className="flex flex-wrap gap-2 p-2 border rounded-md border-gray-300 focus-within:border-secondary focus-within:ring-1 focus-within:ring-secondary bg-white min-h-[42px] items-center">
                     {value.map((tag, index) => (
-                        <span key={index} className="flex items-center px-2.5 py-1 text-sm bg-tg-button/10 text-tg-button rounded-lg font-medium">
+                        <span key={index} className="flex items-center px-2 py-1 text-sm bg-blue-100 text-primary rounded-md">
                             {tag}
                             <button 
                                 type="button"
                                 onClick={() => removeTag(index)}
-                                className="ml-1.5 text-tg-button/60 hover:text-tg-button focus:outline-none"
+                                className="ml-1 text-blue-400 hover:text-blue-600 focus:outline-none"
                             >
-                                <Icon name="x" size={14} />
+                                &times;
                             </button>
                         </span>
                     ))}
@@ -227,7 +227,7 @@
                             onBlur={() => { if (inputValue.trim()) addTag(); }}
                             enterKeyHint="done"
                             placeholder={value.length === 0 ? placeholder : ''}
-                            className="w-full outline-none text-sm bg-transparent text-tg-text placeholder-tg-hint"
+                            className="w-full outline-none text-sm bg-transparent"
                         />
                     </form>
                 </div>
@@ -366,34 +366,43 @@
             const activeCustomer = activeCustomerIndex !== null ? config.customers[activeCustomerIndex] : null;
 
             return (
-                <div className="block md:flex md:flex-row h-full w-full overflow-hidden bg-tg-secondary_bg">
-                    {/* 左侧：客户列表 (移动端如果选中了就隐藏) */}
-                    <div className={`w-full md:w-80 lg:w-96 bg-tg-secondary_bg md:border-r border-tg-hint/20 flex-col h-full shrink-0 ${activeCustomerIndex !== null ? 'hidden md:flex' : 'flex'}`}>
-                        <div className="px-4 py-3 flex justify-between items-center shrink-0">
-                            <h2 className="text-xl md:text-2xl font-bold text-tg-text">
-                                客户配置 ({config.customers.length})
+                <div className="block md:flex md:flex-row h-full w-full overflow-y-auto md:overflow-hidden bg-tg-secondary_bg">
+                    {/* 中左侧：客户列表 */}
+                    <div className="w-full md:w-80 bg-tg-bg border-b md:border-r border-tg-hint/20 flex flex-col h-auto md:h-full shrink-0">
+                        <div className="p-3 md:p-4 border-b border-tg-hint/20 flex justify-between items-center bg-tg-secondary_bg/50">
+                            <h2 className="font-semibold text-tg-text flex items-center gap-2 text-sm md:text-base">
+                                <div className="w-6 h-6 rounded-full overflow-hidden md:hidden shadow-sm border border-tg-hint/20 flex-shrink-0 bg-tg-section_bg">
+                                    <img src="/admin/logo.jpg" alt="Logo" className="w-full h-full object-cover object-center" 
+                                         onError={(e) => { e.target.style.display='none'; e.target.parentElement.innerHTML='<div class="w-full h-full bg-[#3390ec] flex items-center justify-center font-bold text-xs text-white">R</div>'; }}
+                                    />
+                                </div>
+                                <Icon name="users" size={16} className="hidden md:block text-[#3390ec] md:w-[18px] md:h-[18px]" />
+                                客户路由 ({config.customers.length})
                             </h2>
-                            <div className="flex items-center gap-2">
-                                <button 
-                                    onClick={addCustomer}
-                                    className="p-2 bg-tg-button text-tg-button_text rounded-full hover:opacity-90 transition-all shadow-sm"
-                                    title="添加新客户配置"
-                                >
-                                    <Icon name="plus" size={20} />
-                                </button>
+                            <div className="flex items-center gap-1.5 md:gap-2">
                                 <button 
                                     onClick={handleSaveConfig}
                                     disabled={saving}
-                                    className="p-2 bg-[#34c759] text-white rounded-full hover:opacity-90 transition-all shadow-sm disabled:opacity-50"
-                                    title="保存所有配置"
+                                    className="px-2 md:px-3 py-1 md:py-1.5 bg-[#34c759] text-white text-xs md:text-sm rounded-full hover:opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 shadow-sm"
                                 >
-                                    {saving ? <Icon name="loader" size={20} className="animate-spin" /> : <Icon name="save" size={20} />}
+                                    {saving ? <Icon name="loader" size={12} className="animate-spin md:w-[14px] md:h-[14px]" /> : <Icon name="save" size={12} className="md:w-[14px] md:h-[14px]" />}
+                                    <span className="hidden md:inline">保存所有配置</span>
+                                    <span className="inline md:hidden">保存全部</span>
+                                </button>
+                                <button 
+                                    onClick={addCustomer}
+                                    className="px-2 md:px-3 py-1 md:py-1.5 bg-[#3390ec] text-white text-xs md:text-sm rounded-full hover:opacity-90 transition-colors flex items-center gap-1 shadow-sm"
+                                    title="添加新客户配置"
+                                >
+                                    <Icon name="plus" size={12} className="md:w-[14px] md:h-[14px]" />
+                                    <span className="hidden md:inline">新增客户</span>
+                                    <span className="inline md:hidden">新增</span>
                                 </button>
                             </div>
                         </div>
                         
-                        <div className="flex-1 overflow-y-auto px-3 pb-6">
-                            <div className="bg-tg-bg rounded-2xl overflow-hidden card-shadow">
+                        <div className="flex-none md:flex-1 overflow-y-visible md:overflow-y-auto p-2 md:p-3">
+                            <div className="grid grid-cols-4 md:grid-cols-1 gap-2 md:gap-3 md:space-y-0">
                                 {config.customers.map((c, index) => (
                                     <div 
                                         key={`${c.name}-${index}`}
@@ -403,200 +412,223 @@
                                         onDrop={(e) => handleDrop(e, index)}
                                         onClick={() => setActiveCustomerIndex(index)}
                                         className={`
-                                            flex items-center p-3 md:p-4 border-b border-tg-secondary_bg last:border-b-0 cursor-pointer transition-colors relative group
-                                            ${activeCustomerIndex === index ? 'bg-tg-secondary_bg/50' : 'bg-tg-bg hover:bg-tg-secondary_bg/30'}
+                                            p-1.5 md:p-3 rounded-2xl border-2 cursor-pointer transition-all relative group card-shadow flex flex-col justify-center items-center md:items-stretch md:justify-start
+                                            ${activeCustomerIndex === index ? 'border-[#3390ec] bg-[#3390ec]/10' : 'border-transparent bg-tg-bg hover:border-tg-hint/30'}
                                         `}
                                     >
-                                        <div className="hidden md:flex w-6 h-full items-center justify-center text-tg-hint/30 opacity-0 group-hover:opacity-100 drag-handle absolute left-0">
-                                            <Icon name="grip-vertical" size={14} />
+                                        <div className="hidden md:block absolute left-2 top-1/2 -translate-y-1/2 text-tg-hint/50 opacity-0 group-hover:opacity-100 drag-handle">
+                                            <Icon name="grip-vertical" size={16} />
                                         </div>
-                                        <ColorfulIcon name="user" bgClass="bg-[#0088cc]" />
-                                        <div className="ml-3 flex-1 min-w-0">
-                                            <div className="font-semibold text-tg-text text-[15px] truncate leading-tight mb-0.5">{c.name}</div>
-                                            <div className="text-tg-hint text-[12px] truncate leading-tight">优先级 {c.priority || index + 1}</div>
+                                        <div className="md:pl-6 w-full text-center md:text-left">
+                                            <div className="flex flex-col md:flex-row justify-center md:justify-between items-center md:items-start mb-1 md:mb-2">
+                                                <h3 className={`font-semibold truncate w-full text-xs md:text-base md:pr-4 ${activeCustomerIndex === index ? 'text-[#3390ec]' : 'text-tg-text'}`} title={c.name}>{c.name}</h3>
+                                                <span className="hidden md:inline-block text-xs bg-tg-secondary_bg text-tg-hint px-1.5 py-0.5 rounded-md font-mono shrink-0">#{index + 1}</span>
+                                            </div>
+                                            <div className="hidden md:flex flex-wrap gap-1">
+                                                {c.match_keywords?.slice(0, 3).map((kw, i) => (
+                                                    <span key={i} className="text-[10px] px-1.5 py-0.5 bg-[#3390ec]/10 text-[#3390ec] rounded-md truncate max-w-[80px]">
+                                                        {kw}
+                                                    </span>
+                                                ))}
+                                                {c.match_keywords?.length > 3 && (
+                                                    <span className="text-[10px] px-1.5 py-0.5 bg-tg-secondary_bg text-tg-hint rounded-md">+{c.match_keywords.length - 3}</span>
+                                                )}
+                                            </div>
                                         </div>
-                                        <Icon name="chevron-right" size={20} className="text-tg-hint/50 shrink-0 ml-2" />
                                     </div>
                                 ))}
-                                {config.customers.length === 0 && (
-                                    <div className="p-6 text-center text-tg-hint text-sm">暂无客户配置</div>
-                                )}
                             </div>
                         </div>
                     </div>
 
-                    {/* 右侧：配置表单 (移动端如果没有选中就隐藏) */}
-                    <div className={`w-full md:flex-1 bg-tg-secondary_bg flex-col h-full min-w-0 ${activeCustomerIndex !== null ? 'flex' : 'hidden md:flex'}`}>
+                    {/* 中右侧：配置表单 */}
+                    <div className="w-full md:flex-[2] bg-tg-secondary_bg flex flex-col min-w-0 md:min-w-[500px] border-b md:border-b-0">
                         {activeCustomer ? (
-                            <div className="flex-1 overflow-y-auto">
-                                <div className="max-w-4xl mx-auto p-4 md:p-6 lg:p-8 pb-20">
-                                    <div className="flex items-center gap-3 mb-6 md:mb-8">
-                                        <button 
-                                            onClick={() => setActiveCustomerIndex(null)}
-                                            className="md:hidden p-2 -ml-2 text-tg-button hover:bg-tg-button/10 rounded-full transition-colors"
-                                        >
-                                            <Icon name="arrow-left" size={24} />
-                                        </button>
-                                        <h1 className="text-2xl md:text-3xl font-bold text-tg-text flex-1 truncate">编辑配置</h1>
-                                        <div className="flex gap-2 shrink-0">
+                            <div className="flex-1 overflow-y-auto p-6 lg:p-8">
+                                <div className="max-w-4xl mx-auto">
+                                    <div className="mb-4 md:mb-6 pb-3 md:pb-4 border-b border-tg-hint/20 flex flex-col md:flex-row justify-between items-start gap-3 md:gap-0">
+                                        <div>
+                                            <h1 className="text-xl md:text-2xl font-bold text-tg-text">编辑客户配置</h1>
+                                            <p className="text-xs md:text-sm text-tg-hint mt-1">优先级: {activeCustomer.priority} (通过电脑端左侧拖拽调整)</p>
+                                        </div>
+                                        <div className="flex gap-2 w-full md:w-auto">
                                             <button 
                                                 onClick={(e) => duplicateCustomer(activeCustomerIndex, e)}
-                                                className="p-2 text-[#0088cc] bg-[#0088cc]/10 rounded-xl hover:bg-[#0088cc]/20 transition-colors"
-                                                title="克隆本客户"
+                                                className="flex-1 md:flex-none justify-center px-2 md:px-3 py-1.5 md:py-1.5 bg-[#3390ec]/10 text-[#3390ec] text-xs md:text-sm rounded-full hover:bg-[#3390ec]/20 transition-colors flex items-center gap-1 border border-[#3390ec]/20 font-medium whitespace-nowrap"
+                                                title="复制当前客户的所有配置"
                                             >
-                                                <Icon name="copy" size={20} />
+                                                <Icon name="copy" size={14} className="w-[12px] h-[12px] md:w-[14px] md:h-[14px]" /> <span className="hidden md:inline">克隆本客户配置</span><span className="md:hidden">克隆</span>
                                             </button>
                                             <button 
                                                 onClick={(e) => deleteCustomer(activeCustomerIndex, e)}
-                                                className="p-2 text-[#ff3b30] bg-[#ff3b30]/10 rounded-xl hover:bg-[#ff3b30]/20 transition-colors"
-                                                title="删除本客户"
+                                                className="flex-1 md:flex-none justify-center px-2 md:px-3 py-1.5 md:py-1.5 bg-[#ff3b30]/10 text-[#ff3b30] text-xs md:text-sm rounded-full hover:bg-[#ff3b30]/20 transition-colors flex items-center gap-1 border border-[#ff3b30]/20 font-medium whitespace-nowrap"
+                                                title="永久删除当前客户"
                                             >
-                                                <Icon name="trash-2" size={20} />
+                                                <Icon name="trash-2" size={14} className="w-[12px] h-[12px] md:w-[14px] md:h-[14px]" /> <span className="hidden md:inline">删除本客户配置</span><span className="md:hidden">删除</span>
                                             </button>
                                         </div>
                                     </div>
 
                                     {/* 基础设置 */}
-                                    <div className="mb-2 pl-4 text-sm font-semibold text-tg-hint uppercase tracking-wider">基础设置</div>
-                                    <div className="bg-tg-bg rounded-2xl card-shadow p-4 md:p-5 mb-6 md:mb-8 space-y-4">
-                                        <div>
-                                            <label className="block text-[13px] font-medium text-tg-hint mb-1.5 ml-1">客户名称</label>
-                                            <input 
-                                                type="text" 
-                                                value={activeCustomer.name} 
-                                                onChange={(e) => updateActiveCustomer({ name: e.target.value })}
-                                                className="w-full px-4 py-3 bg-tg-secondary_bg/50 border border-tg-hint/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-tg-button/50 focus:border-transparent text-[15px] font-medium transition-all"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-[13px] font-medium text-tg-hint mb-1.5 ml-1">匹配关键词</label>
-                                            <TagInput 
-                                                value={activeCustomer.match_keywords || []} 
-                                                onChange={(tags) => updateActiveCustomer({ match_keywords: tags })}
-                                                placeholder="输入词按回车..."
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-[13px] font-medium text-tg-hint mb-1.5 ml-1">排除关键词</label>
-                                            <TagInput 
-                                                value={activeCustomer.exclude_keywords || []} 
-                                                onChange={(tags) => updateActiveCustomer({ exclude_keywords: tags })}
-                                                placeholder="可选: 输入需排除的词..."
-                                            />
+                                    <div className="bg-tg-bg rounded-2xl card-shadow p-4 md:p-6 mb-4 md:mb-6">
+                                        <h2 className="text-base md:text-lg font-semibold text-tg-text mb-3 md:mb-4 flex items-center gap-2">
+                                            <Icon name="settings" size={16} className="text-[#3390ec] md:w-[18px] md:h-[18px]" /> 
+                                            基础设置
+                                        </h2>
+                                        <div className="space-y-3 md:space-y-4">
+                                            <div>
+                                                <label className="block text-xs md:text-sm font-medium text-tg-hint mb-1">客户名称</label>
+                                                <input 
+                                                    type="text" 
+                                                    value={activeCustomer.name} 
+                                                    onChange={(e) => updateActiveCustomer({ name: e.target.value })}
+                                                    className="w-full px-2.5 py-1.5 md:px-3 md:py-2 border border-tg-hint/20 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#3390ec] focus:border-[#3390ec] text-sm bg-tg-secondary_bg/50 text-tg-text"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs md:text-sm font-medium text-tg-hint mb-1">匹配关键词</label>
+                                                <TagInput 
+                                                    value={activeCustomer.match_keywords || []} 
+                                                    onChange={(tags) => updateActiveCustomer({ match_keywords: tags })}
+                                                    placeholder="输入词按回车..."
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs md:text-sm font-medium text-tg-hint mb-1">排除关键词</label>
+                                                <TagInput 
+                                                    value={activeCustomer.exclude_keywords || []} 
+                                                    onChange={(tags) => updateActiveCustomer({ exclude_keywords: tags })}
+                                                    placeholder="可选: 输入需排除的词..."
+                                                />
+                                            </div>
                                         </div>
                                     </div>
 
                                     {/* 字段提取规则 */}
-                                    <div className="flex justify-between items-center mb-2 pl-4 pr-2">
-                                        <div className="text-sm font-semibold text-tg-hint uppercase tracking-wider">字段提取规则</div>
-                                        <button 
-                                            onClick={addRuleField}
-                                            className="text-tg-button text-[13px] font-medium hover:opacity-80 flex items-center gap-1"
-                                        >
-                                            <Icon name="plus" size={14} /> 添加字段
-                                        </button>
-                                    </div>
-                                    
-                                    <div className="bg-tg-bg rounded-2xl card-shadow overflow-hidden">
-                                        {Object.entries(activeCustomer.rules || {}).map(([field, rule], index, arr) => (
-                                            <div key={field} className={`p-4 md:p-5 ${index !== arr.length - 1 ? 'border-b border-tg-secondary_bg' : ''} relative group`}>
-                                                <button 
-                                                    onClick={() => deleteRuleField(field)}
-                                                    className="absolute right-4 top-4 p-1.5 text-tg-hint hover:text-[#ff3b30] bg-tg-secondary_bg/50 hover:bg-[#ff3b30]/10 rounded-lg transition-colors"
-                                                >
-                                                    <Icon name="x" size={16} />
-                                                </button>
-                                                
-                                                <div className="mb-3 pr-10">
-                                                    <div className="text-[15px] font-bold text-tg-text">{field}</div>
-                                                </div>
-                                                
-                                                <div className="space-y-3">
-                                                    <div className="flex flex-col sm:flex-row gap-3">
-                                                        <div className="w-full sm:w-1/3">
+                                    <div className="bg-tg-bg rounded-2xl card-shadow p-4 md:p-6 mb-6 md:mb-8">
+                                        <div className="flex justify-between items-center mb-3 md:mb-4 pb-2 border-b border-tg-hint/10">
+                                            <h2 className="text-base md:text-lg font-semibold text-tg-text flex items-center gap-2">
+                                                <Icon name="file-json" size={16} className="text-[#34c759] md:w-[18px] md:h-[18px]" /> 
+                                                字段提取规则
+                                            </h2>
+                                            <button 
+                                                onClick={addRuleField}
+                                                className="flex items-center gap-1 px-2 md:px-3 py-1 md:py-1.5 text-xs md:text-sm bg-[#34c759]/10 text-[#34c759] hover:bg-[#34c759]/20 rounded-full transition-colors font-medium"
+                                            >
+                                                <Icon name="plus" size={14} className="md:w-[16px] md:h-[16px]" /> 添加字段
+                                            </button>
+                                        </div>
+                                        
+                                        <div className="space-y-4">
+                                            {Object.entries(activeCustomer.rules || {}).map(([field, rule]) => (
+                                                <div key={field} className="border border-tg-hint/20 rounded-xl p-4 bg-tg-secondary_bg/30 hover:border-[#3390ec]/50 transition-colors relative group">
+                                                    <button 
+                                                        onClick={() => deleteRuleField(field)}
+                                                        className="absolute right-3 top-3 p-1.5 text-tg-hint hover:text-[#ff3b30] hover:bg-[#ff3b30]/10 rounded-md transition-colors"
+                                                        title="删除字段"
+                                                    >
+                                                        <Icon name="trash-2" size={16} />
+                                                    </button>
+                                                    
+                                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pr-8">
+                                                        <div className="md:col-span-1">
+                                                            <label className="block text-[11px] font-semibold text-tg-hint mb-1 uppercase tracking-wider">输出字段名</label>
+                                                            <div className="font-mono text-sm bg-tg-bg px-3 py-2 rounded-lg border border-tg-hint/20 text-tg-text">{field}</div>
+                                                        </div>
+                                                        
+                                                        <div className="md:col-span-1">
+                                                            <label className="block text-[11px] font-semibold text-tg-hint mb-1 uppercase tracking-wider">提取类型</label>
                                                             <select 
                                                                 value={rule.type}
                                                                 onChange={(e) => updateRule(field, { type: e.target.value })}
-                                                                className="w-full px-3 py-2.5 bg-tg-secondary_bg/50 border border-tg-hint/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-tg-button/50 text-[14px] text-tg-text font-medium appearance-none"
+                                                                className="w-full px-3 py-2 border border-tg-hint/20 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#3390ec] focus:border-[#3390ec] bg-tg-bg text-tg-text text-sm"
                                                             >
-                                                                <option value="constant">固定常量</option>
-                                                                <option value="keyword_line">同行提取</option>
-                                                                <option value="regex">正则提取</option>
-                                                                <option value="url">抓取链接</option>
+                                                                <option value="constant">写死常量 (Constant)</option>
+                                                                <option value="keyword_line">同行提取 (Keyword Line)</option>
+                                                                <option value="regex">正则表达式 (Regex)</option>
+                                                                <option value="url">抓取链接 (URL)</option>
                                                             </select>
                                                         </div>
-                                                        
-                                                        <div className="w-full sm:w-2/3">
+
+                                                        <div className="md:col-span-2">
                                                             {rule.type === 'constant' && (
-                                                                <input 
-                                                                    type="text" 
-                                                                    placeholder="固定值"
-                                                                    value={rule.value || ''} 
-                                                                    onChange={(e) => updateRule(field, { value: e.target.value })}
-                                                                    className="w-full px-3 py-2.5 bg-tg-secondary_bg/50 border border-tg-hint/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-tg-button/50 text-[14px] transition-all"
-                                                                />
+                                                                <div>
+                                                                    <label className="block text-[11px] font-semibold text-tg-hint mb-1 uppercase tracking-wider">固定值</label>
+                                                                    <input 
+                                                                        type="text" 
+                                                                        value={rule.value || ''} 
+                                                                        onChange={(e) => updateRule(field, { value: e.target.value })}
+                                                                        className="w-full px-3 py-2 border border-tg-hint/20 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#3390ec] focus:border-[#3390ec] text-sm bg-tg-bg text-tg-text"
+                                                                    />
+                                                                </div>
                                                             )}
                                                             
                                                             {rule.type === 'url' && (
-                                                                <div className="w-full px-3 py-2.5 bg-tg-secondary_bg/30 border border-dashed border-tg-hint/30 rounded-xl text-[13px] text-tg-hint flex items-center justify-center h-[42px]">
-                                                                    自动提取首个 http(s) 链接
+                                                                <div className="flex items-center h-full pt-4">
+                                                                    <span className="text-[13px] text-tg-hint bg-tg-bg px-3 py-1.5 rounded-lg border border-dashed border-tg-hint/30">
+                                                                        系统自动抓取文本中的第一个 http/https 链接
+                                                                    </span>
                                                                 </div>
                                                             )}
 
                                                             {rule.type === 'keyword_line' && (
-                                                                <div className="flex gap-2">
-                                                                    <input 
-                                                                        type="text" 
-                                                                        placeholder="行内关键词"
-                                                                        value={rule.keyword || ''} 
-                                                                        onChange={(e) => updateRule(field, { keyword: e.target.value })}
-                                                                        className="w-1/2 px-3 py-2.5 bg-tg-secondary_bg/50 border border-tg-hint/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-tg-button/50 text-[14px]"
-                                                                    />
-                                                                    <input 
-                                                                        type="text" 
-                                                                        placeholder="去除字符 (如: ：: )"
-                                                                        value={rule.strip_chars || ''} 
-                                                                        onChange={(e) => updateRule(field, { strip_chars: e.target.value })}
-                                                                        className="w-1/2 px-3 py-2.5 bg-tg-secondary_bg/50 border border-tg-hint/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-tg-button/50 text-[14px] font-mono"
-                                                                    />
+                                                                <div className="grid grid-cols-2 gap-2">
+                                                                    <div>
+                                                                        <label className="block text-[11px] font-semibold text-tg-hint mb-1 uppercase tracking-wider">行内关键词</label>
+                                                                        <input 
+                                                                            type="text" 
+                                                                            value={rule.keyword || ''} 
+                                                                            onChange={(e) => updateRule(field, { keyword: e.target.value })}
+                                                                            className="w-full px-3 py-2 border border-tg-hint/20 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#3390ec] focus:border-[#3390ec] text-sm bg-tg-bg text-tg-text"
+                                                                        />
+                                                                    </div>
+                                                                    <div>
+                                                                        <label className="block text-[11px] font-semibold text-tg-hint mb-1 uppercase tracking-wider">去除字符 (可选)</label>
+                                                                        <input 
+                                                                            type="text" 
+                                                                            value={rule.strip_chars || ''} 
+                                                                            onChange={(e) => updateRule(field, { strip_chars: e.target.value })}
+                                                                            className="w-full px-3 py-2 border border-tg-hint/20 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#3390ec] focus:border-[#3390ec] text-sm font-mono bg-tg-bg text-tg-text"
+                                                                        />
+                                                                    </div>
                                                                 </div>
                                                             )}
 
                                                             {rule.type === 'regex' && (
-                                                                <div className="flex gap-2">
-                                                                    <input 
-                                                                        type="text" 
-                                                                        placeholder="Pattern (如: 编号-(\d+))"
-                                                                        value={rule.pattern || ''} 
-                                                                        onChange={(e) => updateRule(field, { pattern: e.target.value })}
-                                                                        className="w-1/2 px-3 py-2.5 bg-tg-secondary_bg/50 border border-tg-hint/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-tg-button/50 text-[13px] font-mono text-[#0088cc]"
-                                                                    />
-                                                                    <input 
-                                                                        type="text" 
-                                                                        placeholder="Transform (如: APK$1)"
-                                                                        value={rule.transform || ''} 
-                                                                        onChange={(e) => updateRule(field, { transform: e.target.value })}
-                                                                        className="w-1/2 px-3 py-2.5 bg-tg-secondary_bg/50 border border-tg-hint/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-tg-button/50 text-[13px] font-mono text-[#34c759]"
-                                                                    />
+                                                                <div className="grid grid-cols-2 gap-2">
+                                                                    <div>
+                                                                        <label className="block text-[11px] font-semibold text-tg-hint mb-1 uppercase tracking-wider">匹配模式 (Pattern)</label>
+                                                                        <input 
+                                                                            type="text" 
+                                                                            value={rule.pattern || ''} 
+                                                                            onChange={(e) => updateRule(field, { pattern: e.target.value })}
+                                                                            className="w-full px-3 py-2 border border-tg-hint/20 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#3390ec] focus:border-[#3390ec] text-sm font-mono text-[#3390ec] bg-tg-bg"
+                                                                        />
+                                                                    </div>
+                                                                    <div>
+                                                                        <label className="block text-[11px] font-semibold text-tg-hint mb-1 uppercase tracking-wider">转换规则 (Transform)</label>
+                                                                        <input 
+                                                                            type="text" 
+                                                                            value={rule.transform || ''} 
+                                                                            onChange={(e) => updateRule(field, { transform: e.target.value })}
+                                                                            className="w-full px-3 py-2 border border-tg-hint/20 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#34c759] focus:border-[#34c759] text-sm font-mono text-[#34c759] bg-tg-bg"
+                                                                        />
+                                                                    </div>
                                                                 </div>
                                                             )}
                                                         </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        ))}
-                                        {(!activeCustomer.rules || Object.keys(activeCustomer.rules).length === 0) && (
-                                            <div className="p-8 text-center text-tg-hint text-[14px]">
-                                                暂无提取规则，点击右上方添加
-                                            </div>
-                                        )}
+                                            ))}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         ) : (
-                            <div className="flex-1 hidden md:flex flex-col items-center justify-center text-tg-hint p-8 text-center opacity-50">
-                                <Icon name="layers" size={64} className="mb-4" />
-                                <p className="text-xl font-medium">请在左侧选择一个客户配置</p>
+                            <div className="flex-1 flex flex-col items-center justify-center text-tg-hint bg-tg-secondary_bg p-10 md:p-6 lg:p-8 w-full min-h-[30vh] md:h-full border-r border-tg-hint/10">
+                                <Icon name="mouse-pointer-click" size={48} className="mb-4 opacity-50" />
+                                <p className="text-lg hidden md:block">请在左侧选择一个客户进行配置</p>
+                                <p className="text-lg md:hidden">请在上方选择一个客户进行配置</p>
                             </div>
                         )}
                     </div>
@@ -645,46 +677,42 @@
             };
 
             return (
-                <div className="w-full h-full bg-tg-secondary_bg flex flex-col overflow-hidden relative">
-                    <div className="p-4 flex justify-between items-center bg-tg-bg shrink-0 shadow-sm z-10">
-                        <h2 className="font-bold text-tg-text flex items-center gap-2 text-xl md:text-2xl">
-                            <ColorfulIcon name="play-circle" bgClass="bg-[#34c759]" />
+                <div className="w-full h-full bg-tg-secondary_bg flex flex-col overflow-hidden">
+                    <div className="p-3 md:p-6 border-b border-tg-hint/20 flex justify-between items-center bg-tg-bg shrink-0">
+                        <h2 className="font-semibold text-tg-text flex items-center gap-1.5 md:gap-2 text-base md:text-xl">
+                            <Icon name="play-circle" size={20} className="text-[#3390ec] md:w-[24px] md:h-[24px]" />
                             实时沙盒测试
                         </h2>
                         <button 
                             onClick={handleTest}
                             disabled={testing || !testText.trim()}
-                            className="px-4 py-2 bg-[#3390ec] text-white text-sm md:text-base font-medium rounded-full hover:bg-[#3390ec]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 shadow-sm"
+                            className="px-4 py-1.5 md:px-6 md:py-2.5 bg-[#3390ec] text-white text-xs md:text-base font-medium rounded-full hover:bg-[#3390ec]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 md:gap-2 shadow-sm"
                         >
-                            {testing ? <Icon name="loader" size={18} className="animate-spin" /> : <Icon name="zap" size={18} />}
+                            {testing ? <Icon name="loader" size={14} className="animate-spin md:w-[18px] md:h-[18px]" /> : <Icon name="zap" size={14} className="md:w-[18px] md:h-[18px]" />}
                             运行测试
                         </button>
                     </div>
                     
-                    <div className="flex-1 flex flex-col md:flex-row overflow-hidden p-2 md:p-4 gap-2 md:gap-4">
-                        <div className="flex-1 flex flex-col bg-tg-bg rounded-2xl card-shadow overflow-hidden">
-                            <div className="px-4 py-3 bg-tg-secondary_bg/30 border-b border-tg-hint/10">
-                                <label className="text-[13px] font-bold text-tg-hint uppercase tracking-wider">输入群内原始文案</label>
-                            </div>
+                    <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+                        <div className="p-3 md:p-6 flex-1 flex flex-col border-b md:border-b-0 md:border-r border-tg-hint/20 min-h-0 bg-tg-bg">
+                            <label className="block text-xs md:text-base font-semibold text-tg-hint mb-1.5 md:mb-3 tracking-wider shrink-0">输入群内原始文案</label>
                             <textarea
                                 value={testText}
                                 onChange={(e) => setTestText(e.target.value)}
                                 placeholder="在此粘贴群里收到的发包信息..."
-                                className="flex-1 w-full p-4 bg-transparent focus:outline-none resize-none text-[15px] font-mono text-tg-text placeholder-tg-hint/50"
+                                className="flex-1 w-full p-2.5 md:p-4 border border-tg-hint/20 rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-[#3390ec]/50 focus:border-[#3390ec] resize-none text-xs md:text-base font-mono overflow-y-auto bg-tg-secondary_bg/50 text-tg-text"
                             ></textarea>
                         </div>
                         
-                        <div className="flex-1 flex flex-col bg-tg-bg rounded-2xl card-shadow overflow-hidden">
-                            <div className="px-4 py-3 bg-tg-secondary_bg/30 border-b border-tg-hint/10">
-                                <label className="text-[13px] font-bold text-tg-hint uppercase tracking-wider">清洗解析结果</label>
-                            </div>
-                            <div className="flex-1 w-full bg-[#1c1c1d] overflow-auto p-4">
+                        <div className="p-3 md:p-6 flex-1 flex flex-col bg-tg-bg min-h-0">
+                            <label className="block text-xs md:text-base font-semibold text-tg-hint mb-1.5 md:mb-3 tracking-wider shrink-0">清洗解析结果</label>
+                            <div className="flex-1 w-full bg-[#1c1c1d] rounded-2xl overflow-auto p-2.5 md:p-4 shadow-inner border border-tg-hint/10">
                                 {testResult ? (
-                                    <pre className="text-[13px] md:text-sm font-mono text-[#34c759] whitespace-pre-wrap break-all m-0">
+                                    <pre className="text-xs md:text-sm font-mono text-[#34c759] whitespace-pre-wrap break-all m-0">
                                         {JSON.stringify(testResult, null, 2)}
                                     </pre>
                                 ) : (
-                                    <div className="h-full flex items-center justify-center text-tg-hint/50 text-sm md:text-base">
+                                    <div className="h-full flex items-center justify-center text-tg-hint text-xs md:text-base text-center">
                                         输入文本并点击上方运行按钮查看结果
                                     </div>
                                 )}
@@ -757,40 +785,34 @@
             };
 
             return (
-                <div className="w-full h-full bg-tg-secondary_bg flex flex-col overflow-hidden relative">
-                    <div className="p-4 flex justify-between items-center bg-tg-bg shrink-0 shadow-sm z-10">
-                        <h2 className="font-bold text-tg-text flex items-center gap-2 text-xl md:text-2xl">
-                            <ColorfulIcon name="code" bgClass="bg-[#8e8e93]" />
-                            高级 JSON 配置
-                        </h2>
-                        <div className="flex gap-2">
-                            <button onClick={handleCopy} className="p-2 bg-tg-secondary_bg text-tg-text rounded-xl hover:opacity-90 transition-all shadow-sm" title="复制">
-                                <Icon name="copy" size={20} />
-                            </button>
-                            <button onClick={handleBackup} className="p-2 bg-tg-secondary_bg text-tg-text rounded-xl hover:opacity-90 transition-all shadow-sm" title="备份">
-                                <Icon name="archive" size={20} />
-                            </button>
-                            <button 
-                                onClick={handleSave} 
-                                disabled={saving} 
-                                className="px-4 py-2 bg-[#3390ec] text-white text-sm md:text-base font-medium rounded-full hover:bg-[#3390ec]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 shadow-sm"
-                            >
-                                {saving ? <Icon name="loader" size={18} className="animate-spin" /> : <Icon name="save" size={18} />} 
-                                <span className="hidden md:inline">保存重载</span>
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div className="flex-1 overflow-hidden p-2 md:p-4">
-                        <div className="w-full h-full bg-tg-bg rounded-2xl card-shadow flex flex-col overflow-hidden">
-                            <div className="px-4 py-3 bg-tg-secondary_bg/30 border-b border-tg-hint/10 flex justify-between items-center">
-                                <label className="text-[13px] font-bold text-tg-hint uppercase tracking-wider">底层 JSON 数据</label>
-                                <span className="text-[10px] text-tg-hint hidden md:inline">直接修改，保存立即生效</span>
+                <div className="w-full h-full bg-tg-secondary_bg flex flex-col">
+                    <div className="p-4 md:p-6 lg:p-8 max-w-6xl mx-auto w-full flex flex-col h-full">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 md:gap-4 mb-4 md:mb-6 shrink-0 border-b border-tg-hint/20 pb-3 md:pb-4 bg-tg-bg rounded-2xl p-4 card-shadow">
+                            <div className="flex items-center gap-2 md:gap-3">
+                                <Icon name="code" size={24} className="text-[#8e8e93] md:w-[32px] md:h-[32px]" />
+                                <div>
+                                    <h1 className="text-xl md:text-3xl font-bold text-tg-text">高级 JSON 配置</h1>
+                                    <p className="text-[10px] md:text-sm text-tg-hint mt-1">直接修改底层 JSON，保存立即生效。</p>
+                                </div>
                             </div>
+                            <div className="flex flex-nowrap gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+                                <button onClick={handleCopy} className="flex-1 md:flex-none justify-center px-3 py-1.5 md:px-4 md:py-2 bg-tg-secondary_bg text-tg-text text-xs md:text-sm rounded-full hover:opacity-90 transition-colors flex items-center gap-1.5 md:gap-2 whitespace-nowrap shadow-sm">
+                                    <Icon name="copy" size={14} className="md:w-[16px] md:h-[16px]" /> 复制
+                                </button>
+                                <button onClick={handleBackup} className="flex-1 md:flex-none justify-center px-3 py-1.5 md:px-4 md:py-2 bg-tg-secondary_bg text-tg-text text-xs md:text-sm rounded-full hover:opacity-90 transition-colors flex items-center gap-1.5 md:gap-2 whitespace-nowrap shadow-sm">
+                                    <Icon name="archive" size={14} className="md:w-[16px] md:h-[16px]" /> 备份
+                                </button>
+                                <button onClick={handleSave} disabled={saving} className="flex-[2] md:flex-none justify-center px-3 py-1.5 md:px-4 md:py-2 bg-[#3390ec] text-white text-xs md:text-sm rounded-full hover:bg-[#3390ec]/90 transition-colors flex items-center gap-1.5 md:gap-2 whitespace-nowrap shadow-sm">
+                                    {saving ? <Icon name="loader" size={14} className="animate-spin md:w-[16px] md:h-[16px]" /> : <Icon name="save" size={14} className="md:w-[16px] md:h-[16px]" />} 
+                                    保存重载
+                                </button>
+                            </div>
+                        </div>
+                        <div className="bg-tg-bg rounded-2xl card-shadow p-2 md:p-3 flex-1 min-h-0 mb-4 md:mb-0">
                             <textarea
                                 value={jsonText}
                                 onChange={(e) => setJsonText(e.target.value)}
-                                className="flex-1 w-full p-4 bg-[#1c1c1d] text-[#34c759] font-mono text-[13px] md:text-sm focus:outline-none resize-none"
+                                className="w-full h-full p-3 md:p-4 font-mono text-[10px] md:text-sm bg-[#1c1c1d] text-[#34c759] rounded-xl focus:outline-none resize-none border border-tg-hint/10"
                                 spellCheck="false"
                             ></textarea>
                         </div>
@@ -827,59 +849,53 @@
                 return () => clearInterval(timer);
             }, []);
 
-            if (loading && !status) return <div className="flex-1 flex items-center justify-center"><Icon name="loader" className="animate-spin text-tg-button" size={24} /></div>;
+            if (loading && !status) return <div className="flex-1 flex items-center justify-center"><Icon name="loader" className="animate-spin text-[#3390ec]" size={24} /></div>;
 
             return (
-                <div className="w-full h-full bg-tg-secondary_bg flex flex-col overflow-hidden relative">
-                    <div className="p-4 flex justify-between items-center bg-tg-bg shrink-0 shadow-sm z-10">
-                        <h2 className="font-bold text-tg-text flex items-center gap-2 text-xl md:text-2xl">
-                            <ColorfulIcon name="activity" bgClass="bg-[#0088cc]" />
-                            系统运行状态
-                        </h2>
-                    </div>
+                <div className="w-full h-full bg-tg-secondary_bg overflow-y-auto">
+                    <div className="p-4 md:p-6 lg:p-8 max-w-5xl mx-auto">
+                        <div className="mb-4 md:mb-8 flex items-center gap-2 md:gap-3 pb-3 md:pb-4 border-b border-tg-hint/20">
+                            <Icon name="activity" size={24} className="text-[#3390ec] md:w-[32px] md:h-[32px]" />
+                            <h1 className="text-xl md:text-3xl font-bold text-tg-text">
+                                系统运行状态
+                            </h1>
+                        </div>
 
-                    <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-tg-bg rounded-2xl card-shadow p-4 flex flex-col items-center text-center">
-                                <Icon name="clock" size={24} className="text-[#34c759] mb-2" />
-                                <p className="text-[12px] font-medium text-tg-hint mb-1">运行时间 (Uptime)</p>
-                                <p className="text-xl font-bold text-tg-text">{Math.floor(status?.uptime || 0)}s</p>
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-4 md:mb-8">
+                            <div className="bg-tg-bg p-4 md:p-6 rounded-2xl card-shadow border-l-4 border-[#3390ec] flex flex-col justify-center">
+                                <p className="text-[10px] md:text-sm font-medium text-tg-hint mb-1">运行时间 (Uptime)</p>
+                                <p className="text-base md:text-2xl font-bold text-tg-text">{Math.floor(status?.uptime || 0)} 秒</p>
                             </div>
-                            <div className="bg-tg-bg rounded-2xl card-shadow p-4 flex flex-col items-center text-center">
-                                <Icon name="database" size={24} className="text-[#3390ec] mb-2" />
-                                <p className="text-[12px] font-medium text-tg-hint mb-1">Google Sheets</p>
-                                <p className="text-xl font-bold text-tg-text flex items-center gap-1.5">
-                                    {status?.sheetsReady ? <><span className="w-2 h-2 rounded-full bg-[#34c759]"></span> 已连接</> : <><span className="w-2 h-2 rounded-full bg-[#ff3b30]"></span> 未连接</>}
+                            <div className="bg-tg-bg p-4 md:p-6 rounded-2xl card-shadow border-l-4 border-[#34c759] flex flex-col justify-center">
+                                <p className="text-[10px] md:text-sm font-medium text-tg-hint mb-1">Google Sheets API</p>
+                                <p className="text-base md:text-2xl font-bold text-tg-text flex items-center gap-1 md:gap-2">
+                                    {status?.sheetsReady ? <><span className="w-2 h-2 md:w-3 md:h-3 rounded-full bg-[#34c759]"></span> 已连接</> : <><span className="w-2 h-2 md:w-3 md:h-3 rounded-full bg-[#ff3b30]"></span> 未连接</>}
                                 </p>
                             </div>
-                            <div className="bg-tg-bg rounded-2xl card-shadow p-4 flex flex-col items-center text-center">
-                                <Icon name="users" size={24} className="text-[#af52de] mb-2" />
-                                <p className="text-[12px] font-medium text-tg-hint mb-1">客户数量</p>
-                                <p className="text-xl font-bold text-tg-text">{status?.configCustomersCount || 0}</p>
+                            <div className="bg-tg-bg p-4 md:p-6 rounded-2xl card-shadow border-l-4 border-[#af52de] flex flex-col justify-center">
+                                <p className="text-[10px] md:text-sm font-medium text-tg-hint mb-1">加载的客户数</p>
+                                <p className="text-base md:text-2xl font-bold text-tg-text">{status?.configCustomersCount || 0} 个</p>
                             </div>
-                            <div className="bg-tg-bg rounded-2xl card-shadow p-4 flex flex-col items-center text-center">
-                                <Icon name="archive" size={24} className="text-[#ff9500] mb-2" />
-                                <p className="text-[12px] font-medium text-tg-hint mb-1">配置备份</p>
-                                <p className="text-xl font-bold text-tg-text">{status?.backupCount || 0}</p>
+                            <div className="bg-tg-bg p-4 md:p-6 rounded-2xl card-shadow border-l-4 border-[#ff9500] flex flex-col justify-center">
+                                <p className="text-[10px] md:text-sm font-medium text-tg-hint mb-1">配置备份数量</p>
+                                <p className="text-base md:text-2xl font-bold text-tg-text">{status?.backupCount || 0} 份</p>
                             </div>
                         </div>
 
-                        <div className="bg-tg-bg rounded-2xl card-shadow overflow-hidden">
-                            <div className="px-4 py-3 bg-tg-secondary_bg/30 border-b border-tg-hint/10">
-                                <label className="text-[13px] font-bold text-tg-hint uppercase tracking-wider">环境信息</label>
-                            </div>
-                            <div className="p-4 space-y-4">
-                                <div className="flex justify-between items-center border-b border-tg-secondary_bg pb-3">
-                                    <div className="text-[14px] text-tg-text">配置修改时间</div>
-                                    <div className="text-[13px] text-tg-hint font-mono">{new Date(status?.lastConfigModified).toLocaleString() || '未知'}</div>
+                        <div className="bg-tg-bg rounded-2xl card-shadow p-4 md:p-6 border border-tg-hint/10">
+                            <h2 className="text-sm md:text-xl font-bold mb-3 md:mb-4 border-b border-tg-hint/20 pb-2 text-tg-text">运行环境信息</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-3 md:gap-y-4 text-xs md:text-sm">
+                                <div className="flex justify-between md:block">
+                                    <div className="text-tg-hint">最后配置修改时间</div>
+                                    <div className="font-mono text-tg-text">{new Date(status?.lastConfigModified).toLocaleString() || '未知'}</div>
                                 </div>
-                                <div className="flex justify-between items-center border-b border-tg-secondary_bg pb-3">
-                                    <div className="text-[14px] text-tg-text">Node.js 内存使用</div>
-                                    <div className="text-[13px] text-tg-hint font-mono">{(status?.memoryUsage?.rss / 1024 / 1024).toFixed(2)} MB</div>
+                                <div className="flex justify-between md:block">
+                                    <div className="text-tg-hint">Node.js 内存使用</div>
+                                    <div className="font-mono text-tg-text">{(status?.memoryUsage?.rss / 1024 / 1024).toFixed(2)} MB</div>
                                 </div>
-                                <div className="flex justify-between items-center">
-                                    <div className="text-[14px] text-tg-text">服务器时间</div>
-                                    <div className="text-[13px] text-tg-hint font-mono">{new Date().toLocaleString()}</div>
+                                <div className="flex justify-between md:block md:col-span-2">
+                                    <div className="text-tg-hint">服务器时间</div>
+                                    <div className="font-mono text-tg-text">{new Date().toLocaleString()}</div>
                                 </div>
                             </div>
                         </div>
@@ -890,58 +906,76 @@
 
         // --- 页面组件: 使用向导 ---
         const GuidePage = () => (
-            <div className="w-full h-full bg-tg-secondary_bg flex flex-col overflow-hidden relative">
-                <div className="p-4 flex justify-between items-center bg-tg-bg shrink-0 shadow-sm z-10">
-                    <h2 className="font-bold text-tg-text flex items-center gap-2 text-xl md:text-2xl">
-                        <ColorfulIcon name="book-open" bgClass="bg-[#ff9500]" />
-                        机器人使用向导
-                    </h2>
-                </div>
-                
-                <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                    <div className="bg-tg-bg rounded-2xl card-shadow p-5">
-                        <div className="prose prose-sm md:prose-base max-w-none text-tg-text space-y-6">
+            <div className="w-full h-full bg-tg-secondary_bg overflow-y-auto">
+                <div className="p-4 md:p-6 lg:p-8 max-w-4xl mx-auto">
+                    <div className="bg-tg-bg rounded-2xl card-shadow p-5 md:p-8 border border-tg-hint/10">
+                        <div className="mb-4 md:mb-6 flex items-center gap-2 md:gap-3 pb-3 md:pb-4 border-b border-tg-hint/20">
+                            <Icon name="book-open" size={24} className="text-[#ff9500] md:w-[32px] md:h-[32px]" />
+                            <h1 className="text-xl md:text-3xl font-bold text-tg-text">
+                                机器人使用向导
+                            </h1>
+                        </div>
+                        
+                        <div className="prose prose-sm md:prose-base max-w-none text-tg-text space-y-6 md:space-y-8">
                             <section>
-                                <h2 className="text-base md:text-xl font-bold text-tg-text mb-2">1. 机器人工作原理</h2>
-                                <p className="text-tg-hint leading-relaxed">本机器人通过监听群聊消息，利用“触发条件”捕获文本，然后使用正则表达式或关键词规则清洗数据，最终写入指定的 Google Sheets。</p>
-                                <div className="mt-3 p-3 bg-[#ff9500]/10 rounded-xl text-[#ff9500] text-[13px] border border-[#ff9500]/20">
+                                <h2 className="text-base md:text-xl font-bold text-tg-text mb-2 md:mb-3">1. 机器人工作原理</h2>
+                                <p className="leading-relaxed text-tg-hint">本机器人通过监听 Telegram 群聊消息，利用预设的“触发条件”捕获包含发包信息的文本。捕获后，机器人将使用“配置管理”中的正则表达式或关键词规则，将杂乱的文本清洗成结构化数据，并最终写入到指定的 Google Sheets 中。</p>
+                                <div className="mt-3 p-3 md:p-4 bg-[#ff9500]/10 rounded-xl text-[#ff9500] text-xs md:text-sm border border-[#ff9500]/20">
                                     <strong className="flex items-center gap-1 mb-1"><Icon name="lightbulb" size={14} /> 智能分块机制：</strong>
-                                    当多条包数据连在一起发送时，机器人会自动将它们智能切分成多个独立包块进行解析。
+                                    当多条包数据连在一起发送时（如多行连写的“代理线：”或“S97包”等），机器人会自动将它们智能切分成多个独立包块进行解析。
                                 </div>
                             </section>
 
                             <section>
-                                <h2 className="text-base md:text-xl font-bold text-tg-text mb-2">2. 触发条件</h2>
-                                <p className="text-tg-hint leading-relaxed">只要文本满足以下<strong>任意一个条件</strong>，就会被抓取：</p>
-                                <ul className="list-disc pl-5 space-y-1.5 mt-3 bg-[#3390ec]/10 p-4 rounded-xl text-[#3390ec] text-[13px] border border-[#3390ec]/20">
+                                <h2 className="text-base md:text-xl font-bold text-tg-text mb-2 md:mb-3">2. 触发条件</h2>
+                                <p className="leading-relaxed text-tg-hint">机器人在后台会自动判断一段文字是否是“发包信息”。只要文本中满足以下<strong>任意一个条件</strong>，就会被抓取并解析：</p>
+                                <ul className="list-disc pl-5 space-y-1.5 mt-3 bg-[#3390ec]/10 p-4 rounded-xl text-[#3390ec] text-xs md:text-sm border border-[#3390ec]/20">
                                     <li>包含“神包”且包含“上”</li>
                                     <li>包含“名称”且包含“链接”</li>
                                     <li>包含“链接”且包含“命名”</li>
-                                    <li>包含合法的 http(s) 链接</li>
-                                    <li>包含特定客户标签（如 S97, BA99, pak, VIP 等）</li>
+                                    <li>包含任何合法的 <code className="bg-tg-bg px-1 py-0.5 rounded text-[#3390ec]">http://</code> 或 <code className="bg-tg-bg px-1 py-0.5 rounded text-[#3390ec]">https://</code> 链接</li>
+                                    <li>包含特定客户标签（如 S97, BA99, pak, VIP, APP0, 150244, dm12, 代理线等）</li>
                                 </ul>
                             </section>
 
                             <section>
-                                <h2 className="text-base md:text-xl font-bold text-tg-text mb-2">3. 常用命令</h2>
-                                <div className="bg-[#1c1c1d] text-tg-hint p-4 rounded-xl font-mono text-[13px] space-y-2.5">
-                                    <p><span className="font-bold text-[#34c759]">/help</span> <span className="opacity-70 ml-2">- 简易帮助列表</span></p>
-                                    <p><span className="font-bold text-[#34c759]">/status</span> <span className="opacity-70 ml-2">- 获取后台链接</span></p>
-                                    <p><span className="font-bold text-[#34c759]">/customer</span> <span className="opacity-70 ml-2">- 列出已配置客户</span></p>
-                                    <p><span className="font-bold text-[#34c759]">/id</span> <span className="opacity-70 ml-2">- 获取群组 Chat ID</span></p>
+                                <h2 className="text-base md:text-xl font-bold text-tg-text mb-2 md:mb-3">3. 后台管理功能说明</h2>
+                                <div className="space-y-4 text-sm md:text-base">
+                                    <div className="bg-tg-secondary_bg/50 p-3 md:p-4 rounded-xl border border-tg-hint/10">
+                                        <h3 className="font-semibold text-tg-text flex items-center gap-1.5 mb-1"><Icon name="copy" size={14} className="text-[#3390ec]" /> 快速克隆客户</h3>
+                                        <p className="text-xs md:text-sm text-tg-hint leading-relaxed">在“可视化”配置页，选中一个客户后点击右上角的 <strong>[克隆本客户配置]</strong>，可一键复制其所有规则，极大提高新增同类客户的效率。</p>
+                                    </div>
+                                    <div className="bg-tg-secondary_bg/50 p-3 md:p-4 rounded-xl border border-tg-hint/10">
+                                        <h3 className="font-semibold text-tg-text flex items-center gap-1.5 mb-1"><Icon name="smartphone" size={14} className="text-[#34c759]" /> 移动端支持</h3>
+                                        <p className="text-xs md:text-sm text-tg-hint leading-relaxed">管理后台已深度适配手机和平板端，底栏菜单导航，您可以随时随地在手机浏览器上完成规则的增删改查和实时测试。</p>
+                                    </div>
+                                    <div className="bg-tg-secondary_bg/50 p-3 md:p-4 rounded-xl border border-tg-hint/10">
+                                        <h3 className="font-semibold text-tg-text flex items-center gap-1.5 mb-1"><Icon name="shield-check" size={14} className="text-[#af52de]" /> 安全登录</h3>
+                                        <p className="text-xs md:text-sm text-tg-hint leading-relaxed">系统采用 Cookie + 独立表单页的登录机制，不再依赖弹窗，彻底杜绝浏览器幽灵缓存导致的卡死问题。</p>
+                                    </div>
                                 </div>
                             </section>
 
                             <section>
-                                <h2 className="text-base md:text-xl font-bold text-tg-text mb-2">4. 常见问题</h2>
+                                <h2 className="text-base md:text-xl font-bold text-tg-text mb-2 md:mb-3">4. 常用命令</h2>
+                                <div className="bg-[#1c1c1d] text-tg-hint p-4 md:p-5 rounded-xl font-mono text-xs md:text-sm space-y-2.5 shadow-inner">
+                                    <p><span className="font-bold text-[#34c759]">/help</span> <span className="opacity-70 ml-2">- 查看简易帮助列表</span></p>
+                                    <p><span className="font-bold text-[#34c759]">/status</span> <span className="opacity-70 ml-2">- 获取本管理后台的链接</span></p>
+                                    <p><span className="font-bold text-[#34c759]">/customer</span> <span className="opacity-70 ml-2">- 列出当前系统内已配置的所有客户名称</span></p>
+                                    <p><span className="font-bold text-[#34c759]">/id</span> <span className="opacity-70 ml-2">- 获取当前所在群组的 Chat ID（用于绑定内部管理群）</span></p>
+                                </div>
+                            </section>
+
+                            <section>
+                                <h2 className="text-base md:text-xl font-bold text-tg-text mb-2 md:mb-3">5. 常见问题排查</h2>
                                 <div className="space-y-4">
                                     <div>
-                                        <h3 className="font-semibold text-[#ff3b30] text-[14px]">Q: 机器人在群里没反应？</h3>
-                                        <p className="mt-1 text-[13px] text-tg-hint leading-relaxed">A: 必须在 BotFather 中将机器人的 Group Privacy 设置为 Disabled，才能读取普通消息。</p>
+                                        <h3 className="font-semibold text-[#ff3b30] text-sm md:text-base">Q: 机器人在群里没有任何反应？</h3>
+                                        <p className="mt-1 text-xs md:text-sm text-tg-hint leading-relaxed">A: 请检查该群是否关闭了“Group Privacy”模式。你必须在 BotFather 中将机器人的 <code className="bg-tg-secondary_bg px-1 py-0.5 rounded text-tg-text">Group Privacy</code> 设置为 <code className="bg-tg-secondary_bg px-1 py-0.5 rounded text-tg-text">Disabled</code>，机器人才能读取群内所有的普通消息。</p>
                                     </div>
                                     <div>
-                                        <h3 className="font-semibold text-[#ff3b30] text-[14px]">Q: 提示 "Sheets API not ready"？</h3>
-                                        <p className="mt-1 text-[13px] text-tg-hint leading-relaxed">A: 检查系统状态页面。若是红色的“未连接”，说明缺少 google-credentials.json 或没有编辑权限。</p>
+                                        <h3 className="font-semibold text-[#ff3b30] text-sm md:text-base">Q: 机器人提示 "Sheets API not ready"？</h3>
+                                        <p className="mt-1 text-xs md:text-sm text-tg-hint leading-relaxed">A: 请进入“系统状态”页面查看 Sheets API 状态。如果是红色的“未连接”，说明服务器上缺少 <code className="bg-tg-secondary_bg px-1 py-0.5 rounded text-tg-text">google-credentials.json</code> 授权文件，或者该服务号没有被添加为您 Google 表格的“编辑者”。</p>
                                     </div>
                                 </div>
                             </section>
@@ -953,52 +987,37 @@
 
         // --- 页面组件: 定制服务 ---
         const CustomizePage = () => (
-            <div className="w-full h-full bg-tg-secondary_bg flex flex-col overflow-hidden relative">
-                <div className="p-4 flex justify-between items-center bg-tg-bg shrink-0 shadow-sm z-10">
-                    <h2 className="font-bold text-tg-text flex items-center gap-2 text-xl md:text-2xl">
-                        <ColorfulIcon name="gem" bgClass="bg-[#af52de]" />
-                        定制开发服务
-                    </h2>
-                </div>
-                
-                <div className="flex-1 overflow-y-auto p-4 flex flex-col">
-                    <div className="bg-tg-bg rounded-2xl card-shadow p-6 text-center flex-1 flex flex-col items-center justify-center">
-                        <div className="w-20 h-20 bg-[#af52de]/10 rounded-3xl flex items-center justify-center mb-6">
-                            <Icon name="diamond" size={40} className="text-[#af52de]" />
+            <div className="flex-1 p-8 bg-tg-secondary_bg overflow-y-auto">
+                <div className="max-w-4xl mx-auto bg-tg-bg rounded-2xl card-shadow p-10 text-center border border-tg-hint/10">
+                    <div className="w-20 h-20 bg-[#af52de]/10 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm">
+                        <Icon name="diamond" size={40} className="text-[#af52de]" />
+                    </div>
+                    <h1 className="text-4xl font-bold text-tg-text mb-4">RuntoAds 自动化技术支持</h1>
+                    <p className="text-lg text-tg-hint mb-10 max-w-2xl mx-auto">
+                        我们致力于为出海广告团队、媒介投放团队提供最顶尖的工具链自动化支持。如果你需要更深度的定制功能，欢迎联系我们。
+                    </p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10 text-left">
+                        <div className="p-6 border border-tg-hint/20 rounded-2xl bg-tg-secondary_bg/50 hover:border-[#3390ec]/50 transition-colors">
+                            <Icon name="bot" size={28} className="text-[#3390ec] mb-3" />
+                            <h3 className="font-bold text-lg mb-2 text-tg-text">定制机器人开发</h3>
+                            <p className="text-sm text-tg-hint">自动建群、自动拉人、消息定时群发、自动财务报表统计等复杂的 Telegram 机器人定制。</p>
                         </div>
-                        <h1 className="text-2xl font-bold text-tg-text mb-3">RuntoAds 技术支持</h1>
-                        <p className="text-[14px] text-tg-hint mb-8 max-w-md">
-                            我们致力于提供最顶尖的工具链自动化支持。如果需要更深度的定制功能，欢迎联系。
-                        </p>
-                        
-                        <div className="grid grid-cols-1 gap-4 mb-8 w-full max-w-md text-left">
-                            <div className="p-4 rounded-2xl bg-tg-secondary_bg/50 border border-tg-hint/10 flex items-start gap-4">
-                                <Icon name="bot" size={24} className="text-[#3390ec] mt-1 shrink-0" />
-                                <div>
-                                    <h3 className="font-bold text-[15px] text-tg-text mb-1">定制机器人</h3>
-                                    <p className="text-[13px] text-tg-hint">自动建群、自动拉人、消息定时群发、自动报表统计等。</p>
-                                </div>
-                            </div>
-                            <div className="p-4 rounded-2xl bg-tg-secondary_bg/50 border border-tg-hint/10 flex items-start gap-4">
-                                <Icon name="database" size={24} className="text-[#34c759] mt-1 shrink-0" />
-                                <div>
-                                    <h3 className="font-bold text-[15px] text-tg-text mb-1">数据打通</h3>
-                                    <p className="text-[13px] text-tg-hint">将数据无缝同步到 CRM、钉钉、飞书或海外 SaaS。</p>
-                                </div>
-                            </div>
-                            <div className="p-4 rounded-2xl bg-tg-secondary_bg/50 border border-tg-hint/10 flex items-start gap-4">
-                                <Icon name="server" size={24} className="text-[#ff9500] mt-1 shrink-0" />
-                                <div>
-                                    <h3 className="font-bold text-[15px] text-tg-text mb-1">高可用部署</h3>
-                                    <p className="text-[13px] text-tg-hint">支持万人高并发的高可用架构，确保数据隐私与系统稳定。</p>
-                                </div>
-                            </div>
+                        <div className="p-6 border border-tg-hint/20 rounded-2xl bg-tg-secondary_bg/50 hover:border-[#34c759]/50 transition-colors">
+                            <Icon name="database" size={28} className="text-[#34c759] mb-3" />
+                            <h3 className="font-bold text-lg mb-2 text-tg-text">多系统数据打通</h3>
+                            <p className="text-sm text-tg-hint">将 Telegram 数据无缝同步到自建 CRM 后台、钉钉、飞书、或者海外各种 SaaS 平台。</p>
                         </div>
-                        
-                        <a href="mailto:support@runtoads.top" className="inline-flex items-center gap-2 px-6 py-3 bg-tg-button text-tg-button_text rounded-full font-medium shadow-sm hover:opacity-90 transition-opacity">
-                            <Icon name="mail" size={18} />
-                            联系我们
-                        </a>
+                        <div className="p-6 border border-tg-hint/20 rounded-2xl bg-tg-secondary_bg/50 hover:border-[#ff9500]/50 transition-colors">
+                            <Icon name="server" size={28} className="text-[#ff9500] mb-3" />
+                            <h3 className="font-bold text-lg mb-2 text-tg-text">私有化高可用部署</h3>
+                            <p className="text-sm text-tg-hint">为您搭建支持万人高并发的高可用服务架构，确保数据隐私与系统稳定不宕机。</p>
+                        </div>
+                    </div>
+                    
+                    <div className="inline-flex items-center gap-2 px-6 py-3 bg-[#3390ec] text-white rounded-full font-medium shadow-sm">
+                        <Icon name="mail" size={18} />
+                        联系我们：support@runtoads.top
                     </div>
                 </div>
             </div>
@@ -1125,10 +1144,10 @@
             };
 
             return (
-                <div className="flex flex-col-reverse md:flex-row h-[100dvh] overflow-hidden bg-tg-secondary_bg w-full">
+                <div className="flex flex-col-reverse md:flex-row h-[100dvh] overflow-hidden bg-background w-full">
                     {/* 左侧/底部：全局导航 */}
-                    <div className="w-full md:w-24 h-[55px] md:h-full bg-tg-bg text-tg-hint flex flex-row md:flex-col items-center justify-around md:justify-start md:py-4 shrink-0 border-t md:border-r border-tg-hint/10 z-50 overflow-x-auto pb-[env(safe-area-inset-bottom)] shadow-[0_-2px_10px_rgba(0,0,0,0.02)] md:shadow-none">
-                        <div className="hidden md:flex w-14 h-14 rounded-full overflow-hidden mb-6 shadow-md border-2 border-tg-hint/20 flex-shrink-0">
+                    <div className="w-full md:w-24 h-[55px] md:h-full bg-tg-secondary_bg md:bg-tg-bg text-tg-hint md:text-tg-text flex flex-row md:flex-col items-center justify-around md:justify-start md:py-4 shrink-0 border-t md:border-r border-[var(--tg-theme-hint-color,rgba(0,0,0,0.1))] z-50 overflow-x-auto pb-[env(safe-area-inset-bottom)] shadow-sm md:shadow-none">
+                        <div className="hidden md:flex w-14 h-14 rounded-full overflow-hidden mb-6 shadow-md border-2 border-tg-hint/50 flex-shrink-0">
                             <img src="/admin/logo.jpg" alt="Logo" className="w-full h-full object-cover object-center" 
                                  onError={(e) => {
                                      e.target.style.display = 'none';
@@ -1162,7 +1181,7 @@
                                 <span className="text-[10px] md:text-[11px] font-medium whitespace-nowrap">高级</span>
                             </button>
 
-                            <div className="hidden md:block w-10 h-px bg-tg-hint/20 mx-auto my-2"></div>
+                            <div className="hidden md:block w-10 h-px bg-tg-hint/30 mx-auto my-2"></div>
 
                             <button 
                                 onClick={() => setActiveTab('status')} 
@@ -1195,14 +1214,14 @@
                                 className={`w-full py-3 flex flex-col items-center justify-center rounded-xl transition-colors relative group ${activeTab === 'customize' ? 'text-[#af52de] bg-[#af52de]/10' : 'text-tg-hint hover:text-tg-text hover:bg-tg-secondary_bg'}`}
                             >
                                 <Icon name="gem" size={22} className="mb-1" />
-                                <span className="text-[11px] font-medium">定制服务</span>
+                                <span className="text-[11px] font-medium">定制开发</span>
                             </button>
                             <button 
                                 onClick={() => { window.location.href = '/admin/logout'; }} 
-                                className="w-full py-3 flex flex-col items-center justify-center rounded-xl transition-colors relative group hover:bg-[#ff3b30]/10 hover:text-[#ff3b30] text-tg-hint"
+                                className="w-full py-3 flex flex-col items-center justify-center rounded-xl transition-colors relative group hover:bg-tg-secondary_bg hover:text-[#ff3b30] text-tg-hint"
                             >
                                 <Icon name="log-out" size={22} className="mb-1" />
-                                <span className="text-[11px] font-medium">退出系统</span>
+                                <span className="text-[11px] font-medium">退出</span>
                             </button>
                         </div>
                     </div>
