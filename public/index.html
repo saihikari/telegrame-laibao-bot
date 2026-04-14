@@ -379,24 +379,22 @@
                                 <Icon name="users" size={16} className="hidden md:block text-[#3390ec] md:w-[18px] md:h-[18px]" />
                                 客户路由 ({config.customers.length})
                             </h2>
-                            <div className="flex items-center gap-1.5 md:gap-2">
+                            <div className="flex items-center gap-2">
                                 <button 
                                     onClick={handleSaveConfig}
                                     disabled={saving}
-                                    className="px-2 md:px-3 py-1 md:py-1.5 bg-[#34c759] text-white text-xs md:text-sm rounded-full hover:opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 shadow-sm"
+                                    className="px-3 py-1.5 bg-[#34c759] text-white text-xs md:text-sm rounded-full hover:opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1 shadow-sm"
                                 >
-                                    {saving ? <Icon name="loader" size={12} className="animate-spin md:w-[14px] md:h-[14px]" /> : <Icon name="save" size={12} className="md:w-[14px] md:h-[14px]" />}
-                                    <span className="hidden md:inline">保存所有配置</span>
-                                    <span className="inline md:hidden">保存全部</span>
+                                    {saving ? <Icon name="loader" size={14} className="animate-spin" /> : <Icon name="save" size={14} />}
+                                    <span>保存所有</span>
                                 </button>
                                 <button 
                                     onClick={addCustomer}
-                                    className="px-2 md:px-3 py-1 md:py-1.5 bg-[#3390ec] text-white text-xs md:text-sm rounded-full hover:opacity-90 transition-colors flex items-center gap-1 shadow-sm"
+                                    className="px-3 py-1.5 bg-[#3390ec] text-white text-xs md:text-sm rounded-full hover:opacity-90 transition-colors flex items-center justify-center gap-1 shadow-sm"
                                     title="添加新客户配置"
                                 >
-                                    <Icon name="plus" size={12} className="md:w-[14px] md:h-[14px]" />
-                                    <span className="hidden md:inline">新增客户</span>
-                                    <span className="inline md:hidden">新增</span>
+                                    <Icon name="plus" size={14} />
+                                    <span>新增客户</span>
                                 </button>
                             </div>
                         </div>
@@ -451,20 +449,20 @@
                                             <h1 className="text-xl md:text-2xl font-bold text-tg-text">编辑客户配置</h1>
                                             <p className="text-xs md:text-sm text-tg-hint mt-1">优先级: {activeCustomer.priority} (通过电脑端左侧拖拽调整)</p>
                                         </div>
-                                        <div className="flex gap-2 w-full md:w-auto">
+                                        <div className="flex gap-2">
                                             <button 
                                                 onClick={(e) => duplicateCustomer(activeCustomerIndex, e)}
-                                                className="flex-1 md:flex-none justify-center px-2 md:px-3 py-1.5 md:py-1.5 bg-[#3390ec]/10 text-[#3390ec] text-xs md:text-sm rounded-full hover:bg-[#3390ec]/20 transition-colors flex items-center gap-1 border border-[#3390ec]/20 font-medium whitespace-nowrap"
+                                                className="px-3 py-1.5 bg-[#3390ec]/10 text-[#3390ec] text-xs md:text-sm rounded-full hover:bg-[#3390ec]/20 transition-colors flex items-center justify-center gap-1 border border-[#3390ec]/20 font-medium whitespace-nowrap w-fit"
                                                 title="复制当前客户的所有配置"
                                             >
-                                                <Icon name="copy" size={14} className="w-[12px] h-[12px] md:w-[14px] md:h-[14px]" /> <span className="hidden md:inline">克隆本客户配置</span><span className="md:hidden">克隆</span>
+                                                <Icon name="copy" size={14} /> <span>克隆</span>
                                             </button>
                                             <button 
                                                 onClick={(e) => deleteCustomer(activeCustomerIndex, e)}
-                                                className="flex-1 md:flex-none justify-center px-2 md:px-3 py-1.5 md:py-1.5 bg-[#ff3b30]/10 text-[#ff3b30] text-xs md:text-sm rounded-full hover:bg-[#ff3b30]/20 transition-colors flex items-center gap-1 border border-[#ff3b30]/20 font-medium whitespace-nowrap"
+                                                className="px-3 py-1.5 bg-[#ff3b30]/10 text-[#ff3b30] text-xs md:text-sm rounded-full hover:bg-[#ff3b30]/20 transition-colors flex items-center justify-center gap-1 border border-[#ff3b30]/20 font-medium whitespace-nowrap w-fit"
                                                 title="永久删除当前客户"
                                             >
-                                                <Icon name="trash-2" size={14} className="w-[12px] h-[12px] md:w-[14px] md:h-[14px]" /> <span className="hidden md:inline">删除本客户配置</span><span className="md:hidden">删除</span>
+                                                <Icon name="trash-2" size={14} /> <span>删除</span>
                                             </button>
                                         </div>
                                     </div>
@@ -513,9 +511,9 @@
                                             </h2>
                                             <button 
                                                 onClick={addRuleField}
-                                                className="flex items-center gap-1 px-2 md:px-3 py-1 md:py-1.5 text-xs md:text-sm bg-[#34c759]/10 text-[#34c759] hover:bg-[#34c759]/20 rounded-full transition-colors font-medium"
+                                                className="flex items-center justify-center gap-1 px-3 py-1.5 text-xs md:text-sm bg-[#34c759]/10 text-[#34c759] hover:bg-[#34c759]/20 rounded-full transition-colors font-medium w-fit"
                                             >
-                                                <Icon name="plus" size={14} className="md:w-[16px] md:h-[16px]" /> 添加字段
+                                                <Icon name="plus" size={14} /> <span>添加字段</span>
                                             </button>
                                         </div>
                                         
@@ -686,10 +684,10 @@
                         <button 
                             onClick={handleTest}
                             disabled={testing || !testText.trim()}
-                            className="px-4 py-1.5 md:px-6 md:py-2.5 bg-[#3390ec] text-white text-xs md:text-base font-medium rounded-full hover:bg-[#3390ec]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 md:gap-2 shadow-sm"
+                            className="px-4 py-1.5 bg-[#3390ec] text-white text-xs md:text-sm font-medium rounded-full hover:bg-[#3390ec]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 shadow-sm w-fit"
                         >
-                            {testing ? <Icon name="loader" size={14} className="animate-spin md:w-[18px] md:h-[18px]" /> : <Icon name="zap" size={14} className="md:w-[18px] md:h-[18px]" />}
-                            运行测试
+                            {testing ? <Icon name="loader" size={14} className="animate-spin" /> : <Icon name="zap" size={14} />}
+                            <span>运行测试</span>
                         </button>
                     </div>
                     
@@ -796,15 +794,15 @@
                                 </div>
                             </div>
                             <div className="flex flex-nowrap gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
-                                <button onClick={handleCopy} className="flex-1 md:flex-none justify-center px-3 py-1.5 md:px-4 md:py-2 bg-tg-secondary_bg text-tg-text text-xs md:text-sm rounded-full hover:opacity-90 transition-colors flex items-center gap-1.5 md:gap-2 whitespace-nowrap shadow-sm">
-                                    <Icon name="copy" size={14} className="md:w-[16px] md:h-[16px]" /> 复制
+                                <button onClick={handleCopy} className="justify-center px-3 py-1.5 bg-tg-secondary_bg text-tg-text text-xs md:text-sm rounded-full hover:opacity-90 transition-colors flex items-center gap-1.5 whitespace-nowrap shadow-sm w-fit">
+                                    <Icon name="copy" size={14} /> <span>复制</span>
                                 </button>
-                                <button onClick={handleBackup} className="flex-1 md:flex-none justify-center px-3 py-1.5 md:px-4 md:py-2 bg-tg-secondary_bg text-tg-text text-xs md:text-sm rounded-full hover:opacity-90 transition-colors flex items-center gap-1.5 md:gap-2 whitespace-nowrap shadow-sm">
-                                    <Icon name="archive" size={14} className="md:w-[16px] md:h-[16px]" /> 备份
+                                <button onClick={handleBackup} className="justify-center px-3 py-1.5 bg-tg-secondary_bg text-tg-text text-xs md:text-sm rounded-full hover:opacity-90 transition-colors flex items-center gap-1.5 whitespace-nowrap shadow-sm w-fit">
+                                    <Icon name="archive" size={14} /> <span>备份</span>
                                 </button>
-                                <button onClick={handleSave} disabled={saving} className="flex-[2] md:flex-none justify-center px-3 py-1.5 md:px-4 md:py-2 bg-[#3390ec] text-white text-xs md:text-sm rounded-full hover:bg-[#3390ec]/90 transition-colors flex items-center gap-1.5 md:gap-2 whitespace-nowrap shadow-sm">
-                                    {saving ? <Icon name="loader" size={14} className="animate-spin md:w-[16px] md:h-[16px]" /> : <Icon name="save" size={14} className="md:w-[16px] md:h-[16px]" />} 
-                                    保存重载
+                                <button onClick={handleSave} disabled={saving} className="justify-center px-3 py-1.5 bg-[#3390ec] text-white text-xs md:text-sm rounded-full hover:bg-[#3390ec]/90 transition-colors flex items-center gap-1.5 whitespace-nowrap shadow-sm w-fit">
+                                    {saving ? <Icon name="loader" size={14} className="animate-spin" /> : <Icon name="save" size={14} />} 
+                                    <span>保存重载</span>
                                 </button>
                             </div>
                         </div>
@@ -1097,8 +1095,8 @@
                             <Icon name="wifi-off" size={48} className="text-red-400 mb-4" />
                             <h2 className="text-xl font-bold text-gray-800 mb-2">连接服务器失败</h2>
                             <p className="text-gray-500 mb-6 text-sm">无法获取配置数据，后台服务可能正在重启或出现异常。</p>
-                            <button onClick={fetchConfig} className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 flex items-center gap-2">
-                                <Icon name="refresh-cw" size={16} /> 重新连接
+                            <button onClick={fetchConfig} className="px-4 py-1.5 bg-[#3390ec] text-white rounded-full hover:bg-[#3390ec]/90 flex items-center justify-center gap-1.5 w-fit shadow-sm text-sm">
+                                <Icon name="refresh-cw" size={14} /> <span>重新连接</span>
                             </button>
                         </div>
                     );
@@ -1146,8 +1144,8 @@
             return (
                 <div className="flex flex-col-reverse md:flex-row h-[100dvh] overflow-hidden bg-background w-full">
                     {/* 左侧/底部：全局导航 */}
-                    <div className="w-full md:w-24 h-[55px] md:h-full bg-tg-secondary_bg md:bg-tg-bg text-tg-hint md:text-tg-text flex flex-row md:flex-col items-center justify-around md:justify-start md:py-4 shrink-0 border-t md:border-r border-[var(--tg-theme-hint-color,rgba(0,0,0,0.1))] z-50 overflow-x-auto pb-[env(safe-area-inset-bottom)] shadow-sm md:shadow-none">
-                        <div className="hidden md:flex w-14 h-14 rounded-full overflow-hidden mb-6 shadow-md border-2 border-tg-hint/50 flex-shrink-0">
+                    <div className="w-full md:w-24 h-[55px] md:h-full bg-tg-bg text-tg-hint flex flex-row md:flex-col items-center justify-around md:justify-start md:py-4 shrink-0 border-t md:border-r border-tg-hint/10 z-50 overflow-x-auto pb-[env(safe-area-inset-bottom)] shadow-sm md:shadow-none">
+                        <div className="hidden md:flex w-14 h-14 rounded-full overflow-hidden mb-6 shadow-md border-2 border-tg-hint/20 flex-shrink-0">
                             <img src="/admin/logo.jpg" alt="Logo" className="w-full h-full object-cover object-center" 
                                  onError={(e) => {
                                      e.target.style.display = 'none';
@@ -1156,72 +1154,53 @@
                             />
                         </div>
                         
-                        <div className="flex flex-row md:flex-col w-full px-1 md:px-2 md:space-y-3 justify-between md:justify-start h-full">
+                        <div className="flex flex-row md:flex-col w-full px-2 md:space-y-3 justify-between md:justify-start h-full md:h-auto">
                             <button 
                                 onClick={() => setActiveTab('visual')} 
-                                className={`flex-1 md:w-full h-full md:py-3 flex flex-col items-center justify-center md:rounded-xl transition-colors relative group ${activeTab === 'visual' ? 'text-[#3390ec] md:bg-[#3390ec]/10' : 'hover:text-tg-text md:hover:bg-tg-secondary_bg'}`}
+                                className={`flex-1 md:w-full h-full md:py-3 flex flex-col items-center justify-center md:rounded-2xl transition-colors ${activeTab === 'visual' ? 'text-[#3390ec] md:bg-[#3390ec]/10' : 'hover:text-tg-text'}`}
                             >
-                                <Icon name="layout-dashboard" size={24} className="mb-0.5 md:mb-1 md:w-[22px] md:h-[22px]" />
-                                <span className="text-[10px] md:text-[11px] font-medium whitespace-nowrap">配置</span>
+                                <Icon name="layout-dashboard" size={22} className="mb-1" />
+                                <span className="text-[10px] md:text-xs font-medium">配置</span>
                             </button>
                             
                             <button 
                                 onClick={() => setActiveTab('test')} 
-                                className={`flex-1 md:w-full h-full md:py-3 flex flex-col items-center justify-center md:rounded-xl transition-colors relative group ${activeTab === 'test' ? 'text-[#3390ec] md:bg-[#3390ec]/10' : 'hover:text-tg-text md:hover:bg-tg-secondary_bg'}`}
+                                className={`flex-1 md:w-full h-full md:py-3 flex flex-col items-center justify-center md:rounded-2xl transition-colors ${activeTab === 'test' ? 'text-[#3390ec] md:bg-[#3390ec]/10' : 'hover:text-tg-text'}`}
                             >
-                                <Icon name="play-circle" size={24} className="mb-0.5 md:mb-1 md:w-[22px] md:h-[22px]" />
-                                <span className="text-[10px] md:text-[11px] font-medium whitespace-nowrap">沙盒</span>
+                                <Icon name="play-circle" size={22} className="mb-1" />
+                                <span className="text-[10px] md:text-xs font-medium">沙盒</span>
                             </button>
 
                             <button 
                                 onClick={() => setActiveTab('json')} 
-                                className={`flex-1 md:w-full h-full md:py-3 flex flex-col items-center justify-center md:rounded-xl transition-colors relative group ${activeTab === 'json' ? 'text-[#3390ec] md:bg-[#3390ec]/10' : 'hover:text-tg-text md:hover:bg-tg-secondary_bg'}`}
+                                className={`flex-1 md:w-full h-full md:py-3 flex flex-col items-center justify-center md:rounded-2xl transition-colors ${activeTab === 'json' ? 'text-[#3390ec] md:bg-[#3390ec]/10' : 'hover:text-tg-text'}`}
                             >
-                                <Icon name="code" size={24} className="mb-0.5 md:mb-1 md:w-[22px] md:h-[22px]" />
-                                <span className="text-[10px] md:text-[11px] font-medium whitespace-nowrap">高级</span>
+                                <Icon name="code" size={22} className="mb-1" />
+                                <span className="text-[10px] md:text-xs font-medium">高级</span>
                             </button>
-
-                            <div className="hidden md:block w-10 h-px bg-tg-hint/30 mx-auto my-2"></div>
 
                             <button 
                                 onClick={() => setActiveTab('status')} 
-                                className={`flex-1 md:w-full h-full md:py-3 flex flex-col items-center justify-center md:rounded-xl transition-colors relative group ${activeTab === 'status' ? 'text-[#3390ec] md:bg-[#3390ec]/10' : 'hover:text-tg-text md:hover:bg-tg-secondary_bg'}`}
+                                className={`flex-1 md:w-full h-full md:py-3 flex flex-col items-center justify-center md:rounded-2xl transition-colors ${activeTab === 'status' ? 'text-[#3390ec] md:bg-[#3390ec]/10' : 'hover:text-tg-text'}`}
                             >
-                                <Icon name="activity" size={24} className="mb-0.5 md:mb-1 md:w-[22px] md:h-[22px]" />
-                                <span className="text-[10px] md:text-[11px] font-medium whitespace-nowrap">状态</span>
+                                <Icon name="activity" size={22} className="mb-1" />
+                                <span className="text-[10px] md:text-xs font-medium">状态</span>
                             </button>
                             
                             <button 
                                 onClick={() => setActiveTab('guide')} 
-                                className={`flex-1 md:w-full h-full md:py-3 flex flex-col items-center justify-center md:rounded-xl transition-colors relative group ${activeTab === 'guide' ? 'text-[#3390ec] md:bg-[#3390ec]/10' : 'hover:text-tg-text md:hover:bg-tg-secondary_bg'}`}
+                                className={`flex-1 md:w-full h-full md:py-3 flex flex-col items-center justify-center md:rounded-2xl transition-colors ${activeTab === 'guide' ? 'text-[#3390ec] md:bg-[#3390ec]/10' : 'hover:text-tg-text'}`}
                             >
-                                <Icon name="book-open" size={24} className="mb-0.5 md:mb-1 md:w-[22px] md:h-[22px]" />
-                                <span className="text-[10px] md:text-[11px] font-medium whitespace-nowrap">向导</span>
+                                <Icon name="book-open" size={22} className="mb-1" />
+                                <span className="text-[10px] md:text-xs font-medium">向导</span>
                             </button>
-                            
-                            <button 
-                                onClick={() => { window.location.href = '/admin/logout'; }} 
-                                className="flex-1 md:hidden h-full flex flex-col items-center justify-center transition-colors relative group hover:text-[#ff3b30] text-tg-hint"
-                            >
-                                <Icon name="log-out" size={24} className="mb-0.5" />
-                                <span className="text-[10px] font-medium whitespace-nowrap">退出</span>
-                            </button>
-                        </div>
 
-                        <div className="hidden md:flex mt-auto w-full px-2 flex-col gap-2">
                             <button 
                                 onClick={() => setActiveTab('customize')} 
-                                className={`w-full py-3 flex flex-col items-center justify-center rounded-xl transition-colors relative group ${activeTab === 'customize' ? 'text-[#af52de] bg-[#af52de]/10' : 'text-tg-hint hover:text-tg-text hover:bg-tg-secondary_bg'}`}
+                                className={`flex-1 md:w-full h-full md:py-3 flex flex-col items-center justify-center md:rounded-2xl transition-colors ${activeTab === 'customize' ? 'text-[#af52de] md:bg-[#af52de]/10' : 'hover:text-tg-text'}`}
                             >
                                 <Icon name="gem" size={22} className="mb-1" />
-                                <span className="text-[11px] font-medium">定制开发</span>
-                            </button>
-                            <button 
-                                onClick={() => { window.location.href = '/admin/logout'; }} 
-                                className="w-full py-3 flex flex-col items-center justify-center rounded-xl transition-colors relative group hover:bg-tg-secondary_bg hover:text-[#ff3b30] text-tg-hint"
-                            >
-                                <Icon name="log-out" size={22} className="mb-1" />
-                                <span className="text-[11px] font-medium">退出</span>
+                                <span className="text-[10px] md:text-xs font-medium">定制</span>
                             </button>
                         </div>
                     </div>
