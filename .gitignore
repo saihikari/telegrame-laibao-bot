@@ -4,3 +4,4 @@ dist/
 config/backups/
 config/google-credentials.json
 .DS_Store
+config/routes.json
