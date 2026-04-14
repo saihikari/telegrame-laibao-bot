@@ -66,7 +66,22 @@ const backupConfig = () => {
     }
 };
 exports.backupConfig = backupConfig;
-const getConfig = () => currentConfig;
+const getConfig = () => {
+    // 每次获取配置时，检查文件是否被修改，如果被修改过就重新加载
+    try {
+        if (fs_1.default.existsSync(CONFIG_PATH)) {
+            const stats = fs_1.default.statSync(CONFIG_PATH);
+            if (stats.mtime > lastModified) {
+                console.log('[Config] Detected routes.json change, reloading...');
+                (0, exports.loadConfig)();
+            }
+        }
+    }
+    catch (err) {
+        console.error('[Config] Error checking file stats:', err);
+    }
+    return currentConfig;
+};
 exports.getConfig = getConfig;
 const getLastModified = () => lastModified;
 exports.getLastModified = getLastModified;

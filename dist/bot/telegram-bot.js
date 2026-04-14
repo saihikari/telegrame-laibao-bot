@@ -10,7 +10,9 @@ const rule_engine_1 = require("./rule-engine");
 const sheets_service_1 = require("./sheets-service");
 const token = process.env.BOT_TOKEN || '';
 const internalChatIds = (process.env.INTERNAL_CHAT_IDS || '').split(',').map(id => id.trim());
-const adminPort = process.env.ADMIN_PORT || '8090';
+const adminPort = process.env.ADMIN_PORT || '8070';
+const webDomain = process.env.WEB_DOMAIN || 'http://www.runtoads.top';
+const baseUrl = `${webDomain}:${adminPort}`;
 let bot;
 // Store parsed data temporarily for interactive recording
 // Key: <chatId>_<messageId>, Value: ParsedData[]
@@ -20,7 +22,15 @@ const startBot = () => {
         console.error('[Bot] BOT_TOKEN not found in environment variables.');
         process.exit(1);
     }
-    bot = new node_telegram_bot_api_1.default(token, { polling: true });
+    bot = new node_telegram_bot_api_1.default(token, {
+        polling: true,
+        request: {
+            agentOptions: {
+                keepAlive: true,
+                family: 4
+            }
+        } // Bypass strict TS check for request options
+    });
     console.log('[Bot] Telegram Bot started in polling mode.');
     bot.onText(/^\/id$/, (msg) => {
         bot.sendMessage(msg.chat.id, `Chat ID: \`${msg.chat.id}\``, { parse_mode: 'MarkdownV2' });
@@ -47,21 +57,21 @@ const startBot = () => {
 - 指令列表：
   /id - 获取当前群Chat ID
   /test - 测试内部群连通性
-  /help - 查看帮助和FQA
+  /help - 查看帮助和FAQ
   /status - 获取状态页URL
   /customer - 列出所有客户名称
 - 常见问题：
   若机器人未回复，请检查是否包含必填关键词（如名称、链接等）。
-- 管理界面：http://<服务器IP>:${adminPort}/admin/config
-- 状态页：http://<服务器IP>:${adminPort}/admin/status
+- 综合管理后台：${baseUrl}/admin/
     `;
         bot.sendMessage(msg.chat.id, helpText, { parse_mode: 'Markdown' });
     });
     bot.onText(/^\/status$/, (msg) => {
-        // Note: the IP address should be the real server IP. Using placeholder.
-        bot.sendMessage(msg.chat.id, `机器人状态页面：http://<服务器IP>:${adminPort}/admin/status`);
+        // 使用真实的域名
+        bot.sendMessage(msg.chat.id, `综合管理后台：${baseUrl}/admin/`);
     });
     bot.onText(/^\/customer$/, (msg) => {
+        // 强制重新加载最新配置
         const config = (0, config_loader_1.getConfig)();
         let text = '当前已配置的客户：\n';
         config.customers.forEach(c => {
@@ -75,14 +85,12 @@ const startBot = () => {
         const config = (0, config_loader_1.getConfig)();
         const results = (0, rule_engine_1.processMessage)(msg.text, config);
         if (results.length > 0) {
-            // 5.1 Send to internal groups
-            for (const chatId of internalChatIds) {
-                try {
-                    await bot.sendMessage(chatId, '⚠️ 来包信息清洗中');
-                }
-                catch (err) {
-                    console.error(`[Bot] Failed to send cleaning message to ${chatId}:`, err);
-                }
+            // Send initial cleaning notification to the same chat where the message was received
+            try {
+                await bot.sendMessage(msg.chat.id, '⚠️ 来包信息清洗中', { reply_to_message_id: msg.message_id });
+            }
+            catch (err) {
+                console.error(`[Bot] Failed to send cleaning message to ${msg.chat.id}:`, err);
             }
             // 5.2 Format summary
             let summaryText = `✔️ 来包信息清洗完毕。共计 ${results.length} 条来包信息如下：\n\n`;
@@ -94,24 +102,23 @@ const startBot = () => {
                 if (idx < results.length - 1)
                     summaryText += '\n';
             });
-            // 5.3 Send inline keyboard to internal groups
-            for (const chatId of internalChatIds) {
-                try {
-                    const sentMsg = await bot.sendMessage(chatId, summaryText, {
-                        reply_markup: {
-                            inline_keyboard: [[
-                                    { text: 'Y录入', callback_data: `record_yes` },
-                                    { text: 'N不录', callback_data: `record_no` }
-                                ]]
-                        }
-                    });
-                    // Store results temporarily to process on callback
-                    const key = `${chatId}_${sentMsg.message_id}`;
-                    pendingRecords.set(key, results);
-                }
-                catch (err) {
-                    console.error(`[Bot] Failed to send summary to ${chatId}:`, err);
-                }
+            // Send the summary with inline keyboard back to the same chat
+            try {
+                const sentMsg = await bot.sendMessage(msg.chat.id, summaryText, {
+                    reply_markup: {
+                        inline_keyboard: [[
+                                { text: 'Y录入', callback_data: `record_yes` },
+                                { text: 'N不录', callback_data: `record_no` }
+                            ]]
+                    },
+                    reply_to_message_id: msg.message_id
+                });
+                // Store both results and the exact summary text we generated
+                const key = `${msg.chat.id}_${sentMsg.message_id}`;
+                pendingRecords.set(key, { results, summaryText });
+            }
+            catch (err) {
+                console.error(`[Bot] Failed to send summary to ${msg.chat.id}:`, err);
             }
         }
     });
@@ -121,13 +128,14 @@ const startBot = () => {
         if (!msg)
             return;
         const key = `${msg.chat.id}_${msg.message_id}`;
-        const results = pendingRecords.get(key);
-        if (!results) {
+        const pendingData = pendingRecords.get(key);
+        if (!pendingData) {
             bot.answerCallbackQuery(query.id, { text: '数据已过期或不存在' });
             return;
         }
+        const { results, summaryText } = pendingData;
         if (data === 'record_no') {
-            bot.editMessageText('已取消录入，本次来包信息不作记录。', {
+            bot.editMessageText(summaryText + '\n\n❌ 已取消录入，本次来包信息不作记录。', {
                 chat_id: msg.chat.id,
                 message_id: msg.message_id
             });
@@ -135,14 +143,15 @@ const startBot = () => {
             bot.answerCallbackQuery(query.id);
         }
         else if (data === 'record_yes') {
-            // 5.4 Edit to loading state
-            await bot.editMessageText('⏳ 正在录入，请稍候...', {
+            // Use the summaryText we explicitly saved, instead of msg.text which might be the original uncleaned user message
+            await bot.editMessageText(summaryText + '\n\n⏳ 正在录入，请稍候...', {
                 chat_id: msg.chat.id,
                 message_id: msg.message_id
             });
             bot.answerCallbackQuery(query.id);
             let successCount = 0;
             let failCount = 0;
+            const successDetails = [];
             const failDetails = [];
             for (const res of results) {
                 let formattedString = `客户：${res.customerName}\n`;
@@ -150,20 +159,21 @@ const startBot = () => {
                     formattedString += `${k}：${v}\n`;
                 }
                 try {
-                    await (0, sheets_service_1.appendRecord)(res.customerName, formattedString.trim());
+                    const rowInfo = await (0, sheets_service_1.appendRecord)(res.customerName, formattedString.trim());
                     successCount++;
+                    successDetails.push(`[${res.customerName}] 录入至 ${rowInfo}`);
                 }
                 catch (error) {
                     failCount++;
                     failDetails.push(`[${res.customerName}] ${error.message}`);
                 }
             }
-            let finalText = `✅ 录入完成！成功${successCount}条`;
-            if (failCount > 0) {
-                finalText += `，失败${failCount}条。\n失败详情：\n${failDetails.join('\n')}`;
+            let finalText = summaryText + `\n\n✅ 录入处理完成！成功 ${successCount} 条，失败 ${failCount} 条。\n`;
+            if (successCount > 0) {
+                finalText += `\n📈 成功详情：\n${successDetails.join('\n')}`;
             }
-            else {
-                finalText += '。';
+            if (failCount > 0) {
+                finalText += `\n\n⚠️ 失败详情：\n${failDetails.join('\n')}`;
             }
             await bot.editMessageText(finalText, {
                 chat_id: msg.chat.id,

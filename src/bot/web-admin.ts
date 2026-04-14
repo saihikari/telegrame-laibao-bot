@@ -213,13 +213,16 @@ const noCacheMiddleware = (req: express.Request, res: express.Response, next: ex
   next();
 };
 
-app.use('/admin', noCacheMiddleware, express.static(path.join(__dirname, '../../public')));
+// MUST use strict path mapping for the SPA base path
+// to ensure /admin serves index.html and /admin/ works too
+const publicPath = path.join(__dirname, '../../public');
+app.use('/admin', noCacheMiddleware, express.static(publicPath));
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-// All old HTML routes are now handled by the unified React SPA served at /admin
-app.get(['/admin/config', '/admin/status', '/admin/guide', '/admin/customize', '/admin/config-visual'], (req, res) => {
-  res.redirect('/admin/');
+// Fallback to index.html for React Router / SPA navigation
+app.get('/admin/*', noCacheMiddleware, (req, res) => {
+  res.sendFile(path.join(publicPath, 'index.html'));
 });
 
 // APIs
