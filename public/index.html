@@ -177,7 +177,7 @@
         };
 
         // --- 页面组件: 可视化配置 ---
-        const VisualConfig = ({ config, setConfig, loading, handleSaveConfig, saving }) => {
+        const VisualConfig = ({ config, setConfig, loading, handleSaveConfig, saving, showToast }) => {
             const [activeCustomerIndex, setActiveCustomerIndex] = useState(null);
 
             const handleDragStart = (e, index) => {
@@ -247,6 +247,7 @@
                     customers: [...config.customers, newCustomer]
                 });
                 setActiveCustomerIndex(config.customers.length);
+                if (showToast) showToast('克隆成功！', 'success');
             };
 
             const deleteCustomer = (index, e) => {
@@ -259,6 +260,7 @@
                 } else if (activeCustomerIndex > index) {
                     setActiveCustomerIndex(activeCustomerIndex - 1);
                 }
+                if (showToast) showToast('已删除客户', 'info');
             };
 
             const updateActiveCustomer = (updates) => {
@@ -281,7 +283,11 @@
                 if (!fieldName || !fieldName.trim()) return;
                 const customer = config.customers[activeCustomerIndex];
                 if (customer.rules[fieldName]) {
-                    alert('该字段已存在！');
+                    if (showToast) {
+                        showToast('该字段已存在！', 'error');
+                    } else {
+                        alert('该字段已存在！');
+                    }
                     return;
                 }
                 const newRules = { ...customer.rules };
@@ -573,7 +579,7 @@
         };
 
         // --- 页面组件: 独立沙盒测试 ---
-        const SandboxTestPage = ({ config }) => {
+        const SandboxTestPage = ({ config, showToast }) => {
             const [testText, setTestText] = useState('');
             const [testResult, setTestResult] = useState(null);
             const [testing, setTesting] = useState(false);
@@ -598,12 +604,15 @@
                     const data = await res.json();
                     if (data.success) {
                         setTestResult(data.data);
+                        if (showToast) showToast('解析成功！', 'success');
                     } else {
                         setTestResult({ error: data.error });
+                        if (showToast) showToast('解析失败', 'error');
                     }
                 } catch (error) {
                     console.error('Test failed:', error);
                     setTestResult({ error: '请求测试接口失败' });
+                    if (showToast) showToast('网络或服务器异常', 'error');
                 } finally {
                     setTesting(false);
                 }
@@ -657,7 +666,7 @@
         };
 
         // --- 页面组件: 高级 JSON 配置 ---
-        const JsonConfig = ({ config, fetchConfig }) => {
+        const JsonConfig = ({ config, fetchConfig, showToast }) => {
             const [jsonText, setJsonText] = useState('');
             const [saving, setSaving] = useState(false);
 
@@ -679,13 +688,13 @@
                         return;
                     }
                     if (res.ok) {
-                        alert('高级配置保存成功！');
+                        if (showToast) showToast('高级配置保存成功！', 'success');
                         fetchConfig();
                     } else {
-                        alert('保存失败，请检查格式');
+                        if (showToast) showToast('保存失败，服务端异常', 'error');
                     }
                 } catch (e) {
-                    alert('JSON 格式错误: ' + e.message);
+                    if (showToast) showToast('JSON 格式错误: ' + e.message, 'error');
                 } finally {
                     setSaving(false);
                 }
@@ -700,20 +709,20 @@
                     }
                     const data = await res.json();
                     if (data.success) {
-                        alert('配置备份成功: ' + data.filename);
+                        if (showToast) showToast('配置备份成功: ' + data.filename, 'success');
                     } else {
-                        alert('备份失败');
+                        if (showToast) showToast('备份失败', 'error');
                     }
                 } catch (e) {
-                    alert('请求备份失败');
+                    if (showToast) showToast('请求备份失败', 'error');
                 }
             };
 
             const handleCopy = () => {
                 navigator.clipboard.writeText(jsonText).then(() => {
-                    alert('已复制到剪贴板！');
+                    if (showToast) showToast('已复制到剪贴板！', 'success');
                 }).catch(err => {
-                    alert('复制失败，请手动复制');
+                    if (showToast) showToast('复制失败，请手动复制', 'error');
                 });
             };
 
@@ -956,11 +965,38 @@
             </div>
         );
 
+        // --- UI 组件: 全局 Toast 提示 ---
+        const Toast = ({ message, type, onClose }) => {
+            useEffect(() => {
+                const timer = setTimeout(onClose, 3000);
+                return () => clearTimeout(timer);
+            }, [onClose]);
+
+            const bgColors = {
+                success: 'bg-green-500',
+                error: 'bg-red-500',
+                info: 'bg-blue-500'
+            };
+
+            return (
+                <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg text-white font-medium text-sm animate-in fade-in slide-in-from-top-4 ${bgColors[type] || bgColors.info}`}>
+                    <Icon name={type === 'success' ? 'check-circle' : type === 'error' ? 'alert-circle' : 'info'} size={18} />
+                    {message}
+                </div>
+            );
+        };
+
         // --- 根应用路由 ---
         const Main = () => {
             const [activeTab, setActiveTab] = useState('visual');
             const [config, setConfig] = useState({ customers: [] });
             const [loading, setLoading] = useState(true);
+            const [serverError, setServerError] = useState(false);
+            const [toast, setToast] = useState(null);
+
+            const showToast = (message, type = 'success') => {
+                setToast({ message, type });
+            };
 
             const fetchConfig = async () => {
                 try {
@@ -970,13 +1006,14 @@
                         redirectToLogin();
                         return;
                     }
-                    if (res.ok) {
-                        const data = await res.json();
-                        data.customers.sort((a, b) => (a.priority || 0) - (b.priority || 0));
-                        setConfig(data);
-                    }
+                    if (!res.ok) throw new Error('Server returned ' + res.status);
+                    const data = await res.json();
+                    data.customers.sort((a, b) => (a.priority || 0) - (b.priority || 0));
+                    setConfig(data);
+                    setServerError(false);
                 } catch (error) {
                     console.error('Failed to fetch config:', error);
+                    setServerError(true);
                 } finally {
                     setLoading(false);
                 }
@@ -987,6 +1024,19 @@
             }, []);
 
             const renderContent = () => {
+                if (serverError) {
+                    return (
+                        <div className="flex-1 flex flex-col items-center justify-center bg-gray-50/50 p-6 text-center">
+                            <Icon name="wifi-off" size={48} className="text-red-400 mb-4" />
+                            <h2 className="text-xl font-bold text-gray-800 mb-2">连接服务器失败</h2>
+                            <p className="text-gray-500 mb-6 text-sm">无法获取配置数据，后台服务可能正在重启或出现异常。</p>
+                            <button onClick={fetchConfig} className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 flex items-center gap-2">
+                                <Icon name="refresh-cw" size={16} /> 重新连接
+                            </button>
+                        </div>
+                    );
+                }
+
                 switch (activeTab) {
                     case 'visual':
                         return <VisualConfig config={config} setConfig={setConfig} loading={loading} handleSaveConfig={async () => {
@@ -1002,25 +1052,27 @@
                                     return;
                                 }
                                 if (res.ok) {
-                                    alert('配置保存成功！');
+                                    showToast('配置保存成功！', 'success');
                                     setConfig(configToSave);
+                                } else {
+                                    showToast('保存失败，服务端异常', 'error');
                                 }
                             } catch (e) {
-                                alert('保存失败');
+                                showToast('保存失败，网络错误', 'error');
                             }
-                        }} saving={false} />;
+                        }} saving={false} showToast={showToast} />;
                     case 'test':
-                        return <SandboxTestPage config={config} />;
+                        return <SandboxTestPage config={config} showToast={showToast} />;
                     case 'json':
-                        return <JsonConfig config={config} fetchConfig={fetchConfig} />;
+                        return <JsonConfig config={config} fetchConfig={fetchConfig} showToast={showToast} />;
                     case 'status':
-                        return <StatusPage />;
+                        return <StatusPage showToast={showToast} />;
                     case 'guide':
-                        return <GuidePage />;
+                        return <GuidePage showToast={showToast} />;
                     case 'customize':
-                        return <CustomizePage />;
+                        return <CustomizePage showToast={showToast} />;
                     default:
-                        return <VisualConfig config={config} setConfig={setConfig} loading={loading} />;
+                        return <VisualConfig config={config} setConfig={setConfig} loading={loading} showToast={showToast} />;
                 }
             };
 
@@ -1108,7 +1160,8 @@
                     </div>
 
                     {/* 右侧/上方：主内容区 */}
-                    <div className="flex-1 flex overflow-hidden">
+                    <div className="flex-1 flex overflow-hidden relative">
+                        {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
                         {renderContent()}
                     </div>
                 </div>
