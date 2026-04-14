@@ -40,26 +40,20 @@
                 extend: {
                     colors: {
                         tg: {
-                            bg: 'var(--tg-theme-bg-color, #ffffff)',
-                            secondary_bg: 'var(--tg-theme-secondary-bg-color, #f4f4f5)',
-                            text: 'var(--tg-theme-text-color, #222222)',
-                            hint: 'var(--tg-theme-hint-color, #999999)',
-                            link: 'var(--tg-theme-link-color, #2481cc)',
-                            button: 'var(--tg-theme-button-color, #2481cc)',
-                            button_text: 'var(--tg-theme-button-text-color, #ffffff)',
-                            secondary_button: 'var(--tg-theme-secondary-bg-color, #f4f4f5)',
-                            secondary_button_text: 'var(--tg-theme-text-color, #222222)',
-                            destructive: 'var(--tg-theme-destructive-text-color, #ff3b30)',
-                            accent: 'var(--tg-theme-accent-text-color, #2481cc)',
-                            section_bg: 'var(--tg-theme-section-bg-color, #ffffff)',
-                            section_header: 'var(--tg-theme-section-header-text-color, #2481cc)'
-                        },
-                        primary: 'var(--tg-theme-button-color, #1E3A8A)',
-                        secondary: 'var(--tg-theme-accent-text-color, #00BCD4)',
-                        background: 'var(--tg-theme-secondary-bg-color, #F8FAFC)',
-                        surface: 'var(--tg-theme-bg-color, #FFFFFF)',
-                        text: 'var(--tg-theme-text-color, #1F2937)',
-                        muted: 'var(--tg-theme-hint-color, #6B7280)'
+                            bg: 'var(--tg-theme-bg-color, var(--fb-bg))',
+                            secondary_bg: 'var(--tg-theme-secondary-bg-color, var(--fb-secondary-bg))',
+                            text: 'var(--tg-theme-text-color, var(--fb-text))',
+                            hint: 'var(--tg-theme-hint-color, var(--fb-hint))',
+                            link: 'var(--tg-theme-link-color, var(--fb-link))',
+                            button: 'var(--tg-theme-button-color, var(--fb-button))',
+                            button_text: 'var(--tg-theme-button-text-color, var(--fb-button-text))',
+                            secondary_button: 'var(--tg-theme-secondary-bg-color, var(--fb-secondary-bg))',
+                            secondary_button_text: 'var(--tg-theme-text-color, var(--fb-text))',
+                            destructive: 'var(--tg-theme-destructive-text-color, var(--fb-destructive))',
+                            accent: 'var(--tg-theme-accent-text-color, var(--fb-button))',
+                            section_bg: 'var(--tg-theme-section-bg-color, var(--fb-section-bg))',
+                            section_header: 'var(--tg-theme-section-header-text-color, var(--fb-button))'
+                        }
                     },
                     fontFamily: {
                         sans: ['-apple-system', 'BlinkMacSystemFont', 'Roboto', 'Helvetica Neue', 'sans-serif'],
@@ -70,9 +64,36 @@
         }
     </script>
     <style>
+        /* 响应式兜底主题：让外部浏览器也能完美模拟 Telegram 的原生明/暗风格 */
+        :root {
+            --fb-bg: #ffffff;
+            --fb-secondary-bg: #f1f2f6; /* 苹果风格灰底 */
+            --fb-text: #000000;
+            --fb-hint: #8e8e93;
+            --fb-link: #007aff;
+            --fb-button: #3390ec; /* TG 官方蓝 */
+            --fb-button-text: #ffffff;
+            --fb-destructive: #ff3b30;
+            --fb-section-bg: #ffffff;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --fb-bg: #1c1c1d; /* 深色卡片背景 */
+                --fb-secondary-bg: #000000; /* 深色底色 */
+                --fb-text: #ffffff;
+                --fb-hint: rgba(235, 235, 245, 0.6);
+                --fb-link: #0a84ff;
+                --fb-button: #3390ec; /* TG 官方蓝 */
+                --fb-button-text: #ffffff;
+                --fb-destructive: #ff453a;
+                --fb-section-bg: #1c1c1d;
+            }
+        }
+
         body {
-            background-color: var(--tg-theme-secondary-bg-color, #f4f4f5);
-            color: var(--tg-theme-text-color, #222222);
+            background-color: var(--tg-theme-secondary-bg-color, var(--fb-secondary-bg));
+            color: var(--tg-theme-text-color, var(--fb-text));
             font-family: -apple-system, BlinkMacSystemFont, 'Roboto', 'Helvetica Neue', sans-serif;
             margin: 0;
             overflow: hidden;
@@ -80,11 +101,12 @@
         }
         /* 针对 TG WebApp 暗黑模式处理一些默认组件颜色 */
         input, textarea, select {
-            background-color: var(--tg-theme-bg-color, #ffffff);
-            color: var(--tg-theme-text-color, #222222);
+            background-color: var(--tg-theme-bg-color, var(--fb-bg));
+            color: var(--tg-theme-text-color, var(--fb-text));
+            color-scheme: light dark;
         }
         input::placeholder, textarea::placeholder {
-            color: var(--tg-theme-hint-color, #999999);
+            color: var(--tg-theme-hint-color, var(--fb-hint));
         }
         
         /* 自定义滚动条 */
@@ -96,12 +118,12 @@
             background: transparent; 
         }
         ::-webkit-scrollbar-thumb {
-            background: var(--tg-theme-hint-color, #CBD5E1); 
+            background: var(--tg-theme-hint-color, var(--fb-hint)); 
             border-radius: 3px;
             opacity: 0.5;
         }
         ::-webkit-scrollbar-thumb:hover {
-            background: var(--tg-theme-text-color, #94A3B8); 
+            background: var(--tg-theme-text-color, var(--fb-text)); 
         }
         
         .card-shadow {
