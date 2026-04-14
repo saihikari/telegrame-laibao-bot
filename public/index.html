@@ -363,7 +363,7 @@
             const activeCustomer = activeCustomerIndex !== null ? config.customers[activeCustomerIndex] : null;
 
             return (
-                <div className="block md:flex md:flex-row h-full w-full overflow-y-auto md:overflow-hidden bg-tg-secondary_bg">
+                <div className="block md:flex md:flex-row h-full w-full overflow-y-auto md:overflow-hidden bg-tg-secondary_bg pt-[env(safe-area-inset-top)] md:pt-0">
                     {/* 中左侧：客户列表 */}
                     <div className="w-full md:w-80 bg-tg-bg border-b md:border-r border-tg-hint/20 flex flex-col h-auto md:h-full shrink-0">
                         <div className="p-3 md:p-4 border-b border-tg-hint/20 flex justify-between items-center bg-tg-secondary_bg/50">
@@ -672,7 +672,7 @@
             };
 
             return (
-                <div className="w-full h-full bg-tg-secondary_bg flex flex-col overflow-hidden">
+                <div className="w-full h-full bg-tg-secondary_bg flex flex-col overflow-hidden pt-[env(safe-area-inset-top)]">
                     <div className="p-3 md:p-6 border-b border-tg-hint/20 flex justify-between items-center bg-tg-bg shrink-0">
                         <h2 className="font-semibold text-tg-text flex items-center gap-1.5 md:gap-2 text-base md:text-xl">
                             <Icon name="play-circle" size={20} className="text-[#3390ec] md:w-[24px] md:h-[24px]" />
@@ -722,6 +722,7 @@
         const JsonConfig = ({ config, fetchConfig, showToast }) => {
             const [jsonText, setJsonText] = useState('');
             const [saving, setSaving] = useState(false);
+            const [saveSuccess, setSaveSuccess] = useState(false);
             const [showBackups, setShowBackups] = useState(false);
             const [backups, setBackups] = useState([]);
             const [loadingBackups, setLoadingBackups] = useState(false);
@@ -748,6 +749,8 @@
                     if (res.ok) {
                         if (showToast) showToast('高级配置保存成功！', 'success');
                         fetchConfig();
+                        setSaveSuccess(true);
+                        setTimeout(() => setSaveSuccess(false), 2000);
                     } else {
                         if (showToast) showToast('保存失败，服务端异常', 'error');
                     }
@@ -827,7 +830,7 @@
             };
 
             return (
-                <div className="w-full h-full bg-tg-secondary_bg flex flex-col relative">
+                <div className="w-full h-full bg-tg-secondary_bg flex flex-col relative pt-[env(safe-area-inset-top)]">
                     <div className="p-4 md:p-6 lg:p-8 max-w-6xl mx-auto w-full flex flex-col h-full relative z-10">
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 md:gap-4 mb-4 md:mb-6 shrink-0 border-b border-tg-hint/20 pb-3 md:pb-4 bg-tg-bg rounded-2xl p-4 card-shadow">
                             <div className="flex items-center gap-2 md:gap-3">
@@ -847,9 +850,9 @@
                                 <button onClick={handleBackup} className="w-full md:w-fit justify-center px-2.5 py-1.5 md:px-3 md:py-2 bg-tg-secondary_bg text-tg-text text-[11px] md:text-sm rounded-full hover:opacity-80 active:opacity-50 active:scale-95 transition-all flex items-center justify-center gap-1 whitespace-nowrap shadow-sm font-medium border border-tg-hint/10">
                                     <Icon name="archive" size={12} /> <span>备份</span>
                                 </button>
-                                <button onClick={handleSave} disabled={saving} className="w-full md:w-fit justify-center px-2.5 py-1.5 md:px-3 md:py-2 bg-[#3390ec] text-white text-[11px] md:text-sm rounded-full hover:bg-[#3390ec]/90 active:opacity-70 active:scale-95 transition-all flex items-center justify-center gap-1 whitespace-nowrap shadow-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed">
-                                    {saving ? <Icon name="loader" size={12} className="animate-spin" /> : <Icon name="save" size={12} />} 
-                                    <span>保存</span>
+                                <button onClick={handleSave} disabled={saving || saveSuccess} className={`w-full md:w-fit justify-center px-2.5 py-1.5 md:px-3 md:py-2 text-white text-[11px] md:text-sm rounded-full transition-all flex items-center justify-center gap-1 whitespace-nowrap shadow-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed ${saveSuccess ? 'bg-[#34c759]' : 'bg-[#3390ec] hover:bg-[#3390ec]/90 active:opacity-70 active:scale-95'}`}>
+                                    {saving ? <Icon name="loader" size={12} className="animate-spin" /> : (saveSuccess ? <Icon name="check" size={12} /> : <Icon name="save" size={12} />)} 
+                                    <span>{saveSuccess ? '已保存' : '保存'}</span>
                                 </button>
                             </div>
                         </div>
@@ -983,7 +986,7 @@
             if (loading && !status) return <div className="flex-1 flex items-center justify-center"><Icon name="loader" className="animate-spin text-[#3390ec]" size={24} /></div>;
 
             return (
-                <div className="w-full h-full bg-tg-secondary_bg overflow-y-auto">
+                <div className="w-full h-full bg-tg-secondary_bg overflow-y-auto pt-[env(safe-area-inset-top)]">
                     <div className="p-4 md:p-6 lg:p-8 max-w-5xl mx-auto">
                         <div className="mb-4 md:mb-8 flex items-center gap-2 md:gap-3 pb-3 md:pb-4 border-b border-tg-hint/20">
                             <Icon name="activity" size={24} className="text-[#3390ec] md:w-[32px] md:h-[32px]" />
@@ -1037,7 +1040,7 @@
 
         // --- 页面组件: 使用向导 ---
         const GuidePage = () => (
-            <div className="w-full h-full bg-tg-secondary_bg overflow-y-auto">
+            <div className="w-full h-full bg-tg-secondary_bg overflow-y-auto pt-[env(safe-area-inset-top)]">
                 <div className="p-4 md:p-6 lg:p-8 max-w-4xl mx-auto">
                     <div className="bg-tg-bg rounded-2xl card-shadow p-5 md:p-8 border border-tg-hint/10">
                         <div className="mb-4 md:mb-6 flex items-center gap-2 md:gap-3 pb-3 md:pb-4 border-b border-tg-hint/20">
@@ -1118,7 +1121,7 @@
 
         // --- 页面组件: 定制服务 ---
         const CustomizePage = () => (
-            <div className="flex-1 p-8 bg-tg-secondary_bg overflow-y-auto">
+            <div className="flex-1 p-8 bg-tg-secondary_bg overflow-y-auto pt-[calc(env(safe-area-inset-top)+2rem)]">
                 <div className="max-w-4xl mx-auto bg-tg-bg rounded-2xl card-shadow p-10 text-center border border-tg-hint/10">
                     <div className="w-20 h-20 bg-[#af52de]/10 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm">
                         <Icon name="diamond" size={40} className="text-[#af52de]" />
