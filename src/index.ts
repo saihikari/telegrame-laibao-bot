@@ -23,7 +23,7 @@ const start = async () => {
   loadConfig();
 
   // Initialize Web Admin Server
-  const adminPort = parseInt(process.env.ADMIN_PORT || '8070', 10);
+  const adminPort = parseInt(process.env.ADMIN_PORT || '8090', 10);
   try {
     await startWebServer(adminPort);
   } catch (error) {
