@@ -221,7 +221,7 @@ app.use('/admin', noCacheMiddleware, express.static(publicPath));
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 // Fallback to index.html for React Router / SPA navigation
-app.get('/admin/*', noCacheMiddleware, (req, res) => {
+app.get(['/admin', '/admin/config', '/admin/status', '/admin/guide', '/admin/customize', '/admin/test', '/admin/json'], noCacheMiddleware, (req, res) => {
   res.sendFile(path.join(publicPath, 'index.html'));
 });
 
