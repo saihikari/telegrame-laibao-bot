@@ -90,12 +90,12 @@ const verifySessionToken = (token: string | undefined, expectedUsername: string)
 };
 
 const setSessionCookie = (res: express.Response, token: string) => {
-  const secure = process.env.ADMIN_COOKIE_SECURE === 'true';
+  const secure = process.env.WEB_DOMAIN?.startsWith('https') || process.env.ADMIN_COOKIE_SECURE === 'true';
   const parts = [
     `${COOKIE_NAME}=${encodeURIComponent(token)}`,
     'Path=/',
     'HttpOnly',
-    'SameSite=Lax',
+    `SameSite=${secure ? 'None' : 'Lax'}`,
     `Max-Age=${SESSION_MAX_AGE_SECONDS}`
   ];
   if (secure) parts.push('Secure');
@@ -103,12 +103,12 @@ const setSessionCookie = (res: express.Response, token: string) => {
 };
 
 const clearSessionCookie = (res: express.Response) => {
-  const secure = process.env.ADMIN_COOKIE_SECURE === 'true';
+  const secure = process.env.WEB_DOMAIN?.startsWith('https') || process.env.ADMIN_COOKIE_SECURE === 'true';
   const parts = [
     `${COOKIE_NAME}=`,
     'Path=/',
     'HttpOnly',
-    'SameSite=Lax',
+    `SameSite=${secure ? 'None' : 'Lax'}`,
     'Max-Age=0'
   ];
   if (secure) parts.push('Secure');
@@ -202,6 +202,14 @@ app.get('/admin/login', (req, res) => {
         // Set Theme Colors based on TG
         document.body.style.backgroundColor = tg.themeParams.secondary_bg_color || 'var(--tg-theme-secondary-bg-color, #F8FAFC)';
         
+        if (sessionStorage.getItem('tg_login_redirected')) {
+          sessionStorage.removeItem('tg_login_redirected');
+          document.getElementById('login-card').classList.remove('hidden');
+          document.getElementById('fallback-login').classList.remove('hidden');
+          document.getElementById('tg-err').innerText = '浏览器跨域策略拦截了凭证，请使用账号密码登录。';
+          return;
+        }
+
         // 隐性加载：在授权完成前，隐藏整个登录卡片，只展示与TG背景色一致的纯色背景
         document.getElementById('login-card').classList.add('hidden');
         
@@ -211,6 +219,7 @@ app.get('/admin/login', (req, res) => {
           body: JSON.stringify({ initData: tg.initData })
         }).then(res => res.json()).then(data => {
           if (data.success) {
+             sessionStorage.setItem('tg_login_redirected', '1');
              // 确权成功，直接跳转（全程保持卡片隐藏，无缝过渡）
              window.location.href = '/admin/';
           } else if (data.error === 'UNAUTHORIZED_TG_USER_CLOSE_APP') {
