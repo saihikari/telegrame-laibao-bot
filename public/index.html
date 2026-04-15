@@ -281,6 +281,24 @@
             setTimeout(() => setSaveSuccess(false), 2000);
         };
 
+        const handleBackup = async () => {
+            try {
+                const res = await fetch('/api/config/backup', { method: 'POST' });
+                if (res.status === 401) {
+                    redirectToLogin();
+                    return;
+                }
+                const data = await res.json();
+                if (data.success) {
+                    if (showToast) showToast('配置备份成功: ' + data.filename, 'success');
+                } else {
+                    if (showToast) showToast('备份失败', 'error');
+                }
+            } catch (e) {
+                if (showToast) showToast('请求备份失败', 'error');
+            }
+        };
+
         const handleCustomerSelect = (index) => {
             if (isDirty && index !== activeCustomerIndex) {
                 setPendingSwitchIndex(index);
