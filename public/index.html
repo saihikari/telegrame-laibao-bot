@@ -438,12 +438,20 @@
                             </h2>
                             <div className="flex items-center gap-2">
                                 <button 
+                                    onClick={handleBackup}
+                                    className="px-3 py-1.5 bg-tg-secondary_bg text-tg-text text-xs md:text-sm rounded-full hover:opacity-80 transition-colors flex items-center justify-center gap-1 shadow-sm border border-tg-hint/10"
+                                    title="备份当前配置"
+                                >
+                                    <Icon name="archive" size={14} />
+                                    <span>备份</span>
+                                </button>
+                                <button 
                                 onClick={onSaveAll}
                                 disabled={saving || saveSuccess}
-                                className={`px-3 py-1.5 text-white text-xs md:text-sm rounded-full transition-all disabled:cursor-not-allowed flex items-center justify-center gap-1 shadow-sm w-[90px] md:w-[100px] ${saveSuccess ? 'bg-[rgb(var(--primary))]' : 'bg-[rgb(var(--primary))] hover:opacity-90 disabled:opacity-50'}`}
+                                className={`px-3 py-1.5 text-white text-xs md:text-sm rounded-full transition-all disabled:cursor-not-allowed flex items-center justify-center gap-1 shadow-sm w-[70px] md:w-[80px] ${saveSuccess ? 'bg-[rgb(var(--primary))]' : 'bg-[rgb(var(--primary))] hover:opacity-90 disabled:opacity-50'}`}
                             >
                                 {saving ? <Icon name="loader" size={14} className="animate-spin" /> : (saveSuccess ? <Icon name="check" size={14} /> : <Icon name="save" size={14} />)}
-                                <span>{saveSuccess ? '已保存' : '保存所有'}</span>
+                                <span>{saveSuccess ? '已保存' : '保存'}</span>
                             </button>
                                 <button 
                                     onClick={addCustomer}
@@ -451,7 +459,7 @@
                                     title="添加新客户配置"
                                 >
                                     <Icon name="plus" size={14} />
-                                    <span>新增客户</span>
+                                    <span>新增</span>
                                 </button>
                             </div>
                         </div>
