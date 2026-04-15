@@ -209,11 +209,10 @@ app.get('/admin/login', (req, res) => {
       if (tg && tg.initData) {
         tg.expand();
         // Set Theme Colors based on TG
-        document.body.style.backgroundColor = tg.themeParams.secondary_bg_color;
+        document.body.style.backgroundColor = tg.themeParams.secondary_bg_color || 'var(--tg-theme-secondary-bg-color, #F8FAFC)';
         
-        document.getElementById('fallback-login').classList.add('hidden');
-        document.querySelector('#login-card h1').innerText = '授权中...';
-        document.querySelector('#login-card p').innerText = '正在通过 Telegram 验证您的身份';
+        // 隐性加载：在授权完成前，隐藏整个登录卡片，只展示与TG背景色一致的纯色背景
+        document.getElementById('login-card').classList.add('hidden');
         
         fetch('/api/tg-login', {
           method: 'POST',
@@ -221,22 +220,26 @@ app.get('/admin/login', (req, res) => {
           body: JSON.stringify({ initData: tg.initData })
         }).then(res => res.json()).then(data => {
           if (data.success) {
+             // 确权成功，直接跳转（全程保持卡片隐藏，无缝过渡）
              window.location.href = '/admin/';
           } else if (data.error === 'UNAUTHORIZED_TG_USER_CLOSE_APP') {
-             // 用户未授权，并且机器人已经给他们发了消息，直接关闭 WebApp
+             // 确权失败，机器人已发送消息，瞬间关闭WebApp
              tg.close();
           } else if (data.error === 'UNAUTHORIZED_TG_USER') {
              window.tgUserId = data.userId;
+             document.getElementById('login-card').classList.remove('hidden');
              document.querySelector('#login-card h1').classList.add('hidden');
              document.querySelector('#login-card p').classList.add('hidden');
              document.getElementById('tg-unauth-guide').classList.remove('hidden');
           } else {
+             document.getElementById('login-card').classList.remove('hidden');
              document.querySelector('#login-card h1').innerText = '登录';
              document.querySelector('#login-card p').innerText = '请输入管理后台用户名与密码';
              document.getElementById('fallback-login').classList.remove('hidden');
              document.getElementById('tg-err').innerText = 'Telegram 授权失败：' + (data.error || '未知错误');
           }
         }).catch(e => {
+           document.getElementById('login-card').classList.remove('hidden');
            document.getElementById('fallback-login').classList.remove('hidden');
            document.getElementById('tg-err').innerText = '网络错误，请使用账号密码登录';
         });
@@ -294,13 +297,13 @@ app.post('/api/tg-login', express_1.default.json(), (req, res) => {
                     inline_keyboard: [
                         [
                             {
-                                text: '申请管理员权限 (本公司员工)',
+                                text: 'RunToAds员工申请管理员权限',
                                 url: `https://t.me/hikarillll?text=${encodeURIComponent('本公司员工希望获取管理员权限，我的ID是: ' + tgUser.id)}`
                             }
                         ],
                         [
                             {
-                                text: '咨询定制开发服务 (非员工)',
+                                text: '合作伙伴咨询定制开发服务',
                                 url: `https://t.me/hikarillll?text=${encodeURIComponent('非本公司员工，我对来包机器人感兴趣，希望定制开发服务。')}`
                             }
                         ]
