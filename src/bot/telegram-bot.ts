@@ -4,6 +4,7 @@ import { processMessage } from './rule-engine';
 import { ParsedData } from '../types/config.types';
 import { appendRecord } from './sheets-service';
 import { getAdminTgIds, addAdminTgId, removeAdminTgId } from '../utils/env-editor';
+import { appendRecordLog } from './record-log';
 
 const token = process.env.BOT_TOKEN || '';
 const internalChatIds = (process.env.INTERNAL_CHAT_IDS || '').split(',').map(id => id.trim());
@@ -206,6 +207,8 @@ export const startBot = () => {
       });
       bot.answerCallbackQuery(query.id);
 
+      const startAtMs = Date.now();
+
       let successCount = 0;
       let failCount = 0;
       const successDetails: string[] = [];
@@ -221,6 +224,17 @@ export const startBot = () => {
           const rowInfo = await appendRecord(res.customerName, formattedString.trim());
           successCount++;
           successDetails.push(`[${res.customerName}] 录入至 ${rowInfo}`);
+
+          const endAtMs = Date.now();
+          const savedSeconds = ((endAtMs - startAtMs) / 1000) * 15;
+          appendRecordLog({
+            sheetName: res.customerName,
+            content: formattedString.trim(),
+            startAt: new Date(startAtMs).toISOString(),
+            endAt: new Date(endAtMs).toISOString(),
+            elapsedMs: endAtMs - startAtMs,
+            savedSeconds: Math.round(savedSeconds * 100) / 100
+          }).catch(() => undefined);
         } catch (error: any) {
           failCount++;
           failDetails.push(`[${res.customerName}] ${error.message}`);

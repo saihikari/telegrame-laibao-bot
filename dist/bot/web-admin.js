@@ -9,6 +9,7 @@ const config_loader_1 = require("./config-loader");
 const rule_engine_1 = require("./rule-engine");
 const sheets_service_1 = require("./sheets-service");
 const telegram_bot_1 = require("./telegram-bot");
+const record_log_1 = require("./record-log");
 const body_parser_1 = __importDefault(require("body-parser"));
 const path_1 = __importDefault(require("path"));
 const crypto_1 = __importDefault(require("crypto"));
@@ -375,7 +376,7 @@ const publicPath = path_1.default.join(__dirname, '../../public');
 app.use('/admin', noCacheMiddleware, express_1.default.static(publicPath));
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 // Fallback to index.html for React Router / SPA navigation
-app.get(['/admin', '/admin/config', '/admin/status', '/admin/guide', '/admin/customize', '/admin/test', '/admin/json'], noCacheMiddleware, (req, res) => {
+app.get(['/admin', '/admin/config', '/admin/status', '/admin/guide', '/admin/customize', '/admin/test', '/admin/json', '/admin/logs'], noCacheMiddleware, (req, res) => {
     res.sendFile(path_1.default.join(publicPath, 'index.html'));
 });
 // APIs
@@ -412,6 +413,13 @@ app.get('/api/status', (req, res) => {
         backups_count: (0, config_loader_1.getBackupCount)(),
         google_sheets_ready: (0, sheets_service_1.isSheetsReady)()
     });
+});
+app.get('/api/record-logs', async (req, res) => {
+    const limitRaw = req.query.limit;
+    const limitParsed = typeof limitRaw === 'string' ? parseInt(limitRaw, 10) : 200;
+    const limit = Number.isFinite(limitParsed) ? Math.min(Math.max(limitParsed, 1), 1000) : 200;
+    const logs = await (0, record_log_1.readRecordLogs)(limit);
+    res.json({ success: true, logs });
 });
 app.post('/api/test', (req, res) => {
     try {

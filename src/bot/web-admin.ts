@@ -3,6 +3,7 @@ import { getConfig, saveConfig, backupConfig, getLastModified, getBackupCount, l
 import { processMessage } from './rule-engine';
 import { isSheetsReady } from './sheets-service';
 import { getBotInstance } from './telegram-bot';
+import { readRecordLogs } from './record-log';
 import bodyParser from 'body-parser';
 
 import path from 'path';
@@ -379,7 +380,7 @@ app.use('/admin', noCacheMiddleware, express.static(publicPath));
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 // Fallback to index.html for React Router / SPA navigation
-app.get(['/admin', '/admin/config', '/admin/status', '/admin/guide', '/admin/customize', '/admin/test', '/admin/json'], noCacheMiddleware, (req, res) => {
+app.get(['/admin', '/admin/config', '/admin/status', '/admin/guide', '/admin/customize', '/admin/test', '/admin/json', '/admin/logs'], noCacheMiddleware, (req, res) => {
   res.sendFile(path.join(publicPath, 'index.html'));
 });
 
@@ -422,6 +423,14 @@ app.get('/api/status', (req, res) => {
     backups_count: getBackupCount(),
     google_sheets_ready: isSheetsReady()
   });
+});
+
+app.get('/api/record-logs', async (req, res) => {
+  const limitRaw = req.query.limit;
+  const limitParsed = typeof limitRaw === 'string' ? parseInt(limitRaw, 10) : 200;
+  const limit = Number.isFinite(limitParsed) ? Math.min(Math.max(limitParsed, 1), 1000) : 200;
+  const logs = await readRecordLogs(limit);
+  res.json({ success: true, logs });
 });
 
 app.post('/api/test', (req, res) => {

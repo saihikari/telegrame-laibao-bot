@@ -1261,6 +1261,103 @@
             );
         };
 
+        const LogsPage = ({ showToast }) => {
+            const [logs, setLogs] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState('');
+
+            const fetchLogs = async () => {
+                try {
+                    const res = await fetch('/api/record-logs?limit=200');
+                    if (res.status === 401) { redirectToLogin(); return; }
+                    const data = await res.json();
+                    if (data?.success) {
+                        setLogs(data.logs || []);
+                        setError('');
+                    } else {
+                        setError('无法获取日志');
+                    }
+                } catch (e) {
+                    setError('无法获取日志');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            useEffect(() => {
+                fetchLogs();
+                const t = setInterval(fetchLogs, 5000);
+                return () => clearInterval(t);
+            }, []);
+
+            return (
+                <div className="w-full h-full bg-tg-secondary_bg overflow-y-auto pt-[env(safe-area-inset-top)]">
+                    <div className="p-4 md:p-6 lg:p-8 max-w-6xl mx-auto">
+                        <div className="mb-4 md:mb-8 flex items-center justify-between gap-3 pb-3 md:pb-4 border-b border-tg-hint/20">
+                            <div className="flex items-center gap-2 md:gap-3">
+                                <Icon name="scroll-text" size={24} className="text-[rgb(var(--primary))] md:w-[32px] md:h-[32px]" />
+                                <h1 className="text-xl md:text-3xl font-bold text-tg-text">录入日志</h1>
+                            </div>
+                            <button
+                                onClick={() => { setLoading(true); fetchLogs(); if (showToast) showToast('已刷新', 'success'); }}
+                                className="px-3 py-2 bg-tg-bg text-tg-text text-xs md:text-sm rounded-full hover:opacity-80 transition-colors flex items-center justify-center gap-1 shadow-sm border border-tg-hint/10"
+                            >
+                                <Icon name="refresh-cw" size={14} />
+                                <span>刷新</span>
+                            </button>
+                        </div>
+
+                        <div className="bg-tg-bg rounded-2xl card-shadow border border-tg-hint/10 overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-xs md:text-sm">
+                                    <thead className="bg-tg-secondary_bg/50">
+                                        <tr className="text-left text-tg-hint">
+                                            <th className="px-3 py-2 font-semibold whitespace-nowrap">时间</th>
+                                            <th className="px-3 py-2 font-semibold whitespace-nowrap">Sheet</th>
+                                            <th className="px-3 py-2 font-semibold whitespace-nowrap">节省(秒)</th>
+                                            <th className="px-3 py-2 font-semibold whitespace-nowrap">内容</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {loading && logs.length === 0 && (
+                                            <tr>
+                                                <td colSpan="4" className="px-3 py-10 text-center text-tg-hint">
+                                                    <Icon name="loader" className="animate-spin inline-block mr-2 text-[rgb(var(--primary))]" size={16} />
+                                                    加载中...
+                                                </td>
+                                            </tr>
+                                        )}
+                                        {!loading && error && (
+                                            <tr>
+                                                <td colSpan="4" className="px-3 py-10 text-center text-tg-hint">{error}</td>
+                                            </tr>
+                                        )}
+                                        {!loading && !error && logs.length === 0 && (
+                                            <tr>
+                                                <td colSpan="4" className="px-3 py-10 text-center text-tg-hint">暂无记录</td>
+                                            </tr>
+                                        )}
+                                        {logs.map((row, idx) => (
+                                            <tr key={idx} className="border-t border-tg-hint/10 hover:bg-tg-secondary_bg/30">
+                                                <td className="px-3 py-2 whitespace-nowrap text-tg-text font-mono">{new Date(row.endAt).toLocaleString()}</td>
+                                                <td className="px-3 py-2 whitespace-nowrap text-tg-text font-medium">{row.sheetName}</td>
+                                                <td className="px-3 py-2 whitespace-nowrap text-tg-text font-mono">{row.savedSeconds}</td>
+                                                <td className="px-3 py-2 text-tg-text">
+                                                    <div className="max-w-[220px] md:max-w-[720px] truncate font-mono text-[11px] md:text-sm" title={row.content}>
+                                                        {row.content}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
         // --- 页面组件: 使用向导 ---
         const GuidePage = () => (
             <div className="w-full h-full bg-tg-secondary_bg overflow-y-auto pt-[env(safe-area-inset-top)]">
@@ -1491,10 +1588,8 @@
                         return <JsonConfig config={config} fetchConfig={fetchConfig} showToast={showToast} />;
                     case 'status':
                         return <StatusPage showToast={showToast} />;
-                    case 'guide':
-                        return <GuidePage showToast={showToast} />;
-                    case 'customize':
-                        return <CustomizePage showToast={showToast} />;
+                    case 'logs':
+                        return <LogsPage showToast={showToast} />;
                     default:
                         return <VisualConfig config={config} setConfig={setConfig} loading={loading} showToast={showToast} />;
                 }
@@ -1547,19 +1642,11 @@
                             </button>
                             
                             <button 
-                                onClick={() => setActiveTab('guide')} 
-                                className={`flex-1 md:w-full h-full md:py-3 flex flex-col items-center justify-center md:rounded-2xl transition-colors ${activeTab === 'guide' ? 'text-[rgb(var(--primary))] md:bg-[rgba(var(--primary),0.1)]' : 'hover:text-tg-text'}`}
+                                onClick={() => setActiveTab('logs')} 
+                                className={`flex-1 md:w-full h-full md:py-3 flex flex-col items-center justify-center md:rounded-2xl transition-colors ${activeTab === 'logs' ? 'text-[rgb(var(--primary))] md:bg-[rgba(var(--primary),0.1)]' : 'hover:text-tg-text'}`}
                             >
-                                <Icon name="book-open" size={22} className="mb-1" />
-                                <span className="text-[10px] md:text-xs font-medium">向导</span>
-                            </button>
-
-                            <button 
-                                onClick={() => setActiveTab('customize')} 
-                                className={`flex-1 md:w-full h-full md:py-3 flex flex-col items-center justify-center md:rounded-2xl transition-colors ${activeTab === 'customize' ? 'text-[#af52de] md:bg-[#af52de]/10' : 'hover:text-tg-text'}`}
-                            >
-                                <Icon name="gem" size={22} className="mb-1" />
-                                <span className="text-[10px] md:text-xs font-medium">定制</span>
+                                <Icon name="scroll-text" size={22} className="mb-1" />
+                                <span className="text-[10px] md:text-xs font-medium">日志</span>
                             </button>
                         </div>
                     </div>

@@ -9,6 +9,7 @@ const config_loader_1 = require("./config-loader");
 const rule_engine_1 = require("./rule-engine");
 const sheets_service_1 = require("./sheets-service");
 const env_editor_1 = require("../utils/env-editor");
+const record_log_1 = require("./record-log");
 const token = process.env.BOT_TOKEN || '';
 const internalChatIds = (process.env.INTERNAL_CHAT_IDS || '').split(',').map(id => id.trim());
 const adminPort = process.env.ADMIN_PORT || '8070';
@@ -188,6 +189,7 @@ const startBot = () => {
                 message_id: msg.message_id
             });
             bot.answerCallbackQuery(query.id);
+            const startAtMs = Date.now();
             let successCount = 0;
             let failCount = 0;
             const successDetails = [];
@@ -201,6 +203,16 @@ const startBot = () => {
                     const rowInfo = await (0, sheets_service_1.appendRecord)(res.customerName, formattedString.trim());
                     successCount++;
                     successDetails.push(`[${res.customerName}] 录入至 ${rowInfo}`);
+                    const endAtMs = Date.now();
+                    const savedSeconds = ((endAtMs - startAtMs) / 1000) * 15;
+                    (0, record_log_1.appendRecordLog)({
+                        sheetName: res.customerName,
+                        content: formattedString.trim(),
+                        startAt: new Date(startAtMs).toISOString(),
+                        endAt: new Date(endAtMs).toISOString(),
+                        elapsedMs: endAtMs - startAtMs,
+                        savedSeconds: Math.round(savedSeconds * 100) / 100
+                    }).catch(() => undefined);
                 }
                 catch (error) {
                     failCount++;
