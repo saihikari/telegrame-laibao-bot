@@ -704,23 +704,25 @@
                                                             )}
 
                                                             {rule.type === 'regex' && (
-                                                                <div className="grid grid-cols-2 gap-2">
+                                                                <div className="flex flex-col gap-2">
                                                                     <div>
                                                                         <label className="block text-[11px] font-semibold text-tg-hint mb-1 uppercase tracking-wider">匹配模式 (Pattern)</label>
                                                                         <textarea
-                                                                            rows={3}
+                                                                            rows={4}
+                                                                            wrap="off"
                                                                             value={rule.pattern || ''}
                                                                             onChange={(e) => handleRuleChange(field, { pattern: e.target.value })}
-                                                                            className="w-full px-3 py-2 border border-tg-hint/20 rounded-lg focus:outline-none focus:ring-1 focus:ring-[rgb(var(--primary))] focus:border-[rgb(var(--primary))] text-xs md:text-sm font-mono text-[rgb(var(--primary))] bg-tg-bg leading-5 min-h-[84px] resize-y"
+                                                                            className="w-full px-3 py-2 border border-tg-hint/20 rounded-lg focus:outline-none focus:ring-1 focus:ring-[rgb(var(--primary))] focus:border-[rgb(var(--primary))] text-xs md:text-sm font-mono text-[rgb(var(--primary))] bg-tg-bg leading-5 min-h-[104px] resize-y overflow-x-auto whitespace-pre"
                                                                         ></textarea>
                                                                     </div>
                                                                     <div>
                                                                         <label className="block text-[11px] font-semibold text-tg-hint mb-1 uppercase tracking-wider">转换规则 (Transform)</label>
                                                                         <textarea
-                                                                            rows={3}
+                                                                            rows={4}
+                                                                            wrap="off"
                                                                             value={rule.transform || ''}
                                                                             onChange={(e) => handleRuleChange(field, { transform: e.target.value })}
-                                                                            className="w-full px-3 py-2 border border-tg-hint/20 rounded-lg focus:outline-none focus:ring-1 focus:ring-[rgb(var(--primary))] focus:border-[rgb(var(--primary))] text-xs md:text-sm font-mono text-[rgb(var(--primary))] bg-tg-bg leading-5 min-h-[84px] resize-y"
+                                                                            className="w-full px-3 py-2 border border-tg-hint/20 rounded-lg focus:outline-none focus:ring-1 focus:ring-[rgb(var(--primary))] focus:border-[rgb(var(--primary))] text-xs md:text-sm font-mono text-[rgb(var(--primary))] bg-tg-bg leading-5 min-h-[104px] resize-y overflow-x-auto whitespace-pre"
                                                                         ></textarea>
                                                                     </div>
                                                                 </div>
