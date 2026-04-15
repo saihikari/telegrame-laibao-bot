@@ -27,8 +27,8 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Lucide 图标库 (通过 CDN 引入 ES 模块) -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Lucide 图标库 (本地引入，解决 CDN 无法访问的问题) -->
+    <script src="/admin/lib/lucide.min.js"></script>
 
     <!-- Tailwind 配置 -->
     <script>
@@ -152,22 +152,45 @@
         const redirectToLogin = () => { window.location.href = '/admin/login'; };
 
         // --- 组件库 ---
-        const Icon = ({ name, size = 20, className = "" }) => {
-            const iconRef = useRef(null);
+        const useLucideLoaded = () => {
+            const [loaded, setLoaded] = useState(!!window.lucide);
             useEffect(() => {
-                if (window.lucide && window.lucide.createIcons && iconRef.current) {
+                if (loaded) return;
+                const interval = setInterval(() => {
+                    if (window.lucide) {
+                        setLoaded(true);
+                        clearInterval(interval);
+                    }
+                }, 50);
+                return () => clearInterval(interval);
+            }, [loaded]);
+            return loaded;
+        };
+
+        const Icon = ({ name, size = 20, className = "" }) => {
+            const containerRef = useRef(null);
+            const loaded = useLucideLoaded();
+
+            useEffect(() => {
+                if (loaded && containerRef.current && window.lucide) {
+                    const i = document.createElement('i');
+                    i.setAttribute('data-lucide', name);
+                    if (className) i.setAttribute('class', className);
+                    
+                    containerRef.current.innerHTML = '';
+                    containerRef.current.appendChild(i);
+                    
                     window.lucide.createIcons({
-                        icons: { [name]: window.lucide.icons[name] },
-                        nameAttr: 'data-lucide',
+                        root: containerRef.current,
                         attrs: {
-                            class: className,
                             width: size,
                             height: size,
                         }
                     });
                 }
-            }, [name, className, size]);
-            return <i ref={iconRef} data-lucide={name} className={className}></i>;
+            }, [name, className, size, loaded]);
+
+            return <span ref={containerRef} className="inline-flex items-center justify-center shrink-0" style={{ width: size, height: size }}></span>;
         };
 
         const ColorfulIcon = ({ name, bgClass, iconClass = "text-white" }) => (
