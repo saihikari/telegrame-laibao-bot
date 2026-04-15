@@ -444,8 +444,8 @@
                 <div className="block md:flex md:flex-row h-full w-full overflow-y-auto md:overflow-hidden bg-tg-secondary_bg pt-[env(safe-area-inset-top)] md:pt-0">
                     {/* 中左侧：客户列表 */}
                     <div className="w-full md:w-80 bg-tg-bg border-b md:border-r border-tg-hint/20 flex flex-col h-auto md:h-full shrink-0">
-                        <div className="p-3 md:p-4 border-b border-tg-hint/20 flex justify-between items-center bg-tg-secondary_bg/50">
-                            <h2 className="font-semibold text-tg-text flex items-center gap-2 text-sm md:text-base">
+                        <div className="p-3 md:p-4 border-b border-tg-hint/20 flex flex-col md:flex-row md:justify-between items-start md:items-center bg-tg-secondary_bg/50 gap-3 md:gap-0">
+                            <h2 className="font-semibold text-tg-text flex items-center gap-2 text-sm md:text-base w-full md:w-auto">
                                 <div className="w-6 h-6 rounded-full overflow-hidden md:hidden shadow-sm border border-tg-hint/20 flex-shrink-0 bg-tg-section_bg">
                                     <img src="/admin/logo.jpg" alt="Logo" className="w-full h-full object-cover object-center" 
                                          onError={(e) => { e.target.style.display='none'; e.target.parentElement.innerHTML='<div class="w-full h-full bg-[rgb(var(--primary))] flex items-center justify-center font-bold text-xs text-white">R</div>'; }}
@@ -454,10 +454,10 @@
                                 <Icon name="users" size={16} className="hidden md:block text-[rgb(var(--primary))] md:w-[18px] md:h-[18px]" />
                                 客户路由 ({config.customers.length})
                             </h2>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 w-full md:w-auto grid grid-cols-3 md:flex">
                                 <button 
                                     onClick={handleBackup}
-                                    className="px-3 py-1.5 bg-tg-secondary_bg text-tg-text text-xs md:text-sm rounded-full hover:opacity-80 transition-colors flex items-center justify-center gap-1 shadow-sm border border-tg-hint/10"
+                                    className="px-2 py-2 bg-tg-secondary_bg text-tg-text text-xs md:text-sm rounded-full hover:opacity-80 transition-colors flex items-center justify-center gap-1 shadow-sm border border-tg-hint/10"
                                     title="备份当前配置"
                                 >
                                     <Icon name="archive" size={14} />
@@ -466,14 +466,14 @@
                                 <button 
                                 onClick={onSaveAll}
                                 disabled={saving || saveSuccess}
-                                className={`px-3 py-1.5 text-white text-xs md:text-sm rounded-full transition-all disabled:cursor-not-allowed flex items-center justify-center gap-1 shadow-sm w-[70px] md:w-[80px] ${saveSuccess ? 'bg-[rgb(var(--primary))]' : 'bg-[rgb(var(--primary))] hover:opacity-90 disabled:opacity-50'}`}
+                                className={`px-2 py-2 text-white text-xs md:text-sm rounded-full transition-all disabled:cursor-not-allowed flex items-center justify-center gap-1 shadow-sm w-full md:w-[80px] ${saveSuccess ? 'bg-[rgb(var(--primary))]' : 'bg-[rgb(var(--primary))] hover:opacity-90 disabled:opacity-50'}`}
                             >
                                 {saving ? <Icon name="loader" size={14} className="animate-spin" /> : (saveSuccess ? <Icon name="check" size={14} /> : <Icon name="save" size={14} />)}
                                 <span>{saveSuccess ? '已保存' : '保存'}</span>
                             </button>
                                 <button 
                                     onClick={addCustomer}
-                                    className="px-3 py-1.5 bg-[rgb(var(--primary))] text-white text-xs md:text-sm rounded-full hover:opacity-90 transition-colors flex items-center justify-center gap-1 shadow-sm"
+                                    className="px-2 py-2 bg-[rgb(var(--primary))] text-white text-xs md:text-sm rounded-full hover:opacity-90 transition-colors flex items-center justify-center gap-1 shadow-sm w-full"
                                     title="添加新客户配置"
                                 >
                                     <Icon name="plus" size={14} />
