@@ -61,13 +61,11 @@ export const startBot = () => {
 - 指令列表：
   /id - 获取当前群Chat ID
   /test - 测试内部群连通性
-  /help - 查看帮助和FAQ
+  /help - 查看帮助文档
   /status - 获取状态页URL
   /customer - 列出所有客户名称
   /addmng <ID> - 添加管理员
   /delemng <ID> - 删除管理员
-- 常见问题：
-  若机器人未回复，请检查是否包含必填关键词（如名称、链接等）。
 - 综合管理后台：${baseUrl}/admin/
     `;
     bot.sendMessage(msg.chat.id, helpText, { parse_mode: 'Markdown' });
