@@ -143,17 +143,20 @@ app.get('/admin/login', (req, res) => {
   <title>登录 - 规则引擎综合管理后台</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
-    body{margin:0;font-family:Inter,Roboto,system-ui,-apple-system,Segoe UI,Arial,sans-serif;background:#F8FAFC;color:#0f172a}
+    body{margin:0;font-family:Inter,Roboto,system-ui,-apple-system,Segoe UI,Arial,sans-serif;background:var(--tg-theme-secondary-bg-color, #F8FAFC);color:var(--tg-theme-text-color, #0f172a)}
     .wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
-    .card{width:100%;max-width:420px;background:#fff;border:1px solid #e2e8f0;border-radius:16px;box-shadow:0 4px 16px rgba(2,6,23,.06);padding:22px}
+    .card{width:100%;max-width:420px;background:var(--tg-theme-bg-color, #fff);border:1px solid rgba(0,0,0,0.1);border-radius:16px;box-shadow:0 4px 16px rgba(0,0,0,.06);padding:22px}
     h1{margin:0 0 6px 0;font-size:20px}
-    p{margin:0 0 18px 0;color:#64748b;font-size:13px;line-height:1.4}
-    label{display:block;font-size:12px;color:#334155;margin:12px 0 6px}
-    input{width:100%;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:10px;padding:10px 12px;font-size:14px;outline:none}
-    input:focus{border-color:#06b6d4;box-shadow:0 0 0 3px rgba(6,182,212,.15)}
-    .btn{margin-top:16px;width:100%;border:0;border-radius:10px;padding:10px 12px;background:#1E3A8A;color:#fff;font-weight:600;font-size:14px;cursor:pointer}
+    p{margin:0 0 18px 0;color:var(--tg-theme-hint-color, #64748b);font-size:13px;line-height:1.4}
+    label{display:block;font-size:12px;color:var(--tg-theme-text-color, #334155);margin:12px 0 6px}
+    input{width:100%;box-sizing:border-box;border:1px solid var(--tg-theme-hint-color, #cbd5e1);border-radius:10px;padding:10px 12px;font-size:14px;outline:none;background:var(--tg-theme-bg-color, #fff);color:var(--tg-theme-text-color, #000)}
+    input:focus{border-color:var(--tg-theme-button-color, #06b6d4);box-shadow:0 0 0 3px rgba(6,182,212,.15)}
+    .btn{margin-top:16px;width:100%;border:0;border-radius:10px;padding:10px 12px;background:var(--tg-theme-button-color, #1E3A8A);color:var(--tg-theme-button-text-color, #fff);font-weight:600;font-size:14px;cursor:pointer}
     .btn:hover{opacity:.95}
+    .btn-outline{background:transparent;border:1px solid var(--tg-theme-button-color, #1E3A8A);color:var(--tg-theme-button-color, #1E3A8A);margin-top:10px}
+    .btn-outline:hover{background:rgba(30,58,138,0.05)}
     .err{margin-top:12px;color:#dc2626;font-size:13px}
+    .hidden{display:none !important}
   </style>
 </head>
 <body>
@@ -161,7 +164,7 @@ app.get('/admin/login', (req, res) => {
     <div class="card" id="login-card">
       <h1>登录</h1>
       <p>请输入管理后台用户名与密码</p>
-      <form method="post" action="/api/login">
+      <form method="post" action="/api/login" id="fallback-login">
         <label>用户名</label>
         <input name="username" autocomplete="username" required />
         <label>密码</label>
@@ -171,15 +174,37 @@ app.get('/admin/login', (req, res) => {
         ${error ? `<div class="err">${error}</div>` : ''}
         <div id="tg-err" class="err"></div>
       </form>
+      
+      <div id="tg-unauth-guide" class="hidden">
+        <h1 style="color:var(--tg-theme-destructive-text-color, #ef4444)">无访问权限</h1>
+        <p>您的 Telegram 账号未被授权访问此管理后台。<br>如果您需要权限或相关服务，请点击下方按钮联系我们：</p>
+        
+        <button class="btn" onclick="window.Telegram.WebApp.openTelegramLink('https://t.me/hikarillll?text=' + encodeURIComponent('本公司员工希望获取管理员权限，我的ID是: ') + window.tgUserId)">
+          申请管理员权限 (本公司员工)
+        </button>
+        
+        <button class="btn btn-outline" onclick="window.Telegram.WebApp.openTelegramLink('https://t.me/hikarillll?text=' + encodeURIComponent('非本公司员工，我对来包机器人感兴趣，希望定制开发服务。'))">
+          咨询定制开发服务 (非员工)
+        </button>
+        
+        <div style="margin-top:20px;text-align:center;font-size:12px;color:var(--tg-theme-hint-color, #64748b)">
+          如需手动登录，请 <a href="#" onclick="document.getElementById('tg-unauth-guide').classList.add('hidden');document.getElementById('fallback-login').classList.remove('hidden');return false;" style="color:var(--tg-theme-link-color, #0ea5e9)">点击此处使用账号密码</a>。
+        </div>
+      </div>
     </div>
   </div>
   <script>
     document.addEventListener("DOMContentLoaded", function() {
       const tg = window.Telegram?.WebApp;
       if (tg && tg.initData) {
-        // Expand the web app to full height
         tg.expand();
-        document.getElementById('login-card').innerHTML = '<h1>授权中...</h1><p>正在通过 Telegram 验证您的身份</p><div id="tg-err" class="err"></div>';
+        // Set Theme Colors based on TG
+        document.body.style.backgroundColor = tg.themeParams.secondary_bg_color;
+        
+        document.getElementById('fallback-login').classList.add('hidden');
+        document.querySelector('#login-card h1').innerText = '授权中...';
+        document.querySelector('#login-card p').innerText = '正在通过 Telegram 验证您的身份';
+        
         fetch('/api/tg-login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -187,11 +212,20 @@ app.get('/admin/login', (req, res) => {
         }).then(res => res.json()).then(data => {
           if (data.success) {
              window.location.href = '/admin/';
+          } else if (data.error === 'UNAUTHORIZED_TG_USER') {
+             window.tgUserId = data.userId;
+             document.querySelector('#login-card h1').classList.add('hidden');
+             document.querySelector('#login-card p').classList.add('hidden');
+             document.getElementById('tg-unauth-guide').classList.remove('hidden');
           } else {
-             document.getElementById('tg-err').innerText = 'Telegram 授权失败：' + (data.error || '未授权用户');
+             document.querySelector('#login-card h1').innerText = '登录';
+             document.querySelector('#login-card p').innerText = '请输入管理后台用户名与密码';
+             document.getElementById('fallback-login').classList.remove('hidden');
+             document.getElementById('tg-err').innerText = 'Telegram 授权失败：' + (data.error || '未知错误');
           }
         }).catch(e => {
-           document.getElementById('tg-err').innerText = '网络错误';
+           document.getElementById('fallback-login').classList.remove('hidden');
+           document.getElementById('tg-err').innerText = '网络错误，请使用账号密码登录';
         });
       }
     });
@@ -242,7 +276,11 @@ app.post('/api/tg-login', express.json(), (req, res) => {
   }
 
   if (!allowedIds.includes(tgUser.id.toString())) {
-    return res.status(403).json({ success: false, error: '未经授权的 Telegram 用户。请将你的 ID: ' + tgUser.id + ' 添加到 .env 的 ADMIN_TG_IDS 中，或者联系超级管理员添加' });
+    return res.status(403).json({ 
+      success: false, 
+      error: 'UNAUTHORIZED_TG_USER',
+      userId: tgUser.id
+    });
   }
 
   const username = process.env.ADMIN_USERNAME || 'admin';
