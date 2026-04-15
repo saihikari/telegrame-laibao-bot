@@ -150,6 +150,7 @@ app.get('/admin/login', (req, res) => {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>登录 - 规则引擎综合管理后台</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
     body{margin:0;font-family:Inter,Roboto,system-ui,-apple-system,Segoe UI,Arial,sans-serif;background:#F8FAFC;color:#0f172a}
     .wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
@@ -166,7 +167,7 @@ app.get('/admin/login', (req, res) => {
 </head>
 <body>
   <div class="wrap">
-    <div class="card">
+    <div class="card" id="login-card">
       <h1>登录</h1>
       <p>请输入管理后台用户名与密码</p>
       <form method="post" action="/api/login">
@@ -177,11 +178,78 @@ app.get('/admin/login', (req, res) => {
         <input type="hidden" name="redirect" value="/admin/" />
         <button class="btn" type="submit">登录并进入后台</button>
         ${error ? `<div class="err">${error}</div>` : ''}
+        <div id="tg-err" class="err"></div>
       </form>
     </div>
   </div>
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      const tg = window.Telegram?.WebApp;
+      if (tg && tg.initData) {
+        // Expand the web app to full height
+        tg.expand();
+        document.getElementById('login-card').innerHTML = '<h1>授权中...</h1><p>正在通过 Telegram 验证您的身份</p><div id="tg-err" class="err"></div>';
+        fetch('/api/tg-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ initData: tg.initData })
+        }).then(res => res.json()).then(data => {
+          if (data.success) {
+             window.location.href = '/admin/';
+          } else {
+             document.getElementById('tg-err').innerText = 'Telegram 授权失败：' + (data.error || '未授权用户');
+          }
+        }).catch(e => {
+           document.getElementById('tg-err').innerText = '网络错误';
+        });
+      }
+    });
+  </script>
 </body>
 </html>`);
+});
+function verifyTelegramWebAppData(telegramInitData) {
+    if (!process.env.BOT_TOKEN)
+        return null;
+    const initData = new URLSearchParams(telegramInitData);
+    const hash = initData.get('hash');
+    if (!hash)
+        return null;
+    initData.delete('hash');
+    const keys = Array.from(initData.keys());
+    keys.sort();
+    const dataCheckString = keys.map(key => `${key}=${initData.get(key)}`).join('\n');
+    const secretKey = crypto_1.default.createHmac('sha256', 'WebAppData').update(process.env.BOT_TOKEN).digest();
+    const _hash = crypto_1.default.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
+    if (hash !== _hash)
+        return null;
+    const userStr = initData.get('user');
+    if (userStr) {
+        try {
+            return JSON.parse(userStr);
+        }
+        catch (e) {
+            return null;
+        }
+    }
+    return null;
+}
+app.post('/api/tg-login', express_1.default.json(), (req, res) => {
+    const initData = req.body?.initData;
+    if (!initData)
+        return res.status(400).json({ success: false, error: 'No initData provided' });
+    const tgUser = verifyTelegramWebAppData(initData);
+    if (!tgUser)
+        return res.status(401).json({ success: false, error: 'Invalid Telegram data' });
+    const allowedIdsStr = process.env.ADMIN_TG_IDS || '';
+    const allowedIds = allowedIdsStr.split(',').map(id => id.trim()).filter(id => id);
+    if (allowedIds.length > 0 && !allowedIds.includes(tgUser.id.toString())) {
+        return res.status(403).json({ success: false, error: 'Telegram User ID not authorized. Please add ADMIN_TG_IDS=' + tgUser.id + ' to .env' });
+    }
+    const username = process.env.ADMIN_USERNAME || 'admin';
+    const token = createSessionToken(username);
+    setSessionCookie(res, token);
+    return res.json({ success: true });
 });
 app.post('/api/login', (req, res) => {
     const username = process.env.ADMIN_USERNAME;
