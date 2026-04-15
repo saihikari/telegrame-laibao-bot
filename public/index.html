@@ -432,41 +432,67 @@
                         </div>
                         
                         <div className="flex-none md:flex-1 overflow-y-visible md:overflow-y-auto p-2 md:p-3">
-                            <div className="grid grid-cols-4 md:grid-cols-1 gap-2 md:gap-3 md:space-y-0">
-                                {config.customers.map((c, index) => (
-                                    <div 
-                                        key={`${c.name}-${index}`}
-                                        draggable
-                                        onDragStart={(e) => handleDragStart(e, index)}
-                                        onDragOver={handleDragOver}
-                                        onDrop={(e) => handleDrop(e, index)}
-                                        onClick={() => setActiveCustomerIndex(index)}
-                                        className={`
-                                            p-1.5 md:p-3 rounded-2xl border-2 cursor-pointer transition-all relative group card-shadow flex flex-col justify-center items-center md:items-stretch md:justify-start
-                                            ${activeCustomerIndex === index ? 'border-[#3390ec] bg-[#3390ec]/10' : 'border-transparent bg-tg-bg hover:border-tg-hint/30'}
-                                        `}
-                                    >
-                                        <div className="hidden md:block absolute left-2 top-1/2 -translate-y-1/2 text-tg-hint/50 opacity-0 group-hover:opacity-100 drag-handle">
-                                            <Icon name="grip-vertical" size={16} />
-                                        </div>
-                                        <div className="md:pl-6 w-full text-center md:text-left">
-                                            <div className="flex flex-col md:flex-row justify-center md:justify-between items-center md:items-start mb-1 md:mb-2">
-                                                <h3 className={`font-semibold truncate w-full text-xs md:text-base md:pr-4 ${activeCustomerIndex === index ? 'text-[#3390ec]' : 'text-tg-text'}`} title={c.name}>{c.name}</h3>
-                                                <span className="hidden md:inline-block text-xs bg-tg-secondary_bg text-tg-hint px-1.5 py-0.5 rounded-md font-mono shrink-0">#{index + 1}</span>
+                            <div className="w-full">
+                                <div className="relative mb-3 mt-1 px-2">
+                                    <Icon name="search" size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-tg-hint" />
+                                    <input 
+                                        type="text" 
+                                        placeholder="搜索客户..." 
+                                        value={searchTerm} 
+                                        onChange={e => setSearchTerm(e.target.value)} 
+                                        className="w-full pl-8 pr-3 py-1.5 bg-tg-secondary_bg border border-tg-hint/20 rounded-full text-xs text-tg-text focus:outline-none focus:border-[#3390ec]" 
+                                    />
+                                </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-4 md:grid-cols-1 gap-2 md:gap-3 md:space-y-0 w-full">
+                                {config.customers.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase())).map((c, idx) => {
+                                    const index = config.customers.findIndex(orig => orig === c);
+                                    return (
+                                        <div 
+                                            key={`${c.name}-${index}`}
+                                            draggable
+                                            onDragStart={(e) => handleDragStart(e, index)}
+                                            onDragOver={handleDragOver}
+                                            onDrop={(e) => handleDrop(e, index)}
+                                            onClick={() => handleCustomerSelect(index)}
+                                            className={`
+                                                p-1.5 md:p-3 rounded-2xl border-2 cursor-pointer transition-all relative group card-shadow flex flex-col justify-center items-center md:items-stretch md:justify-start
+                                                ${activeCustomerIndex === index ? 'border-[#3390ec] bg-[#3390ec]/10' : 'border-transparent bg-tg-bg hover:border-tg-hint/30'}
+                                            `}
+                                        >
+                                            <div className="hidden md:block absolute left-2 top-1/2 -translate-y-1/2 text-tg-hint/50 opacity-0 group-hover:opacity-100 drag-handle">
+                                                <Icon name="grip-vertical" size={16} />
                                             </div>
-                                            <div className="hidden md:flex flex-wrap gap-1">
-                                                {c.match_keywords?.slice(0, 3).map((kw, i) => (
-                                                    <span key={i} className="text-[10px] px-1.5 py-0.5 bg-[#3390ec]/10 text-[#3390ec] rounded-md truncate max-w-[80px]">
-                                                        {kw}
-                                                    </span>
-                                                ))}
-                                                {c.match_keywords?.length > 3 && (
-                                                    <span className="text-[10px] px-1.5 py-0.5 bg-tg-secondary_bg text-tg-hint rounded-md">+{c.match_keywords.length - 3}</span>
+                                            <div className="md:pl-6 w-full text-center md:text-left relative">
+                                                {c.match_keywords?.length > 0 && (
+                                                    <span className="absolute -top-1 -right-1 md:right-1 md:top-1 w-2 h-2 rounded-full bg-[#34c759] shadow-sm"></span>
                                                 )}
+                                                <div className="flex flex-col md:flex-row justify-center md:justify-between items-center md:items-start mb-1 md:mb-2">
+                                                    <h3 className={`font-semibold truncate w-full text-xs md:text-base md:pr-4 ${activeCustomerIndex === index ? 'text-[#3390ec]' : 'text-tg-text'}`} title={c.name}>{c.name}</h3>
+                                                    <span className="hidden md:inline-block text-xs bg-tg-secondary_bg text-tg-hint px-1.5 py-0.5 rounded-md font-mono shrink-0">#{index + 1}</span>
+                                                </div>
+                                                <div className="hidden md:flex flex-wrap gap-1">
+                                                    {c.match_keywords?.slice(0, 3).map((kw, i) => (
+                                                        <span key={i} className="text-[10px] px-1.5 py-0.5 bg-[#3390ec]/10 text-[#3390ec] rounded-md truncate max-w-[80px]">
+                                                            {kw}
+                                                        </span>
+                                                    ))}
+                                                    {c.match_keywords?.length > 3 && (
+                                                        <span className="text-[10px] px-1.5 py-0.5 bg-tg-secondary_bg text-tg-hint rounded-md">+{c.match_keywords.length - 3}</span>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
+                                    );
+                                })}
+                                
+                                {config.customers.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase())).length === 0 && (
+                                    <div className="col-span-4 md:col-span-1 text-center py-6 text-tg-hint text-xs">
+                                        <Icon name="search-x" size={24} className="mx-auto mb-2 opacity-50" />
+                                        未找到匹配的客户
                                     </div>
-                                ))}
+                                )}
                             </div>
                         </div>
                     </div>
