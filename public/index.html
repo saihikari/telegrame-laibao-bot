@@ -143,10 +143,88 @@
             transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
             transition-duration: 150ms;
         }
+
+        #watermark {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 999999;
+            background-repeat: repeat;
+            background-position: 0 0;
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
+    <div id="watermark"></div>
     <div id="root"></div>
+
+    <script>
+        (function () {
+            const pad2 = (n) => String(n).padStart(2, '0');
+            const formatTs = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+            const getDisplayName = () => {
+                try {
+                    const tg = window.Telegram && window.Telegram.WebApp;
+                    const user = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
+                    if (user) {
+                        if (user.username) return `@${user.username}`;
+                        const name = [user.first_name, user.last_name].filter(Boolean).join(' ').trim();
+                        if (name) return name;
+                        if (user.id) return String(user.id);
+                    }
+                } catch {}
+                return 'admin';
+            };
+            const parseHexToRgb = (hex) => {
+                const h = (hex || '').trim();
+                const m = /^#?([0-9a-fA-F]{6})$/.exec(h);
+                if (!m) return null;
+                const v = m[1];
+                return { r: parseInt(v.slice(0, 2), 16), g: parseInt(v.slice(2, 4), 16), b: parseInt(v.slice(4, 6), 16) };
+            };
+            const getInk = () => {
+                const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                const hint = getComputedStyle(document.documentElement).getPropertyValue('--fb-hint');
+                const rgb = parseHexToRgb(hint);
+                if (rgb) return { ...rgb, a: isDark ? 0.10 : 0.08 };
+                return isDark ? { r: 255, g: 255, b: 255, a: 0.10 } : { r: 15, g: 23, b: 42, a: 0.08 };
+            };
+            const renderWatermark = () => {
+                const el = document.getElementById('watermark');
+                if (!el) return;
+                const name = getDisplayName();
+                const text = `${name}  ${formatTs(new Date())}`;
+                const { r, g, b, a } = getInk();
+                const canvas = document.createElement('canvas');
+                const w = 420;
+                const h = 260;
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) return;
+                ctx.clearRect(0, 0, w, h);
+                ctx.translate(w / 2, h / 2);
+                ctx.rotate((-20 * Math.PI) / 180);
+                ctx.font = '14px -apple-system, BlinkMacSystemFont, Roboto, Helvetica Neue, sans-serif';
+                ctx.fillStyle = `rgba(${r},${g},${b},${a})`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(text, 0, 0);
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+                el.style.backgroundImage = `url(${canvas.toDataURL('image/png')})`;
+                el.style.backgroundSize = `${w}px ${h}px`;
+            };
+            document.addEventListener('DOMContentLoaded', () => {
+                renderWatermark();
+                setInterval(renderWatermark, 60 * 1000);
+                if (window.matchMedia) {
+                    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+                    if (mq && mq.addEventListener) mq.addEventListener('change', renderWatermark);
+                }
+            });
+        })();
+    </script>
 
     <!-- React 应用程序主体 -->
     <script type="text/babel" data-type="module">
