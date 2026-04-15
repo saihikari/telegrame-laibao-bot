@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.startBot = void 0;
+exports.startBot = exports.getBotInstance = void 0;
 const node_telegram_bot_api_1 = __importDefault(require("node-telegram-bot-api"));
 const config_loader_1 = require("./config-loader");
 const rule_engine_1 = require("./rule-engine");
@@ -18,6 +18,8 @@ let bot;
 // Store parsed data temporarily for interactive recording
 // Key: <chatId>_<messageId>, Value: ParsedData[]
 const pendingRecords = new Map();
+const getBotInstance = () => bot;
+exports.getBotInstance = getBotInstance;
 const startBot = () => {
     if (!token) {
         console.error('[Bot] BOT_TOKEN not found in environment variables.');

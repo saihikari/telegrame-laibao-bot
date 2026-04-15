@@ -2,6 +2,7 @@ import express from 'express';
 import { getConfig, saveConfig, backupConfig, getLastModified, getBackupCount, listBackups, restoreBackup } from './config-loader';
 import { processMessage } from './rule-engine';
 import { isSheetsReady } from './sheets-service';
+import { getBotInstance } from './telegram-bot';
 import bodyParser from 'body-parser';
 
 import path from 'path';
@@ -212,6 +213,9 @@ app.get('/admin/login', (req, res) => {
         }).then(res => res.json()).then(data => {
           if (data.success) {
              window.location.href = '/admin/';
+          } else if (data.error === 'UNAUTHORIZED_TG_USER_CLOSE_APP') {
+             // 用户未授权，并且机器人已经给他们发了消息，直接关闭 WebApp
+             tg.close();
           } else if (data.error === 'UNAUTHORIZED_TG_USER') {
              window.tgUserId = data.userId;
              document.querySelector('#login-card h1').classList.add('hidden');
@@ -276,9 +280,37 @@ app.post('/api/tg-login', express.json(), (req, res) => {
   }
 
   if (!allowedIds.includes(tgUser.id.toString())) {
+    const bot = getBotInstance();
+    if (bot) {
+      const msgText = `❌ *无访问权限*\n您的 Telegram 账号未被授权访问此管理后台。\n\n如果您需要权限或相关服务，请点击下方按钮联系我们：`;
+      const opts = {
+        parse_mode: 'Markdown' as const,
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: '申请管理员权限 (本公司员工)',
+                url: `https://t.me/hikarillll?text=${encodeURIComponent('本公司员工希望获取管理员权限，我的ID是: ' + tgUser.id)}`
+              }
+            ],
+            [
+              {
+                text: '咨询定制开发服务 (非员工)',
+                url: `https://t.me/hikarillll?text=${encodeURIComponent('非本公司员工，我对来包机器人感兴趣，希望定制开发服务。')}`
+              }
+            ]
+          ]
+        }
+      };
+      // 尝试向该用户发送消息
+      bot.sendMessage(tgUser.id, msgText, opts).catch(e => {
+        console.error('Failed to send unauthorized message to user', e);
+      });
+    }
+
     return res.status(403).json({ 
       success: false, 
-      error: 'UNAUTHORIZED_TG_USER',
+      error: 'UNAUTHORIZED_TG_USER_CLOSE_APP',
       userId: tgUser.id
     });
   }

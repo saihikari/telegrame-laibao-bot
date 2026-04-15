@@ -17,6 +17,8 @@ let bot: TelegramBot;
 // Key: <chatId>_<messageId>, Value: ParsedData[]
 const pendingRecords = new Map<string, ParsedData[]>();
 
+export const getBotInstance = () => bot;
+
 export const startBot = () => {
   if (!token) {
     console.error('[Bot] BOT_TOKEN not found in environment variables.');

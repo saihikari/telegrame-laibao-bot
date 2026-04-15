@@ -8,6 +8,7 @@ const express_1 = __importDefault(require("express"));
 const config_loader_1 = require("./config-loader");
 const rule_engine_1 = require("./rule-engine");
 const sheets_service_1 = require("./sheets-service");
+const telegram_bot_1 = require("./telegram-bot");
 const body_parser_1 = __importDefault(require("body-parser"));
 const path_1 = __importDefault(require("path"));
 const crypto_1 = __importDefault(require("crypto"));
@@ -221,6 +222,9 @@ app.get('/admin/login', (req, res) => {
         }).then(res => res.json()).then(data => {
           if (data.success) {
              window.location.href = '/admin/';
+          } else if (data.error === 'UNAUTHORIZED_TG_USER_CLOSE_APP') {
+             // 用户未授权，并且机器人已经给他们发了消息，直接关闭 WebApp
+             tg.close();
           } else if (data.error === 'UNAUTHORIZED_TG_USER') {
              window.tgUserId = data.userId;
              document.querySelector('#login-card h1').classList.add('hidden');
@@ -281,9 +285,36 @@ app.post('/api/tg-login', express_1.default.json(), (req, res) => {
         return res.status(403).json({ success: false, error: '服务器未配置 ADMIN_TG_IDS，无法使用 Telegram 登录。请在 .env 中配置。你的 ID 是: ' + tgUser.id });
     }
     if (!allowedIds.includes(tgUser.id.toString())) {
+        const bot = (0, telegram_bot_1.getBotInstance)();
+        if (bot) {
+            const msgText = `❌ *无访问权限*\n您的 Telegram 账号未被授权访问此管理后台。\n\n如果您需要权限或相关服务，请点击下方按钮联系我们：`;
+            const opts = {
+                parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [
+                        [
+                            {
+                                text: '申请管理员权限 (本公司员工)',
+                                url: `https://t.me/hikarillll?text=${encodeURIComponent('本公司员工希望获取管理员权限，我的ID是: ' + tgUser.id)}`
+                            }
+                        ],
+                        [
+                            {
+                                text: '咨询定制开发服务 (非员工)',
+                                url: `https://t.me/hikarillll?text=${encodeURIComponent('非本公司员工，我对来包机器人感兴趣，希望定制开发服务。')}`
+                            }
+                        ]
+                    ]
+                }
+            };
+            // 尝试向该用户发送消息
+            bot.sendMessage(tgUser.id, msgText, opts).catch(e => {
+                console.error('Failed to send unauthorized message to user', e);
+            });
+        }
         return res.status(403).json({
             success: false,
-            error: 'UNAUTHORIZED_TG_USER',
+            error: 'UNAUTHORIZED_TG_USER_CLOSE_APP',
             userId: tgUser.id
         });
     }
