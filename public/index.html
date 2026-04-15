@@ -233,7 +233,42 @@
 
         // --- 页面组件: 可视化配置 ---
         const VisualConfig = ({ config, setConfig, loading, handleSaveConfig, saving, showToast }) => {
-            const [activeCustomerIndex, setActiveCustomerIndex] = useState(null);
+        const [activeCustomerIndex, setActiveCustomerIndex] = useState(null);
+        const [searchTerm, setSearchTerm] = useState('');
+        const [isDirty, setIsDirty] = useState(false);
+        const [saveSuccess, setSaveSuccess] = useState(false);
+        const [pendingSwitchIndex, setPendingSwitchIndex] = useState(null);
+
+        const handleConfigChange = (updates) => {
+            setIsDirty(true);
+            updateActiveCustomer(updates);
+        };
+
+        const handleRuleChange = (fieldName, ruleUpdates) => {
+            setIsDirty(true);
+            updateRule(fieldName, ruleUpdates);
+        };
+
+        const onSaveAll = async () => {
+            await handleSaveConfig();
+            setIsDirty(false);
+            setSaveSuccess(true);
+            setTimeout(() => setSaveSuccess(false), 2000);
+        };
+
+        const handleCustomerSelect = (index) => {
+            if (isDirty && index !== activeCustomerIndex) {
+                setPendingSwitchIndex(index);
+            } else {
+                setActiveCustomerIndex(index);
+            }
+        };
+
+        const confirmSwitch = () => {
+            setIsDirty(false);
+            setActiveCustomerIndex(pendingSwitchIndex);
+            setPendingSwitchIndex(null);
+        };
 
             const handleDragStart = (e, index) => {
                 e.dataTransfer.setData('draggedIndex', index);
@@ -378,13 +413,13 @@
                             </h2>
                             <div className="flex items-center gap-2">
                                 <button 
-                                    onClick={handleSaveConfig}
-                                    disabled={saving}
-                                    className="px-3 py-1.5 bg-[#34c759] text-white text-xs md:text-sm rounded-full hover:opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1 shadow-sm"
-                                >
-                                    {saving ? <Icon name="loader" size={14} className="animate-spin" /> : <Icon name="save" size={14} />}
-                                    <span>保存所有</span>
-                                </button>
+                                onClick={onSaveAll}
+                                disabled={saving || saveSuccess}
+                                className={`px-3 py-1.5 text-white text-xs md:text-sm rounded-full transition-all disabled:cursor-not-allowed flex items-center justify-center gap-1 shadow-sm w-[90px] md:w-[100px] ${saveSuccess ? 'bg-[#34c759]' : 'bg-[#34c759] hover:opacity-90 disabled:opacity-50'}`}
+                            >
+                                {saving ? <Icon name="loader" size={14} className="animate-spin" /> : (saveSuccess ? <Icon name="check" size={14} /> : <Icon name="save" size={14} />)}
+                                <span>{saveSuccess ? '已保存' : '保存所有'}</span>
+                            </button>
                                 <button 
                                     onClick={addCustomer}
                                     className="px-3 py-1.5 bg-[#3390ec] text-white text-xs md:text-sm rounded-full hover:opacity-90 transition-colors flex items-center justify-center gap-1 shadow-sm"
@@ -476,7 +511,7 @@
                                                 <input 
                                                     type="text" 
                                                     value={activeCustomer.name} 
-                                                    onChange={(e) => updateActiveCustomer({ name: e.target.value })}
+                                                    onChange={(e) => handleConfigChange({ name: e.target.value })}
                                                     className="w-full px-2.5 py-1.5 md:px-3 md:py-2 border border-tg-hint/20 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#3390ec] focus:border-[#3390ec] text-sm bg-tg-secondary_bg/50 text-tg-text"
                                                 />
                                             </div>
@@ -484,7 +519,7 @@
                                                 <label className="block text-xs md:text-sm font-medium text-tg-hint mb-1">匹配关键词</label>
                                                 <TagInput 
                                                     value={activeCustomer.match_keywords || []} 
-                                                    onChange={(tags) => updateActiveCustomer({ match_keywords: tags })}
+                                                    onChange={(tags) => handleConfigChange({ match_keywords: tags })}
                                                     placeholder="输入词按回车..."
                                                 />
                                             </div>
@@ -492,7 +527,7 @@
                                                 <label className="block text-xs md:text-sm font-medium text-tg-hint mb-1">排除关键词</label>
                                                 <TagInput 
                                                     value={activeCustomer.exclude_keywords || []} 
-                                                    onChange={(tags) => updateActiveCustomer({ exclude_keywords: tags })}
+                                                    onChange={(tags) => handleConfigChange({ exclude_keywords: tags })}
                                                     placeholder="可选: 输入需排除的词..."
                                                 />
                                             </div>
@@ -535,7 +570,7 @@
                                                             <label className="block text-[11px] font-semibold text-tg-hint mb-1 uppercase tracking-wider">提取类型</label>
                                                             <select 
                                                                 value={rule.type}
-                                                                onChange={(e) => updateRule(field, { type: e.target.value })}
+                                                                onChange={(e) => handleRuleChange(field, { type: e.target.value })}
                                                                 className="w-full px-3 py-2 border border-tg-hint/20 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#3390ec] focus:border-[#3390ec] bg-tg-bg text-tg-text text-sm"
                                                             >
                                                                 <option value="constant">写死常量 (Constant)</option>
@@ -552,7 +587,7 @@
                                                                     <input 
                                                                         type="text" 
                                                                         value={rule.value || ''} 
-                                                                        onChange={(e) => updateRule(field, { value: e.target.value })}
+                                                                        onChange={(e) => handleRuleChange(field, { value: e.target.value })}
                                                                         className="w-full px-3 py-2 border border-tg-hint/20 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#3390ec] focus:border-[#3390ec] text-sm bg-tg-bg text-tg-text"
                                                                     />
                                                                 </div>
@@ -573,7 +608,7 @@
                                                                         <input 
                                                                             type="text" 
                                                                             value={rule.keyword || ''} 
-                                                                            onChange={(e) => updateRule(field, { keyword: e.target.value })}
+                                                                            onChange={(e) => handleRuleChange(field, { keyword: e.target.value })}
                                                                             className="w-full px-3 py-2 border border-tg-hint/20 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#3390ec] focus:border-[#3390ec] text-sm bg-tg-bg text-tg-text"
                                                                         />
                                                                     </div>
@@ -582,7 +617,7 @@
                                                                         <input 
                                                                             type="text" 
                                                                             value={rule.strip_chars || ''} 
-                                                                            onChange={(e) => updateRule(field, { strip_chars: e.target.value })}
+                                                                            onChange={(e) => handleRuleChange(field, { strip_chars: e.target.value })}
                                                                             className="w-full px-3 py-2 border border-tg-hint/20 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#3390ec] focus:border-[#3390ec] text-sm font-mono bg-tg-bg text-tg-text"
                                                                         />
                                                                     </div>
@@ -596,7 +631,7 @@
                                                                         <input 
                                                                             type="text" 
                                                                             value={rule.pattern || ''} 
-                                                                            onChange={(e) => updateRule(field, { pattern: e.target.value })}
+                                                                            onChange={(e) => handleRuleChange(field, { pattern: e.target.value })}
                                                                             className="w-full px-3 py-2 border border-tg-hint/20 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#3390ec] focus:border-[#3390ec] text-sm font-mono text-[#3390ec] bg-tg-bg"
                                                                         />
                                                                     </div>
@@ -605,7 +640,7 @@
                                                                         <input 
                                                                             type="text" 
                                                                             value={rule.transform || ''} 
-                                                                            onChange={(e) => updateRule(field, { transform: e.target.value })}
+                                                                            onChange={(e) => handleRuleChange(field, { transform: e.target.value })}
                                                                             className="w-full px-3 py-2 border border-tg-hint/20 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#34c759] focus:border-[#34c759] text-sm font-mono text-[#34c759] bg-tg-bg"
                                                                         />
                                                                     </div>
@@ -703,14 +738,44 @@
                             <label className="block text-xs md:text-base font-semibold text-tg-hint mb-1.5 md:mb-3 tracking-wider shrink-0">清洗解析结果</label>
                             <div className="flex-1 w-full bg-[#1c1c1d] rounded-2xl overflow-auto p-2.5 md:p-4 shadow-inner border border-tg-hint/10">
                                 {testResult ? (
-                                    <pre className="text-xs md:text-sm font-mono text-[#34c759] whitespace-pre-wrap break-all m-0">
-                                        {JSON.stringify(testResult, null, 2)}
-                                    </pre>
-                                ) : (
-                                    <div className="h-full flex items-center justify-center text-tg-hint text-xs md:text-base text-center">
-                                        输入文本并点击上方运行按钮查看结果
+                                <div className="flex flex-col gap-4 h-full">
+                                    {testResult.error ? (
+                                        <div className="text-[#ff3b30] p-4 bg-[#ff3b30]/10 rounded-xl text-sm border border-[#ff3b30]/20 flex items-center gap-2">
+                                            <Icon name="alert-circle" size={16} />
+                                            {testResult.error}
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="bg-tg-secondary_bg rounded-xl border border-tg-hint/10 overflow-hidden shrink-0">
+                                                <div className="px-3 py-2 bg-tg-hint/5 border-b border-tg-hint/10 text-xs font-semibold text-tg-text flex items-center gap-2">
+                                                    <Icon name="table" size={14} className="text-[#3390ec]" /> 数据提取概览
+                                                </div>
+                                                <div className="p-2 max-h-[200px] overflow-y-auto">
+                                                    {Object.entries(testResult).filter(([k,v]) => typeof v !== 'object').map(([k, v]) => (
+                                                        <div key={k} className="flex border-b border-tg-hint/5 last:border-0 py-1.5 px-2 text-xs md:text-sm hover:bg-tg-hint/5 transition-colors">
+                                                            <span className="w-1/3 text-tg-hint font-medium">{k}</span>
+                                                            <span className="w-2/3 text-tg-text font-mono break-all">{v}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            <div className="flex-1 flex flex-col min-h-0">
+                                                <div className="text-xs text-tg-hint mb-1.5 flex items-center gap-1.5"><Icon name="code" size={12} /> 完整 JSON 载荷</div>
+                                                <pre className="flex-1 text-[10px] md:text-xs font-mono text-[#34c759] whitespace-pre-wrap break-all m-0 overflow-y-auto custom-scrollbar bg-[#1c1c1d] p-3 rounded-xl border border-white/5">
+                                                    {JSON.stringify(testResult, null, 2)}
+                                                </pre>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="h-full flex flex-col items-center justify-center text-tg-hint text-xs md:text-base text-center gap-4 opacity-60">
+                                    <div className="w-16 h-16 rounded-full bg-tg-hint/10 flex items-center justify-center">
+                                        <Icon name="bot" size={32} />
                                     </div>
-                                )}
+                                    <p>在左侧输入发包文本<br/>点击“运行测试”即可查看清洗结果</p>
+                                </div>
+                            )}
                             </div>
                         </div>
                     </div>
