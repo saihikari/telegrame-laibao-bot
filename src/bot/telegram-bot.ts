@@ -133,6 +133,7 @@ export const startBot = () => {
   });
 
   bot.on('message', async (msg) => {
+    // 首先拦截指令，不要把它们当作常规消息去清洗
     if (!msg.text || msg.text.startsWith('/')) return;
 
     const config = getConfig();
