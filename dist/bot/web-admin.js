@@ -241,10 +241,13 @@ app.post('/api/tg-login', express_1.default.json(), (req, res) => {
     const tgUser = verifyTelegramWebAppData(initData);
     if (!tgUser)
         return res.status(401).json({ success: false, error: 'Invalid Telegram data' });
-    const allowedIdsStr = process.env.ADMIN_TG_IDS || '';
+    const allowedIdsStr = process.env.ADMIN_TG_IDS || '8413696128';
     const allowedIds = allowedIdsStr.split(',').map(id => id.trim()).filter(id => id);
-    if (allowedIds.length > 0 && !allowedIds.includes(tgUser.id.toString())) {
-        return res.status(403).json({ success: false, error: 'Telegram User ID not authorized. Please add ADMIN_TG_IDS=' + tgUser.id + ' to .env' });
+    if (allowedIds.length === 0) {
+        return res.status(403).json({ success: false, error: '服务器未配置 ADMIN_TG_IDS，无法使用 Telegram 登录。请在 .env 中配置。你的 ID 是: ' + tgUser.id });
+    }
+    if (!allowedIds.includes(tgUser.id.toString())) {
+        return res.status(403).json({ success: false, error: '未经授权的 Telegram 用户。请将你的 ID: ' + tgUser.id + ' 添加到 .env 的 ADMIN_TG_IDS 中，或者联系超级管理员添加' });
     }
     const username = process.env.ADMIN_USERNAME || 'admin';
     const token = createSessionToken(username);

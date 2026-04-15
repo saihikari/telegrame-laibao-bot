@@ -8,6 +8,7 @@ const node_telegram_bot_api_1 = __importDefault(require("node-telegram-bot-api")
 const config_loader_1 = require("./config-loader");
 const rule_engine_1 = require("./rule-engine");
 const sheets_service_1 = require("./sheets-service");
+const env_editor_1 = require("../utils/env-editor");
 const token = process.env.BOT_TOKEN || '';
 const internalChatIds = (process.env.INTERNAL_CHAT_IDS || '').split(',').map(id => id.trim());
 const adminPort = process.env.ADMIN_PORT || '8070';
@@ -60,6 +61,8 @@ const startBot = () => {
   /help - 查看帮助和FAQ
   /status - 获取状态页URL
   /customer - 列出所有客户名称
+  /addmng <ID> - 添加管理员
+  /delemng <ID> - 删除管理员
 - 常见问题：
   若机器人未回复，请检查是否包含必填关键词（如名称、链接等）。
 - 综合管理后台：${baseUrl}/admin/
@@ -78,6 +81,44 @@ const startBot = () => {
             text += `- ${c.name}\n`;
         });
         bot.sendMessage(msg.chat.id, text);
+    });
+    bot.onText(/^\/addmng(?:\s+(\d+))?$/, (msg, match) => {
+        const adminIds = (0, env_editor_1.getAdminTgIds)();
+        if (!adminIds.includes(msg.from?.id.toString() || '')) {
+            return bot.sendMessage(msg.chat.id, '❌ 权限不足：只有现有管理员才能添加新管理员。');
+        }
+        const targetId = match?.[1];
+        if (!targetId) {
+            return bot.sendMessage(msg.chat.id, '❌ 格式错误。正确用法: `/addmng <数字ID>`', { parse_mode: 'Markdown' });
+        }
+        if ((0, env_editor_1.addAdminTgId)(targetId)) {
+            bot.sendMessage(msg.chat.id, `✅ 成功添加管理员: \`${targetId}\``, { parse_mode: 'Markdown' });
+        }
+        else {
+            bot.sendMessage(msg.chat.id, `⚠️ 该用户已经是管理员: \`${targetId}\``, { parse_mode: 'Markdown' });
+        }
+    });
+    bot.onText(/^\/delemng(?:\s+(\d+))?$/, (msg, match) => {
+        const adminIds = (0, env_editor_1.getAdminTgIds)();
+        if (!adminIds.includes(msg.from?.id.toString() || '')) {
+            return bot.sendMessage(msg.chat.id, '❌ 权限不足：只有现有管理员才能删除管理员。');
+        }
+        const targetId = match?.[1];
+        if (!targetId) {
+            return bot.sendMessage(msg.chat.id, '❌ 格式错误。正确用法: `/delemng <数字ID>`', { parse_mode: 'Markdown' });
+        }
+        if (targetId === '8413696128') {
+            return bot.sendMessage(msg.chat.id, '❌ 无法删除超级默认管理员。');
+        }
+        if (targetId === msg.from?.id.toString()) {
+            return bot.sendMessage(msg.chat.id, '❌ 不能删除自己。');
+        }
+        if ((0, env_editor_1.removeAdminTgId)(targetId)) {
+            bot.sendMessage(msg.chat.id, `✅ 成功移除管理员: \`${targetId}\``, { parse_mode: 'Markdown' });
+        }
+        else {
+            bot.sendMessage(msg.chat.id, `⚠️ 找不到该管理员: \`${targetId}\``, { parse_mode: 'Markdown' });
+        }
     });
     bot.on('message', async (msg) => {
         if (!msg.text || msg.text.startsWith('/'))
