@@ -66,8 +66,8 @@ export async function processAndWriteToQL(parsedRecords: ParsedRecord[], startTi
             if (newOffer.thirdName) newOffer.thirdName = newOffer.thirdName.replace(/\d+$/, suffix);
             if (newOffer.adName) newOffer.adName = newOffer.adName.replace(/\d+$/, suffix);
 
-            // Update the link
-            newOffer.productUrl = record['链接'];
+            // Update the link (Fallback to 'APP链接' if '链接' is missing)
+            newOffer.productUrl = record['链接'] || record['APP链接'] || record['应用链接'] || record['URL'];
 
             // 4. Submit
             await qlApi.addOffer(newOffer);
