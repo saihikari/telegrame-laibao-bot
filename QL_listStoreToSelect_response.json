@@ -1,0 +1,49 @@
+{
+  "code": 100,
+  "info": {
+    "data": [
+      {
+        "storeId": 1320,
+        "storeName": "866VIP-1320-XX",
+        "managerId": 455,
+        "managerName": "Stephy",
+        "platfromId": null,
+        "platform": null,
+        "contactId": 505,
+        "contactName": "866VIP",
+        "phone": "12345678",
+        "wechat": "12345678",
+        "storeType": 1,
+        "balance": "0",
+        "usdBalance": "0.00",
+        "isDeleted": 0,
+        "updatedAt": "2024-01-23T20:08:30.000+08:00",
+        "createdAt": "2022-12-08 18:55:00",
+        "chatTime": null,
+        "fromPlatform": "推荐",
+        "startBalance": "0",
+        "pStoreId": null,
+        "pStoreName": null,
+        "chargeAmount": null,
+        "consumeAmount": null,
+        "refundAmount": null,
+        "tgGroupId": null,
+        "tgGroupName": null,
+        "shortName": null,
+        "noticeInfisu": 0,
+        "xlsMode": null,
+        "tgGroups": null,
+        "isBl": 0,
+        "blStoreName": null,
+        "blUserId": null,
+        "tgAdsGroups": null,
+        "outReportUrl": null,
+        "ten": 0,
+        "twt": 1,
+        "isEnd": 0
+      }
+      // ... 更多商户对象
+    ],
+    "pageInfo": null
+  }
+}
