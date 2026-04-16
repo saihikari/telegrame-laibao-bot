@@ -1460,7 +1460,7 @@
                                             <th className="px-3 py-2 font-semibold whitespace-nowrap">时间</th>
                                             <th className="px-3 py-2 font-semibold whitespace-nowrap">客户</th>
                                             <th className="px-3 py-2 font-semibold whitespace-nowrap">节省(秒)</th>
-                                            <th className="px-3 py-2 font-semibold whitespace-nowrap">操作内容 (点击复制)</th>
+                                            <th className="hidden md:table-cell px-3 py-2 font-semibold whitespace-nowrap">操作内容 (点击复制)</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -1483,13 +1483,23 @@
                                             </tr>
                                         )}
                                         {logs.map((row, idx) => (
-                                            <tr key={idx} className="border-t border-tg-hint/10 hover:bg-tg-secondary_bg/30">
+                                            <tr
+                                                key={idx}
+                                                className="border-t border-tg-hint/10 hover:bg-tg-secondary_bg/30 cursor-pointer"
+                                                onClick={() => { navigator.clipboard.writeText(row.content); if(showToast) showToast('已复制录入详情', 'success'); }}
+                                                title="点击复制该条录入详情"
+                                            >
                                                 <td className="px-3 py-2 whitespace-nowrap text-tg-text font-mono">{new Date(row.endAt).toLocaleString()}</td>
-                                                <td className="px-3 py-2 whitespace-nowrap text-tg-text font-medium text-[rgb(var(--primary))]">
-                                                    {row.content.split(' | ')[0]?.replace('客户: ', '') || '未知'}
+                                                <td className="px-3 py-2 text-tg-text">
+                                                    <div className="whitespace-nowrap font-medium text-[rgb(var(--primary))]">
+                                                        {row.content.split(' | ')[0]?.replace('客户: ', '') || '未知'}
+                                                    </div>
+                                                    <div className="md:hidden mt-0.5 text-[10px] text-tg-hint font-mono truncate max-w-[220px]" title={row.content}>
+                                                        {row.content.replace(/^客户: [^|]+\s*\|\s*/, '')}
+                                                    </div>
                                                 </td>
                                                 <td className="px-3 py-2 whitespace-nowrap text-tg-text font-mono text-green-500">+{row.savedSeconds}s</td>
-                                                <td className="px-3 py-2 text-tg-text cursor-pointer" onClick={() => { navigator.clipboard.writeText(row.content); if(showToast) showToast('已复制录入详情', 'success'); }}>
+                                                <td className="hidden md:table-cell px-3 py-2 text-tg-text">
                                                     <div className="max-w-[220px] md:max-w-[720px] truncate font-mono text-[11px] md:text-sm text-tg-hint hover:text-tg-text transition-colors" title={row.content}>
                                                         {row.content.replace(/^客户: [^|]+\s*\|\s*/, '')}
                                                     </div>
