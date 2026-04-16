@@ -60,11 +60,11 @@ export async function processAndWriteToQL(parsedRecords: ParsedRecord[], startTi
             }
             const suffix = suffixMatch[0];
 
-            // Replace suffixes in specific fields
-            if (newOffer.product) newOffer.product = newOffer.product.replace(/\d+$/, suffix);
-            if (newOffer.bianHao) newOffer.bianHao = newOffer.bianHao.replace(/\d+$/, suffix);
-            if (newOffer.thirdName) newOffer.thirdName = newOffer.thirdName.replace(/\d+$/, suffix);
-            if (newOffer.adName) newOffer.adName = newOffer.adName.replace(/\d+$/, suffix);
+            // Replace suffixes in specific fields (trimming first to avoid trailing spaces breaking the regex)
+            if (newOffer.product) newOffer.product = newOffer.product.trim().replace(/\d+$/, suffix);
+            if (newOffer.bianHao) newOffer.bianHao = newOffer.bianHao.trim().replace(/\d+$/, suffix);
+            if (newOffer.thirdName) newOffer.thirdName = newOffer.thirdName.trim().replace(/\d+$/, suffix);
+            if (newOffer.adName) newOffer.adName = newOffer.adName.trim().replace(/\d+$/, suffix);
 
             // Update the link (Fallback to 'APP链接' if '链接' is missing)
             newOffer.productUrl = record['链接'] || record['APP链接'] || record['应用链接'] || record['URL'];
