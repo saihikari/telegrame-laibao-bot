@@ -1307,15 +1307,16 @@
                             </button>
                         </div>
 
+                        
                         <div className="bg-tg-bg rounded-2xl card-shadow border border-tg-hint/10 overflow-hidden">
                             <div className="overflow-x-auto">
                                 <table className="w-full text-xs md:text-sm">
                                     <thead className="bg-tg-secondary_bg/50">
                                         <tr className="text-left text-tg-hint">
                                             <th className="px-3 py-2 font-semibold whitespace-nowrap">时间</th>
-                                            <th className="px-3 py-2 font-semibold whitespace-nowrap">Sheet</th>
+                                            <th className="px-3 py-2 font-semibold whitespace-nowrap">客户 / Sheet</th>
                                             <th className="px-3 py-2 font-semibold whitespace-nowrap">节省(秒)</th>
-                                            <th className="px-3 py-2 font-semibold whitespace-nowrap">内容</th>
+                                            <th className="px-3 py-2 font-semibold whitespace-nowrap">录入内容 (点击复制)</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -1334,17 +1335,19 @@
                                         )}
                                         {!loading && !error && logs.length === 0 && (
                                             <tr>
-                                                <td colSpan="4" className="px-3 py-10 text-center text-tg-hint">暂无记录</td>
+                                                <td colSpan="4" className="px-3 py-10 text-center text-tg-hint">暂无录入记录</td>
                                             </tr>
                                         )}
                                         {logs.map((row, idx) => (
                                             <tr key={idx} className="border-t border-tg-hint/10 hover:bg-tg-secondary_bg/30">
                                                 <td className="px-3 py-2 whitespace-nowrap text-tg-text font-mono">{new Date(row.endAt).toLocaleString()}</td>
-                                                <td className="px-3 py-2 whitespace-nowrap text-tg-text font-medium">{row.sheetName}</td>
-                                                <td className="px-3 py-2 whitespace-nowrap text-tg-text font-mono">{row.savedSeconds}</td>
-                                                <td className="px-3 py-2 text-tg-text">
-                                                    <div className="max-w-[220px] md:max-w-[720px] truncate font-mono text-[11px] md:text-sm" title={row.content}>
-                                                        {row.content}
+                                                <td className="px-3 py-2 whitespace-nowrap text-tg-text font-medium text-[rgb(var(--primary))]">
+                                                    {row.sheetName || '未知'}
+                                                </td>
+                                                <td className="px-3 py-2 whitespace-nowrap text-tg-text font-mono text-green-500">+{row.savedSeconds}s</td>
+                                                <td className="px-3 py-2 text-tg-text cursor-pointer" onClick={() => { navigator.clipboard.writeText(row.content); if(showToast) showToast('已复制录入详情', 'success'); }}>
+                                                    <div className="max-w-[220px] md:max-w-[720px] truncate font-mono text-[11px] md:text-sm text-tg-hint hover:text-tg-text transition-colors" title={row.content}>
+                                                        {row.content.replace(/\n/g, ' | ')}
                                                     </div>
                                                 </td>
                                             </tr>
@@ -1353,10 +1356,12 @@
                                 </table>
                             </div>
                         </div>
+
                     </div>
                 </div>
             );
         };
+
 
         // --- 页面组件: 使用向导 ---
         const GuidePage = () => (
