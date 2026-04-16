@@ -16,6 +16,8 @@ export interface Customer {
 }
 
 export interface Config {
+  delayMinSeconds?: number;
+  delayMaxSeconds?: number;
   customers: Customer[];
 }
 

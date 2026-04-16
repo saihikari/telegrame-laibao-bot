@@ -1,7 +1,9 @@
 import express from 'express';
 import { getConfig, saveConfig, backupConfig, getLastModified, getBackupCount, listBackups, restoreBackup } from './config-loader';
+import { qlApi } from './ql-api';
+import { readQueue, removeFromQueue, updateQueueItem } from './queue-log';
+import { processAndWriteToQL } from './ql-writer';
 import { processMessage } from './rule-engine';
-import { isSheetsReady } from './sheets-service';
 import { getBotInstance } from './telegram-bot';
 import { readRecordLogs } from './record-log';
 import bodyParser from 'body-parser';
@@ -409,10 +411,16 @@ app.post('/api/config/restore', (req, res) => {
   res.json(result);
 });
 
-app.get('/api/status', (req, res) => {
+app.get('/api/status', async (req, res) => {
   const config = getConfig();
   const rawIds = (process.env.INTERNAL_CHAT_IDS || '').split(',');
   const maskedIds = rawIds.map(id => id.length > 4 ? id.substring(0, id.length - 4) + '****' : '****');
+
+  let qlStatus = false;
+  try {
+    await qlApi.listStoreToSelect();
+    qlStatus = true;
+  } catch (e) {}
 
   res.json({
     online: true,
@@ -421,7 +429,7 @@ app.get('/api/status', (req, res) => {
     internal_groups: maskedIds,
     last_modified: getLastModified(),
     backups_count: getBackupCount(),
-    google_sheets_ready: isSheetsReady()
+    ql_api_ready: qlStatus
   });
 });
 
@@ -448,6 +456,43 @@ app.post('/api/test', (req, res) => {
   }
 });
 
+
+app.get('/api/queue', requireAuth, (req, res) => {
+    const limit = parseInt(req.query.limit as string) || 100;
+    const items = readQueue().slice(0, limit);
+    res.json({ success: true, data: items });
+});
+
+app.post('/api/queue/retry', requireAuth, async (req, res) => {
+    const { id } = req.body;
+    if (!id) return res.status(400).json({ success: false, error: 'Missing id' });
+
+    const queueItems = readQueue();
+    const item = queueItems.find(q => q.id === id);
+    if (!item) return res.status(404).json({ success: false, error: 'Queue item not found' });
+
+    try {
+        const startAtMs = Date.now();
+        await processAndWriteToQL([item.recordData], startAtMs, item.operatorTgId || 0);
+        removeFromQueue(id);
+        res.json({ success: true, msg: 'Retry successful' });
+    } catch (e: any) {
+        updateQueueItem(id, e.message);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.post('/api/queue/delete', requireAuth, (req, res) => {
+    const { id } = req.body;
+    if (!id) return res.status(400).json({ success: false, error: 'Missing id' });
+    removeFromQueue(id);
+    res.json({ success: true });
+});
+
+app.get('/admin/queue', requireAuth, (req, res) => {
+  res.sendFile(path.join(__dirname, '../../public/index.html'));
+});
+
 export const startWebServer = (port: number) => {
   return new Promise((resolve, reject) => {
     app.listen(port, () => {
@@ -462,3 +507,4 @@ export const startWebServer = (port: number) => {
     });
   });
 };
+

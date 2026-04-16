@@ -6,7 +6,6 @@ import path from 'path';
 dotenv.config();
 
 import { loadConfig } from './bot/config-loader';
-import { initSheetsClient } from './bot/sheets-service';
 import { startWebServer } from './bot/web-admin';
 import { startBot } from './bot/telegram-bot';
 
@@ -32,7 +31,7 @@ const start = async () => {
   }
 
   // Initialize Google Sheets
-  await initSheetsClient();
+  // Removed Google Sheets initialization for QL API
 
   // Start Telegram Bot
   startBot();

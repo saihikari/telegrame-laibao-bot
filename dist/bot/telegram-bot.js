@@ -7,9 +7,9 @@ exports.startBot = exports.getBotInstance = void 0;
 const node_telegram_bot_api_1 = __importDefault(require("node-telegram-bot-api"));
 const config_loader_1 = require("./config-loader");
 const rule_engine_1 = require("./rule-engine");
-const sheets_service_1 = require("./sheets-service");
+const ql_writer_1 = require("./ql-writer");
+const ql_api_1 = require("./ql-api");
 const env_editor_1 = require("../utils/env-editor");
-const record_log_1 = require("./record-log");
 const token = process.env.BOT_TOKEN || '';
 const internalChatIds = (process.env.INTERNAL_CHAT_IDS || '').split(',').map(id => id.trim());
 const adminPort = process.env.ADMIN_PORT || '8070';
@@ -21,7 +21,7 @@ let bot;
 const pendingRecords = new Map();
 const getBotInstance = () => bot;
 exports.getBotInstance = getBotInstance;
-const startBot = () => {
+const startBot = async () => {
     if (!token) {
         console.error('[Bot] BOT_TOKEN not found in environment variables.');
         process.exit(1);
@@ -36,6 +36,14 @@ const startBot = () => {
         } // Bypass strict TS check for request options
     });
     console.log('[Bot] Telegram Bot started in polling mode.');
+    // Check if API is ready (or just proceed, maybe token is fetching)
+    try {
+        const stores = await ql_api_1.qlApi.listStoreToSelect();
+        console.log(`[QL API] Ready. Found ${stores.length} stores.`);
+    }
+    catch (e) {
+        console.warn(`[QL API] Init warning: ${e.message}`);
+    }
     bot.onText(/^\/id$/, (msg) => {
         bot.sendMessage(msg.chat.id, `Chat ID: \`${msg.chat.id}\``, { parse_mode: 'MarkdownV2' });
     });
@@ -192,39 +200,24 @@ const startBot = () => {
             const startAtMs = Date.now();
             let successCount = 0;
             let failCount = 0;
-            const successDetails = [];
-            const failDetails = [];
-            for (const res of results) {
-                let formattedString = `客户：${res.customerName}\n`;
-                for (const [k, v] of Object.entries(res.data)) {
-                    formattedString += `${k}：${v}\n`;
-                }
-                try {
-                    const rowInfo = await (0, sheets_service_1.appendRecord)(res.customerName, formattedString.trim());
-                    successCount++;
-                    successDetails.push(`[${res.customerName}] 录入至 ${rowInfo}`);
-                    const endAtMs = Date.now();
-                    const savedSeconds = ((endAtMs - startAtMs) / 1000) * 15;
-                    (0, record_log_1.appendRecordLog)({
-                        sheetName: res.customerName,
-                        content: formattedString.trim(),
-                        startAt: new Date(startAtMs).toISOString(),
-                        endAt: new Date(endAtMs).toISOString(),
-                        elapsedMs: endAtMs - startAtMs,
-                        savedSeconds: Math.round(savedSeconds * 100) / 100
-                    }).catch(() => undefined);
-                }
-                catch (error) {
-                    failCount++;
-                    failDetails.push(`[${res.customerName}] ${error.message}`);
-                }
+            let errorMsg = '';
+            try {
+                const recordsToProcess = results.map((res) => {
+                    return {
+                        客户: res.customerName,
+                        ...res.data
+                    };
+                });
+                const qlResult = await (0, ql_writer_1.processAndWriteToQL)(recordsToProcess, startAtMs, msg.from.id);
+                successCount = qlResult.successCount;
             }
-            let finalText = summaryText + `\n\n✅ 录入处理完成！成功 ${successCount} 条，失败 ${failCount} 条。\n`;
-            if (successCount > 0) {
-                finalText += `\n📈 成功详情：\n${successDetails.join('\n')}`;
+            catch (e) {
+                failCount = results.length - successCount;
+                errorMsg = e.message;
             }
+            let finalText = summaryText + `\n\n✅ QL 录入处理完成！成功 ${successCount} 条，失败 ${failCount} 条。\n`;
             if (failCount > 0) {
-                finalText += `\n\n⚠️ 失败详情：\n${failDetails.join('\n')}`;
+                finalText += `\n❌ 错误详情：\n${errorMsg}`;
             }
             await bot.editMessageText(finalText, {
                 chat_id: msg.chat.id,

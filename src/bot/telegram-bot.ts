@@ -2,7 +2,8 @@ import TelegramBot from 'node-telegram-bot-api';
 import { getConfig } from './config-loader';
 import { processMessage } from './rule-engine';
 import { ParsedData } from '../types/config.types';
-import { appendRecord } from './sheets-service';
+import { processAndWriteToQL, ParsedRecord } from './ql-writer';
+import { qlApi } from './ql-api';
 import { getAdminTgIds, addAdminTgId, removeAdminTgId } from '../utils/env-editor';
 import { appendRecordLog } from './record-log';
 
@@ -20,7 +21,7 @@ const pendingRecords = new Map<string, ParsedData[]>();
 
 export const getBotInstance = () => bot;
 
-export const startBot = () => {
+export const startBot = async () => {
   if (!token) {
     console.error('[Bot] BOT_TOKEN not found in environment variables.');
     process.exit(1);
@@ -37,6 +38,14 @@ export const startBot = () => {
   });
 
   console.log('[Bot] Telegram Bot started in polling mode.');
+
+  // Check if API is ready (or just proceed, maybe token is fetching)
+  try {
+    const stores = await qlApi.listStoreToSelect();
+    console.log(`[QL API] Ready. Found ${stores.length} stores.`);
+  } catch (e: any) {
+    console.warn(`[QL API] Init warning: ${e.message}`);
+  }
 
   bot.onText(/^\/id$/, (msg) => {
     bot.sendMessage(msg.chat.id, `Chat ID: \`${msg.chat.id}\``, { parse_mode: 'MarkdownV2' });
@@ -211,44 +220,27 @@ export const startBot = () => {
 
       let successCount = 0;
       let failCount = 0;
-      const successDetails: string[] = [];
-      const failDetails: string[] = [];
+      let errorMsg = '';
 
-      for (const res of results) {
-        let formattedString = `客户：${res.customerName}\n`;
-        for (const [k, v] of Object.entries(res.data)) {
-          formattedString += `${k}：${v}\n`;
-        }
+      try {
+        const recordsToProcess = results.map((res: any) => {
+          return {
+            客户: res.customerName,
+            ...res.data
+          } as ParsedRecord;
+        });
 
-        try {
-          const rowInfo = await appendRecord(res.customerName, formattedString.trim());
-          successCount++;
-          successDetails.push(`[${res.customerName}] 录入至 ${rowInfo}`);
-
-          const endAtMs = Date.now();
-          const savedSeconds = ((endAtMs - startAtMs) / 1000) * 15;
-          appendRecordLog({
-            sheetName: res.customerName,
-            content: formattedString.trim(),
-            startAt: new Date(startAtMs).toISOString(),
-            endAt: new Date(endAtMs).toISOString(),
-            elapsedMs: endAtMs - startAtMs,
-            savedSeconds: Math.round(savedSeconds * 100) / 100
-          }).catch(() => undefined);
-        } catch (error: any) {
-          failCount++;
-          failDetails.push(`[${res.customerName}] ${error.message}`);
-        }
+        const qlResult = await processAndWriteToQL(recordsToProcess, startAtMs, msg.from!.id);
+        successCount = qlResult.successCount;
+      } catch (e: any) {
+        failCount = results.length - successCount;
+        errorMsg = e.message;
       }
 
-      let finalText = summaryText + `\n\n✅ 录入处理完成！成功 ${successCount} 条，失败 ${failCount} 条。\n`;
-      
-      if (successCount > 0) {
-        finalText += `\n📈 成功详情：\n${successDetails.join('\n')}`;
-      }
-      
+      let finalText = summaryText + `\n\n✅ QL 录入处理完成！成功 ${successCount} 条，失败 ${failCount} 条。\n`;
+
       if (failCount > 0) {
-        finalText += `\n\n⚠️ 失败详情：\n${failDetails.join('\n')}`;
+        finalText += `\n❌ 错误详情：\n${errorMsg}`;
       }
 
       await bot.editMessageText(finalText, {

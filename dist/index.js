@@ -9,7 +9,6 @@ const path_1 = __importDefault(require("path"));
 // Load .env first
 dotenv_1.default.config();
 const config_loader_1 = require("./bot/config-loader");
-const sheets_service_1 = require("./bot/sheets-service");
 const web_admin_1 = require("./bot/web-admin");
 const telegram_bot_1 = require("./bot/telegram-bot");
 const start = async () => {
@@ -31,7 +30,7 @@ const start = async () => {
         process.exit(1);
     }
     // Initialize Google Sheets
-    await (0, sheets_service_1.initSheetsClient)();
+    // Removed Google Sheets initialization for QL API
     // Start Telegram Bot
     (0, telegram_bot_1.startBot)();
     console.log('[System] All modules initialized successfully.');

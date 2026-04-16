@@ -16,6 +16,15 @@ export const loadConfig = (): Config => {
     } else {
       const fileContent = fs.readFileSync(CONFIG_PATH, 'utf-8');
       currentConfig = JSON.parse(fileContent) as Config;
+      
+      // Ensure default delay values if missing
+      if (typeof currentConfig.delayMinSeconds !== 'number') {
+        currentConfig.delayMinSeconds = parseInt(process.env.DELAY_MIN_SECONDS || '6', 10);
+      }
+      if (typeof currentConfig.delayMaxSeconds !== 'number') {
+        currentConfig.delayMaxSeconds = parseInt(process.env.DELAY_MAX_SECONDS || '12', 10);
+      }
+
       const stats = fs.statSync(CONFIG_PATH);
       lastModified = stats.mtime;
       console.log(`[Config] Loaded routes.json successfully. Customers count: ${currentConfig.customers.length}`);
