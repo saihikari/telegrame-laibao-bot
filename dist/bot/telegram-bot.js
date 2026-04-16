@@ -208,7 +208,7 @@ const startBot = async () => {
                         ...res.data
                     };
                 });
-                const qlResult = await (0, ql_writer_1.processAndWriteToQL)(recordsToProcess, startAtMs, msg.from.id);
+                const qlResult = await (0, ql_writer_1.processAndWriteToQL)(recordsToProcess, startAtMs, query.from.id);
                 successCount = qlResult.successCount;
             }
             catch (e) {
