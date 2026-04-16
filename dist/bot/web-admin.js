@@ -458,7 +458,7 @@ app.post('/api/queue/retry', requireAuth, async (req, res) => {
         return res.status(404).json({ success: false, error: 'Queue item not found' });
     try {
         const startAtMs = Date.now();
-        await (0, ql_writer_1.processAndWriteToQL)([item.recordData], startAtMs, item.operatorTgId || 0);
+        await (0, ql_writer_1.processAndWriteToQL)([item.recordData], startAtMs);
         (0, queue_log_1.removeFromQueue)(id);
         res.json({ success: true, msg: 'Retry successful' });
     }

@@ -5,7 +5,6 @@ export interface QueueItem {
     id: string;
     customerName: string;
     recordData: any;      // The original parsed record
-    operatorTgId: string | number;
     errorMsg: string;
     attempts: number;
     createdAt: string;

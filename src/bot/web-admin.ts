@@ -473,7 +473,7 @@ app.post('/api/queue/retry', requireAuth, async (req, res) => {
 
     try {
         const startAtMs = Date.now();
-        await processAndWriteToQL([item.recordData], startAtMs, item.operatorTgId || 0);
+        await processAndWriteToQL([item.recordData], startAtMs);
         removeFromQueue(id);
         res.json({ success: true, msg: 'Retry successful' });
     } catch (e: any) {
@@ -507,4 +507,3 @@ export const startWebServer = (port: number) => {
     });
   });
 };
-

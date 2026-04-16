@@ -230,7 +230,7 @@ export const startBot = async () => {
           } as ParsedRecord;
         });
 
-        const qlResult = await processAndWriteToQL(recordsToProcess, startAtMs, query.from.id);
+        const qlResult = await processAndWriteToQL(recordsToProcess, startAtMs);
         successCount = qlResult.successCount;
       } catch (e: any) {
         failCount = results.length - successCount;

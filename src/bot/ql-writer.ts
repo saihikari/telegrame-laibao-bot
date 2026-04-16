@@ -12,21 +12,9 @@ export interface ParsedRecord {
     [key: string]: any;
 }
 
-export async function processAndWriteToQL(parsedRecords: ParsedRecord[], startTime: number, operatorTgId: string | number) {
+export async function processAndWriteToQL(parsedRecords: ParsedRecord[], startTime: number) {
     let successCount = 0;
     let errorMessages = [];
-
-    // Parse operator suffix map from env: "12345678=-XX,12345679=-ST"
-    const suffixMapStr = process.env.OPERATOR_SUFFIX_MAP || "";
-    const suffixMap: Record<string, string> = {};
-    suffixMapStr.split(',').forEach(pair => {
-        const [id, suffix] = pair.split('=');
-        if (id && suffix) {
-            suffixMap[id.trim()] = suffix.trim();
-        }
-    });
-
-    const operatorSuffix = suffixMap[operatorTgId.toString()] || "";
 
     for (let i = 0; i < parsedRecords.length; i++) {
         const record = parsedRecords[i];
@@ -41,10 +29,8 @@ export async function processAndWriteToQL(parsedRecords: ParsedRecord[], startTi
                 await new Promise(resolve => setTimeout(resolve, delayMs));
             }
 
-            // 1. Append operator suffix to customerName to query storeId
+            // 1. Use customerName from routes.json directly to query storeId
             if (!customerName) throw new Error("缺少 '客户' 字段，无法查询 storeId");
-            
-            customerName = customerName + operatorSuffix;
 
             const stores = await qlApi.listStoreToSelect();
             const store = stores.find((s: any) => s.storeName && s.storeName.includes(customerName));
@@ -103,7 +89,6 @@ export async function processAndWriteToQL(parsedRecords: ParsedRecord[], startTi
             addToQueue({
                 customerName: customerName || record['客户'] || '未知客户',
                 recordData: record,
-                operatorTgId: operatorTgId,
                 errorMsg: e.message
             });
             
