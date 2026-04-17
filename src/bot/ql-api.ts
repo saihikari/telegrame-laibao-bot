@@ -1,3 +1,6 @@
+import fetch from 'node-fetch';
+import FormData from 'form-data';
+
 export class QLApi {
     private currentToken: string | null = null;
     private tokenExpireTime: number = 0;
@@ -86,6 +89,55 @@ export class QLApi {
             return data;
         }
         throw new Error("添加 Offer 失败: " + JSON.stringify(data));
+    }
+
+    async getRate(): Promise<number> {
+        const data = await this.qlFetch('/api/store/getRate', { method: 'GET' });
+        if (data.code === 100 && data.info?.data) {
+            return parseFloat(data.info.data) || 7.3;
+        }
+        console.warn("[QL API] 获取汇率失败，降级使用默认汇率 7.3");
+        return 7.3;
+    }
+
+    async uploadFile(fileBuffer: Buffer, filename: string): Promise<string> {
+        if (!this.currentToken || Date.now() > this.tokenExpireTime) {
+            await this.login();
+        }
+
+        const formData = new FormData();
+        formData.append('file', fileBuffer, { filename });
+
+        const res = await fetch(`${this.baseUrl}/api/store/uploadFile`, {
+            method: 'POST',
+            headers: {
+                'token': this.currentToken!,
+                ...formData.getHeaders()
+            },
+            body: formData
+        });
+
+        const data = await res.json();
+        if (data.code === 100 && data.info?.data) {
+            return data.info.data; // e.g. https://...cos...
+        }
+        throw new Error("图片上传失败: " + JSON.stringify(data));
+    }
+
+    async saveCharge(chargeObj: any): Promise<any> {
+        const payload = {
+            jsonStr: JSON.stringify(chargeObj)
+        };
+
+        const data = await this.qlFetch('/api/store/saveCharge', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+
+        if (data.code === 100) {
+            return data;
+        }
+        throw new Error("商户充值录入失败: " + JSON.stringify(data));
     }
 
     private cachedRecentStores: { names: string[], expireAt: number } | null = null;

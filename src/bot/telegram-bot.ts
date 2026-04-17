@@ -5,6 +5,7 @@ import { ParsedData } from '../types/config.types';
 import { processAndWriteToQL, ParsedRecord } from './ql-writer';
 import { qlApi } from './ql-api';
 import { getAdminTgIds, addAdminTgId, removeAdminTgId } from '../utils/env-editor';
+import { recognizeChargeImage } from './ocr-service';
 import { appendRecordLog } from './record-log';
 
 const token = process.env.BOT_TOKEN || '';
@@ -16,8 +17,19 @@ const baseUrl = `${webDomain}:${adminPort}`;
 let bot: TelegramBot;
 
 // Store parsed data temporarily for interactive recording
-// Key: <chatId>_<messageId>, Value: ParsedData[]
-const pendingRecords = new Map<string, ParsedData[]>();
+// Key: <chatId>_<messageId>, Value: { results: ParsedData[], summaryText: string }
+const pendingRecords = new Map<string, { results: ParsedData[], summaryText: string }>();
+
+// Store interactive charge flow state
+// Key: <chatId>_<userId>
+interface ChargeState {
+    step: 'WAIT_STORE_NAME' | 'WAIT_PHOTO' | 'CONFIRM';
+    storeName?: string;
+    usdAmount?: string;
+    payDay?: string;
+    imgUrl?: string;
+}
+const chargeSessions = new Map<string, ChargeState>();
 
 export const getBotInstance = () => bot;
 
@@ -139,9 +151,124 @@ export const startBot = async () => {
     }
   });
 
+  bot.onText(/商户充值/, (msg) => {
+    const config = getConfig();
+    const customers = config.customers.map(c => c.name);
+    
+    // Create inline keyboard: first button is "手动输入"
+    const keyboard: any[][] = [[{ text: '手动输入', callback_data: `charge_store:MANUAL` }]];
+    
+    // Add other customers, 2 per row
+    let currentRow: any[] = [];
+    for (const c of customers) {
+      // truncate long names to keep keyboard neat
+      const shortName = c.length > 15 ? c.substring(0, 13) + '..' : c;
+      currentRow.push({ text: shortName, callback_data: `charge_store:${c}` });
+      if (currentRow.length === 2) {
+        keyboard.push(currentRow);
+        currentRow = [];
+      }
+    }
+    if (currentRow.length > 0) {
+      keyboard.push(currentRow);
+    }
+
+    bot.sendMessage(msg.chat.id, '请选择充值商户：', {
+      reply_markup: {
+        inline_keyboard: keyboard
+      }
+    });
+  });
+
   bot.on('message', async (msg) => {
+    const sessionKey = `${msg.chat.id}_${msg.from?.id}`;
+    const session = chargeSessions.get(sessionKey);
+
+    // Handling charge photo upload
+    if (session && session.step === 'WAIT_PHOTO' && msg.photo) {
+      // Get highest resolution photo
+      const photoId = msg.photo[msg.photo.length - 1].file_id;
+      
+      const processingMsg = await bot.sendMessage(msg.chat.id, '⏳ 正在识别图片...', { reply_to_message_id: msg.message_id });
+      
+      try {
+        const fileLink = await bot.getFileLink(photoId);
+        const fetch = require('node-fetch');
+        const response = await fetch(fileLink);
+        const buffer = await response.buffer();
+        
+        const ocrResult = await recognizeChargeImage(buffer);
+        
+        // Upload to QL COS
+        const imgUrl = await qlApi.uploadFile(buffer, `charge_${Date.now()}.png`);
+        
+        session.usdAmount = ocrResult.usdAmount;
+        session.payDay = ocrResult.payDay;
+        session.imgUrl = imgUrl;
+        session.step = 'CONFIRM';
+        chargeSessions.set(sessionKey, session);
+
+        const summaryText = `识别结果：\n金额(USDT)：${session.usdAmount || '未识别'}\n日期：${session.payDay || '未识别'}`;
+        
+        await bot.editMessageText(summaryText + '\n\n请确认是否录入？', {
+          chat_id: msg.chat.id,
+          message_id: processingMsg.message_id,
+          reply_markup: {
+            inline_keyboard: [[
+              { text: '识别准确，录入', callback_data: `charge_confirm:yes` },
+              { text: '识别有误，纠正', callback_data: `charge_confirm:no` }
+            ]]
+          }
+        });
+      } catch (err: any) {
+        console.error("[Charge OCR Error]", err);
+        bot.editMessageText('❌ 图片识别或上传失败: ' + err.message, {
+          chat_id: msg.chat.id,
+          message_id: processingMsg.message_id
+        });
+        chargeSessions.delete(sessionKey);
+      }
+      return;
+    }
+
+    // Handling charge manual correction
+    if (session && session.step === 'CONFIRM' && msg.text && !msg.text.startsWith('/')) {
+      // user corrects via: "金额=2020 日期=2026-04-15"
+      const t = msg.text;
+      const amtMatch = t.match(/金额\s*[=：:]\s*([\d.]+)/);
+      const dateMatch = t.match(/日期\s*[=：:]\s*([\d-]+)/);
+      
+      if (amtMatch) session.usdAmount = amtMatch[1];
+      if (dateMatch) session.payDay = dateMatch[1];
+
+      chargeSessions.set(sessionKey, session);
+
+      const summaryText = `手动纠正结果：\n金额(USDT)：${session.usdAmount || '未识别'}\n日期：${session.payDay || '未识别'}`;
+        
+      await bot.sendMessage(msg.chat.id, summaryText + '\n\n请确认是否录入？', {
+        reply_to_message_id: msg.message_id,
+        reply_markup: {
+          inline_keyboard: [[
+            { text: '准确，录入', callback_data: `charge_confirm:yes` },
+            { text: '仍然有误', callback_data: `charge_confirm:no` }
+          ]]
+        }
+      });
+      return;
+    }
+
+    // Handling manual store name input
+    if (session && session.step === 'WAIT_STORE_NAME' && msg.text && !msg.text.startsWith('/')) {
+      session.storeName = msg.text.trim();
+      session.step = 'WAIT_PHOTO';
+      chargeSessions.set(sessionKey, session);
+      bot.sendMessage(msg.chat.id, `即将录入【${session.storeName}】商户的充值，请在对话中粘贴图片。`);
+      return;
+    }
+
     // 首先拦截指令，不要把它们当作常规消息去清洗
     if (!msg.text || msg.text.startsWith('/')) return;
+    if (msg.text.includes('商户充值')) return; // handled by onText
 
     const config = getConfig();
     const results = processMessage(msg.text, config);
@@ -178,7 +305,7 @@ export const startBot = async () => {
         
         // Store both results and the exact summary text we generated
         const key = `${msg.chat.id}_${sentMsg.message_id}`;
-        pendingRecords.set(key, { results, summaryText } as any);
+        pendingRecords.set(key, { results, summaryText });
         
       } catch (err) {
         console.error(`[Bot] Failed to send summary to ${msg.chat.id}:`, err);
@@ -191,8 +318,120 @@ export const startBot = async () => {
     const msg = query.message;
     if (!msg) return;
 
+    // Handle interactive charge flow callbacks
+    if (data?.startsWith('charge_store:')) {
+      const storeName = data.split('charge_store:')[1];
+      const sessionKey = `${msg.chat.id}_${query.from.id}`;
+      
+      if (storeName === 'MANUAL') {
+        chargeSessions.set(sessionKey, { step: 'WAIT_STORE_NAME' });
+        bot.editMessageText('请回复输入您要充值的商户名称（如：XX-XX）：', {
+          chat_id: msg.chat.id,
+          message_id: msg.message_id
+        });
+      } else {
+        chargeSessions.set(sessionKey, { step: 'WAIT_PHOTO', storeName });
+        bot.editMessageText(`即将录入【${storeName}】商户的充值，请在对话中发送/粘贴转账截图。`, {
+          chat_id: msg.chat.id,
+          message_id: msg.message_id
+        });
+      }
+      bot.answerCallbackQuery(query.id);
+      return;
+    }
+
+    if (data?.startsWith('charge_confirm:')) {
+      const action = data.split('charge_confirm:')[1];
+      const sessionKey = `${msg.chat.id}_${query.from.id}`;
+      const session = chargeSessions.get(sessionKey);
+      
+      if (!session) {
+        bot.answerCallbackQuery(query.id, { text: '会话已过期' });
+        return;
+      }
+
+      if (action === 'no') {
+        bot.editMessageText('⚠️ 请直接回复纠正信息（如：金额=2020 日期=2026-04-15），我会重新更新。', {
+          chat_id: msg.chat.id,
+          message_id: msg.message_id
+        });
+      } else if (action === 'yes') {
+        if (!session.usdAmount || !session.payDay || !session.imgUrl || !session.storeName) {
+          bot.editMessageText('❌ 信息不完整，请确保金额和日期均已识别或纠正。', {
+            chat_id: msg.chat.id,
+            message_id: msg.message_id
+          });
+          bot.answerCallbackQuery(query.id);
+          return;
+        }
+
+        bot.editMessageText('⏳ 正在录入充值记录，请稍候...', {
+          chat_id: msg.chat.id,
+          message_id: msg.message_id
+        });
+
+        try {
+          const stores = await qlApi.listStoreToSelect();
+          const targetStore = stores.find(s => s.storeName.includes(session.storeName!));
+          if (!targetStore) {
+            throw new Error(`找不到商户名称包含 '${session.storeName}' 的记录`);
+          }
+
+          const rate = await qlApi.getRate();
+          const usdNum = parseFloat(session.usdAmount);
+          const amount = (usdNum * rate).toFixed(2);
+
+          const chargeObj = {
+            storeId: targetStore.storeId,
+            storeName: targetStore.storeName,
+            platform: targetStore.platform || null,
+            pStoreId: targetStore.pStoreId || null,
+            pStoreName: targetStore.pStoreName || null,
+            platformId: targetStore.platformId || null,
+            managerId: targetStore.managerId,
+            managerName: targetStore.managerName,
+            checkStatus: 1,
+            storeType: targetStore.storeType,
+            contactId: targetStore.contactId || null,
+            currency: 'usd',
+            rate: rate.toString(),
+            usdAmount: session.usdAmount,
+            amount: amount,
+            payDay: session.payDay,
+            imgUrl: session.imgUrl
+          };
+
+          await qlApi.saveCharge(chargeObj);
+
+          bot.editMessageText(`✅ QL充值录入成功！\n商户：${targetStore.storeName}\n金额：${session.usdAmount} USDT\n换算金额：${amount} (汇率${rate})\n日期：${session.payDay}`, {
+            chat_id: msg.chat.id,
+            message_id: msg.message_id
+          });
+
+          // Record log
+          appendRecordLog({
+            sheetName: targetStore.storeName,
+            content: `金额(USDT)：${session.usdAmount}\n汇率：${rate}\n日期：${session.payDay}\n类型：商户充值`,
+            startAt: new Date(Date.now() - 500).toISOString(),
+            endAt: new Date().toISOString(),
+            elapsedMs: 500,
+            savedSeconds: 15.0
+          });
+          
+          chargeSessions.delete(sessionKey);
+        } catch (err: any) {
+          bot.editMessageText(`❌ QL充值录入失败！\n原因：${err.message}`, {
+            chat_id: msg.chat.id,
+            message_id: msg.message_id
+          });
+        }
+      }
+      bot.answerCallbackQuery(query.id);
+      return;
+    }
+
     const key = `${msg.chat.id}_${msg.message_id}`;
-    const pendingData = pendingRecords.get(key) as any;
+    const pendingData = pendingRecords.get(key);
 
     if (!pendingData) {
       bot.answerCallbackQuery(query.id, { text: '数据已过期或不存在' });
