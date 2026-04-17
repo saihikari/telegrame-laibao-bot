@@ -335,7 +335,40 @@
         };
 
         // --- 页面组件: 可视化配置 ---
-        const VisualConfig = ({ config, setConfig, loading, handleSaveConfig, saving, showToast }) => {
+        const HeartOverlay = ({ status, text }) => {
+            if (!status) return null;
+            
+            return (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm transition-opacity duration-300 animate-in fade-in">
+                    <div className="flex flex-col items-center justify-center">
+                        {status === 'loading' && (
+                            <div className="relative flex items-center justify-center w-32 h-32">
+                                <Icon name="heart" size={64} className="text-[#f43f5e] opacity-40 animate-pulse" />
+                                <div className="absolute inset-0 border-4 border-[#f43f5e] rounded-full animate-ping opacity-20" style={{ animationDuration: '1.5s' }}></div>
+                            </div>
+                        )}
+                        {status === 'success' && (
+                            <div className="relative flex items-center justify-center w-32 h-32 animate-in zoom-in duration-300">
+                                <Icon name="heart" size={80} className="text-[#f43f5e] fill-current drop-shadow-[0_0_15px_rgba(244,63,94,0.6)]" />
+                                <div className="absolute top-4 left-4 text-[#f43f5e] animate-ping"><Icon name="sparkles" size={20} className="fill-current"/></div>
+                                <div className="absolute bottom-6 right-4 text-[#f43f5e] animate-ping" style={{ animationDelay: '0.1s' }}><Icon name="sparkles" size={24} className="fill-current"/></div>
+                            </div>
+                        )}
+                        {status === 'error' && (
+                            <div className="relative flex items-center justify-center w-32 h-32 animate-in slide-in-from-left-2 duration-100" style={{ animationIterationCount: 3, animationDirection: 'alternate' }}>
+                                <Icon name="heart-crack" size={80} className="text-red-500 fill-current drop-shadow-[0_0_15px_rgba(239,68,68,0.6)]" />
+                            </div>
+                        )}
+                        
+                        <div className="mt-4 text-white font-medium text-lg tracking-wide drop-shadow-md">
+                            {text}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const VisualConfig = ({ config, setConfig, loading, handleSaveConfig, saving, showToast, withHeartFeedback }) => {
         const [activeCustomerIndex, setActiveCustomerIndex] = useState(null);
         const [searchTerm, setSearchTerm] = useState('');
         const [isDirty, setIsDirty] = useState(false);
@@ -373,27 +406,40 @@
         };
 
         const onSaveAll = async () => {
-            await handleSaveConfig();
-            setIsDirty(false);
-            setSaveSuccess(true);
-            setTimeout(() => setSaveSuccess(false), 2000);
+            if (withHeartFeedback) {
+                await withHeartFeedback(handleSaveConfig(), '正在施展保存魔法...', '配置已保存', '哎呀，保存失败了');
+                setIsDirty(false);
+                setSaveSuccess(true);
+                setTimeout(() => setSaveSuccess(false), 2000);
+            } else {
+                await handleSaveConfig();
+                setIsDirty(false);
+                setSaveSuccess(true);
+                setTimeout(() => setSaveSuccess(false), 2000);
+            }
         };
 
         const handleBackup = async () => {
-            try {
-                const res = await fetch('/api/config/backup', { method: 'POST' });
+            const backupPromise = fetch('/api/config/backup', { method: 'POST' }).then(async (res) => {
                 if (res.status === 401) {
                     redirectToLogin();
-                    return;
+                    return { error: true };
                 }
                 const data = await res.json();
                 if (data.success) {
-                    if (showToast) showToast('配置备份成功: ' + data.filename, 'success');
+                    return data;
                 } else {
-                    if (showToast) showToast('备份失败', 'error');
+                    return { error: true };
                 }
-            } catch (e) {
-                if (showToast) showToast('请求备份失败', 'error');
+            }).catch(() => ({ error: true }));
+
+            if (withHeartFeedback) {
+                await withHeartFeedback(backupPromise, '正在打包备份...', '备份成功！', '备份失败了');
+            } else {
+                // fallback
+                const res = await backupPromise;
+                if (!res.error && showToast) showToast('备份成功', 'success');
+                else if (showToast) showToast('备份失败', 'error');
             }
         };
 
@@ -1026,7 +1072,7 @@
         };
 
         // --- 页面组件: 高级 JSON 配置 ---
-        const JsonConfig = ({ config, fetchConfig, showToast }) => {
+        const JsonConfig = ({ config, fetchConfig, showToast, withHeartFeedback }) => {
             const [jsonText, setJsonText] = useState('');
             const [saving, setSaving] = useState(false);
             const [saveSuccess, setSaveSuccess] = useState(false);
@@ -1041,19 +1087,39 @@
             }, [config]);
 
             const handleSave = async () => {
+                let parsed;
                 try {
-                    setSaving(true);
-                    const parsed = JSON.parse(jsonText);
-                    const res = await fetch('/api/config', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(parsed)
-                    });
+                    parsed = JSON.parse(jsonText);
+                } catch (e) {
+                    if (showToast) showToast('JSON 格式错误: ' + e.message, 'error');
+                    return;
+                }
+
+                const savePromise = fetch('/api/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(parsed)
+                }).then(async (res) => {
                     if (res.status === 401) {
                         redirectToLogin();
-                        return;
+                        return { error: true };
                     }
                     if (res.ok) {
+                        return { success: true };
+                    } else {
+                        return { error: true };
+                    }
+                }).catch(() => ({ error: true }));
+
+                if (withHeartFeedback) {
+                    await withHeartFeedback(savePromise, '正在施展保存魔法...', '配置已保存', '哎呀，保存失败了');
+                    fetchConfig();
+                    setSaveSuccess(true);
+                    setTimeout(() => setSaveSuccess(false), 2000);
+                } else {
+                    setSaving(true);
+                    const res = await savePromise;
+                    if (res.success) {
                         if (showToast) showToast('高级配置保存成功！', 'success');
                         fetchConfig();
                         setSaveSuccess(true);
@@ -1061,28 +1127,30 @@
                     } else {
                         if (showToast) showToast('保存失败，服务端异常', 'error');
                     }
-                } catch (e) {
-                    if (showToast) showToast('JSON 格式错误: ' + e.message, 'error');
-                } finally {
                     setSaving(false);
                 }
             };
 
             const handleBackup = async () => {
-                try {
-                    const res = await fetch('/api/config/backup', { method: 'POST' });
+                const backupPromise = fetch('/api/config/backup', { method: 'POST' }).then(async (res) => {
                     if (res.status === 401) {
                         redirectToLogin();
-                        return;
+                        return { error: true };
                     }
                     const data = await res.json();
                     if (data.success) {
-                        if (showToast) showToast('配置备份成功: ' + data.filename, 'success');
+                        return data;
                     } else {
-                        if (showToast) showToast('备份失败', 'error');
+                        return { error: true };
                     }
-                } catch (e) {
-                    if (showToast) showToast('请求备份失败', 'error');
+                }).catch(() => ({ error: true }));
+
+                if (withHeartFeedback) {
+                    await withHeartFeedback(backupPromise, '正在打包备份...', '备份成功！', '备份失败了');
+                } else {
+                    const res = await backupPromise;
+                    if (!res.error && showToast) showToast('备份成功', 'success');
+                    else if (showToast) showToast('备份失败', 'error');
                 }
             };
 
@@ -1715,6 +1783,7 @@
             const [serverError, setServerError] = useState(false);
             const [toast, setToast] = useState(null);
             const [activeTab, setActiveTab] = useState('visual');
+            const [heartOverlay, setHeartOverlay] = useState({ status: null, text: '' });
 
             // Initialize Telegram WebApp
             useEffect(() => {
@@ -1727,6 +1796,25 @@
 
             const showToast = (message, type = 'success') => {
                 setToast({ message, type });
+            };
+
+            const withHeartFeedback = async (actionPromise, loadingText, successText, errorText) => {
+                setHeartOverlay({ status: 'loading', text: loadingText });
+                try {
+                    const result = await actionPromise;
+                    if (result && result.error) {
+                        setHeartOverlay({ status: 'error', text: errorText });
+                        setTimeout(() => setHeartOverlay({ status: null, text: '' }), 1500);
+                        return result;
+                    }
+                    setHeartOverlay({ status: 'success', text: successText });
+                    setTimeout(() => setHeartOverlay({ status: null, text: '' }), 1200);
+                    return result;
+                } catch (e) {
+                    setHeartOverlay({ status: 'error', text: errorText });
+                    setTimeout(() => setHeartOverlay({ status: null, text: '' }), 1500);
+                    throw e;
+                }
             };
 
             const fetchConfig = async () => {
@@ -1783,19 +1871,18 @@
                                     return;
                                 }
                                 if (res.ok) {
-                                    showToast('配置保存成功！', 'success');
                                     setConfig(configToSave);
                                 } else {
-                                    showToast('保存失败，服务端异常', 'error');
+                                    return { error: true };
                                 }
                             } catch (e) {
-                                showToast('保存失败，网络错误', 'error');
+                                return { error: true };
                             }
-                        }} saving={false} showToast={showToast} />;
+                        }} saving={false} showToast={showToast} withHeartFeedback={withHeartFeedback} />;
                     case 'test':
                         return <SandboxTestPage config={config} showToast={showToast} />;
                     case 'json':
-                        return <JsonConfig config={config} fetchConfig={fetchConfig} showToast={showToast} />;
+                        return <JsonConfig config={config} fetchConfig={fetchConfig} showToast={showToast} withHeartFeedback={withHeartFeedback} />;
                     case 'status':
                         return <StatusPage showToast={showToast} />;
                     case 'logs':
@@ -1869,6 +1956,7 @@
                         </div></div>{/* 右侧/上方：主内容区 */}
                     <div className="flex-1 flex overflow-hidden relative">
                         {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+                        <HeartOverlay status={heartOverlay.status} text={heartOverlay.text} />
                         {renderContent()}
                     </div>
                 </div>
