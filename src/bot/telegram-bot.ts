@@ -23,11 +23,12 @@ const pendingRecords = new Map<string, { results: ParsedData[], summaryText: str
 // Store interactive charge flow state
 // Key: <chatId>_<userId>
 interface ChargeState {
-    step: 'WAIT_STORE_NAME' | 'WAIT_PHOTO' | 'CONFIRM';
+    step: 'WAIT_STORE_NAME' | 'WAIT_PHOTO' | 'CONFIRM' | 'WAIT_STORE_SELECTION' | 'WAIT_STORE_NAME_MANUAL';
     storeName?: string;
     usdAmount?: string;
     payDay?: string;
     imgUrl?: string;
+    photoId?: string;
 }
 const chargeSessions = new Map<string, ChargeState>();
 
@@ -151,7 +152,7 @@ export const startBot = async () => {
     }
   });
 
-  bot.onText(/商户充值/, (msg) => {
+  const getStoreKeyboard = (): any[][] => {
     const config = getConfig();
     const textCollator = new Intl.Collator('en', { sensitivity: 'base' });
     const naturalCompare = (a: string, b: string) => {
@@ -203,7 +204,53 @@ export const startBot = async () => {
     if (currentRow.length > 0) {
       keyboard.push(currentRow);
     }
+    return keyboard;
+  };
 
+  const runOcrProcess = async (chatId: number, userId: number, photoId: string, storeName: string, messageIdToEdit: number) => {
+    const sessionKey = `${chatId}_${userId}`;
+    const session = chargeSessions.get(sessionKey) || { step: 'CONFIRM' } as ChargeState;
+    
+    try {
+      const fileLink = await bot.getFileLink(photoId);
+      const fetch = require('node-fetch');
+      const response = await fetch(fileLink);
+      const buffer = await response.buffer();
+      
+      const ocrResult = await recognizeChargeImage(buffer);
+      const imgUrl = await qlApi.uploadFile(buffer, `charge_${Date.now()}.png`);
+      
+      session.usdAmount = ocrResult.usdAmount;
+      session.payDay = ocrResult.payDay;
+      session.imgUrl = imgUrl;
+      session.storeName = storeName;
+      session.step = 'CONFIRM';
+      chargeSessions.set(sessionKey, session);
+
+      const summaryText = `识别结果：\n金额(USDT)：${session.usdAmount || '未识别'}\n日期：${session.payDay || '未识别'}`;
+      
+      await bot.editMessageText(summaryText + '\n\n请确认是否录入？', {
+        chat_id: chatId,
+        message_id: messageIdToEdit,
+        reply_markup: {
+          inline_keyboard: [[
+            { text: '识别准确，录入', callback_data: `charge_confirm:yes` },
+            { text: '识别有误，纠正', callback_data: `charge_confirm:no` }
+          ]]
+        }
+      });
+    } catch (err: any) {
+      console.error("[Charge OCR Error]", err);
+      bot.editMessageText('❌ 图片识别或上传失败: ' + err.message, {
+        chat_id: chatId,
+        message_id: messageIdToEdit
+      });
+      chargeSessions.delete(sessionKey);
+    }
+  };
+
+  bot.onText(/商户充值/, (msg) => {
+    const keyboard = getStoreKeyboard();
     bot.sendMessage(msg.chat.id, '请选择充值商户：', {
       reply_markup: {
         inline_keyboard: keyboard
@@ -216,48 +263,27 @@ export const startBot = async () => {
     const session = chargeSessions.get(sessionKey);
 
     // Handling charge photo upload
-    if (session && session.step === 'WAIT_PHOTO' && msg.photo) {
-      // Get highest resolution photo
+    if (msg.photo) {
       const photoId = msg.photo[msg.photo.length - 1].file_id;
       
-      const processingMsg = await bot.sendMessage(msg.chat.id, '⏳ 正在识别图片...', { reply_to_message_id: msg.message_id });
-      
-      try {
-        const fileLink = await bot.getFileLink(photoId);
-        const fetch = require('node-fetch');
-        const response = await fetch(fileLink);
-        const buffer = await response.buffer();
+      if (session && session.step === 'WAIT_PHOTO') {
+        // Old flow: user selected store, then sent photo
+        const processingMsg = await bot.sendMessage(msg.chat.id, '⏳ 正在识别图片...', { reply_to_message_id: msg.message_id });
+        await runOcrProcess(msg.chat.id, msg.from!.id, photoId, session.storeName!, processingMsg.message_id);
+      } else {
+        // New flow: User sends photo directly, trigger auto charge prompt
+        const keyboard = getStoreKeyboard();
+        keyboard.push([{ text: '❌ 暂不需要', callback_data: `charge_cancel` }]);
         
-        const ocrResult = await recognizeChargeImage(buffer);
-        
-        // Upload to QL COS
-        const imgUrl = await qlApi.uploadFile(buffer, `charge_${Date.now()}.png`);
-        
-        session.usdAmount = ocrResult.usdAmount;
-        session.payDay = ocrResult.payDay;
-        session.imgUrl = imgUrl;
-        session.step = 'CONFIRM';
-        chargeSessions.set(sessionKey, session);
-
-        const summaryText = `识别结果：\n金额(USDT)：${session.usdAmount || '未识别'}\n日期：${session.payDay || '未识别'}`;
-        
-        await bot.editMessageText(summaryText + '\n\n请确认是否录入？', {
-          chat_id: msg.chat.id,
-          message_id: processingMsg.message_id,
-          reply_markup: {
-            inline_keyboard: [[
-              { text: '识别准确，录入', callback_data: `charge_confirm:yes` },
-              { text: '识别有误，纠正', callback_data: `charge_confirm:no` }
-            ]]
-          }
+        chargeSessions.set(sessionKey, {
+          step: 'WAIT_STORE_SELECTION',
+          photoId: photoId
         });
-      } catch (err: any) {
-        console.error("[Charge OCR Error]", err);
-        bot.editMessageText('❌ 图片识别或上传失败: ' + err.message, {
-          chat_id: msg.chat.id,
-          message_id: processingMsg.message_id
+        
+        bot.sendMessage(msg.chat.id, '检测到图片，是否进行“商户充值”？请选择商户：', {
+          reply_to_message_id: msg.message_id,
+          reply_markup: { inline_keyboard: keyboard }
         });
-        chargeSessions.delete(sessionKey);
       }
       return;
     }
@@ -289,11 +315,19 @@ export const startBot = async () => {
     }
 
     // Handling manual store name input
-    if (session && session.step === 'WAIT_STORE_NAME' && msg.text && !msg.text.startsWith('/')) {
+    if (session && (session.step === 'WAIT_STORE_NAME' || session.step === 'WAIT_STORE_NAME_MANUAL') && msg.text && !msg.text.startsWith('/')) {
       session.storeName = msg.text.trim();
-      session.step = 'WAIT_PHOTO';
-      chargeSessions.set(sessionKey, session);
-      bot.sendMessage(msg.chat.id, `即将录入【${session.storeName}】商户的充值，请在对话中粘贴图片。`);
+      
+      if (session.step === 'WAIT_STORE_NAME_MANUAL' && session.photoId) {
+        // We already have the photo, run OCR immediately
+        const processingMsg = await bot.sendMessage(msg.chat.id, `已输入【${session.storeName}】，⏳ 正在识别图片...`, { reply_to_message_id: msg.message_id });
+        await runOcrProcess(msg.chat.id, msg.from!.id, session.photoId, session.storeName, processingMsg.message_id);
+      } else {
+        // Wait for photo
+        session.step = 'WAIT_PHOTO';
+        chargeSessions.set(sessionKey, session);
+        bot.sendMessage(msg.chat.id, `即将录入【${session.storeName}】商户的充值，请在对话中粘贴图片。`);
+      }
       return;
     }
 
@@ -349,23 +383,48 @@ export const startBot = async () => {
     const msg = query.message;
     if (!msg) return;
 
+    if (data === 'charge_cancel') {
+      const sessionKey = `${msg.chat.id}_${query.from.id}`;
+      chargeSessions.delete(sessionKey);
+      bot.editMessageText('已取消商户充值。', {
+        chat_id: msg.chat.id,
+        message_id: msg.message_id
+      });
+      bot.answerCallbackQuery(query.id);
+      return;
+    }
+
     // Handle interactive charge flow callbacks
     if (data?.startsWith('charge_store:')) {
       const storeName = data.split('charge_store:')[1];
       const sessionKey = `${msg.chat.id}_${query.from.id}`;
+      const session = chargeSessions.get(sessionKey) || {} as ChargeState;
       
       if (storeName === 'MANUAL') {
-        chargeSessions.set(sessionKey, { step: 'WAIT_STORE_NAME' });
+        session.step = session.photoId ? 'WAIT_STORE_NAME_MANUAL' : 'WAIT_STORE_NAME';
+        chargeSessions.set(sessionKey, session);
         bot.editMessageText('请回复输入您要充值的商户名称（如：XX-XX）：', {
           chat_id: msg.chat.id,
           message_id: msg.message_id
         });
       } else {
-        chargeSessions.set(sessionKey, { step: 'WAIT_PHOTO', storeName });
-        bot.editMessageText(`即将录入【${storeName}】商户的充值，请在对话中发送/粘贴转账截图。`, {
-          chat_id: msg.chat.id,
-          message_id: msg.message_id
-        });
+        if (session.photoId) {
+          // We have the photo, trigger OCR immediately
+          bot.editMessageText(`已选择【${storeName}】，⏳ 正在识别图片...`, {
+            chat_id: msg.chat.id,
+            message_id: msg.message_id
+          });
+          await runOcrProcess(msg.chat.id, query.from.id, session.photoId, storeName, msg.message_id);
+        } else {
+          // Old flow: no photo yet
+          session.step = 'WAIT_PHOTO';
+          session.storeName = storeName;
+          chargeSessions.set(sessionKey, session);
+          bot.editMessageText(`即将录入【${storeName}】商户的充值，请在对话中发送/粘贴转账截图。`, {
+            chat_id: msg.chat.id,
+            message_id: msg.message_id
+          });
+        }
       }
       bot.answerCallbackQuery(query.id);
       return;
