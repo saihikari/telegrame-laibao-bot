@@ -153,7 +153,32 @@ export const startBot = async () => {
 
   bot.onText(/商户充值/, (msg) => {
     const config = getConfig();
-    const collator = new Intl.Collator('en', { numeric: true, sensitivity: 'base' });
+    const textCollator = new Intl.Collator('en', { sensitivity: 'base' });
+    const naturalCompare = (a: string, b: string) => {
+      const ax = (a || '').trim();
+      const bx = (b || '').trim();
+      const aParts = ax.match(/(\d+|[^\d]+)/g) || [];
+      const bParts = bx.match(/(\d+|[^\d]+)/g) || [];
+
+      const len = Math.min(aParts.length, bParts.length);
+      for (let i = 0; i < len; i++) {
+        const ap = aParts[i];
+        const bp = bParts[i];
+        const an = /^\d+$/.test(ap);
+        const bn = /^\d+$/.test(bp);
+        if (an && bn) {
+          const av = parseInt(ap, 10);
+          const bv = parseInt(bp, 10);
+          if (av !== bv) return av - bv;
+        } else if (!an && !bn) {
+          const cmp = textCollator.compare(ap, bp);
+          if (cmp !== 0) return cmp;
+        } else {
+          return an ? 1 : -1;
+        }
+      }
+      return aParts.length - bParts.length;
+    };
     const customers = config.customers
       .map(c => (c.name || '').trim())
       .filter(Boolean)
@@ -161,7 +186,7 @@ export const startBot = async () => {
         const aDigit = /^\d/.test(a);
         const bDigit = /^\d/.test(b);
         if (aDigit !== bDigit) return aDigit ? 1 : -1;
-        return collator.compare(a, b);
+        return naturalCompare(a, b);
       });
 
     const keyboard: any[][] = [[{ text: '手动输入', callback_data: `charge_store:MANUAL` }]];
