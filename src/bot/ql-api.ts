@@ -125,13 +125,16 @@ export class QLApi {
     }
 
     async saveCharge(chargeObj: any): Promise<any> {
-        const payload = {
+        const body = new URLSearchParams({
             jsonStr: JSON.stringify(chargeObj)
-        };
+        }).toString();
 
         const data = await this.qlFetch('/api/store/saveCharge', {
             method: 'POST',
-            body: JSON.stringify(payload)
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body
         });
 
         if (data.code === 100) {
