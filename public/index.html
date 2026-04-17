@@ -343,20 +343,20 @@
                     <div className="flex flex-col items-center justify-center">
                         {status === 'loading' && (
                             <div className="relative flex items-center justify-center w-32 h-32">
-                                <Icon name="heart" size={64} className="text-[#f43f5e] opacity-40 animate-pulse" />
+                                <div className="text-[64px] leading-none opacity-70 animate-pulse select-none">💖</div>
                                 <div className="absolute inset-0 border-4 border-[#f43f5e] rounded-full animate-ping opacity-20" style={{ animationDuration: '1.5s' }}></div>
                             </div>
                         )}
                         {status === 'success' && (
                             <div className="relative flex items-center justify-center w-32 h-32 animate-in zoom-in duration-300">
-                                <Icon name="heart" size={80} className="text-[#f43f5e] fill-current drop-shadow-[0_0_15px_rgba(244,63,94,0.6)]" />
-                                <div className="absolute top-4 left-4 text-[#f43f5e] animate-ping"><Icon name="sparkles" size={20} className="fill-current"/></div>
-                                <div className="absolute bottom-6 right-4 text-[#f43f5e] animate-ping" style={{ animationDelay: '0.1s' }}><Icon name="sparkles" size={24} className="fill-current"/></div>
+                                <div className="text-[80px] leading-none drop-shadow-[0_0_15px_rgba(244,63,94,0.6)] select-none">💖</div>
+                                <div className="absolute top-3 left-3 text-[20px] animate-ping select-none">✨</div>
+                                <div className="absolute bottom-5 right-3 text-[24px] animate-ping select-none" style={{ animationDelay: '0.1s' }}>✨</div>
                             </div>
                         )}
                         {status === 'error' && (
                             <div className="relative flex items-center justify-center w-32 h-32 animate-in slide-in-from-left-2 duration-100" style={{ animationIterationCount: 3, animationDirection: 'alternate' }}>
-                                <Icon name="heart-crack" size={80} className="text-red-500 fill-current drop-shadow-[0_0_15px_rgba(239,68,68,0.6)]" />
+                                <div className="text-[80px] leading-none drop-shadow-[0_0_15px_rgba(239,68,68,0.6)] select-none">💔</div>
                             </div>
                         )}
                         
@@ -433,11 +433,10 @@
                 }
             }).catch(() => ({ error: true }));
 
-            if (withHeartFeedback) {
-                await withHeartFeedback(backupPromise, '正在打包备份...', '备份成功！', '备份失败了');
-            } else {
-                // fallback
-                const res = await backupPromise;
+             if (withHeartFeedback) {
+                 await withHeartFeedback(backupPromise, '正在打包备份...', '备份成功！', '备份失败了');
+             } else {
+                 const res = await backupPromise;
                 if (!res.error && showToast) showToast('备份成功', 'success');
                 else if (showToast) showToast('备份失败', 'error');
             }
@@ -736,7 +735,7 @@
                                                     value={activeCustomer.name} 
                                                     onFocus={() => {
                                                         setShowRecentStores(true);
-                                                        fetchRecentStores(); // 悄悄拉取最新数据，防止长时间停留页面导致缓存过期
+                                                        fetchRecentStores();
                                                     }}
                                                     onBlur={() => setTimeout(() => setShowRecentStores(false), 200)}
                                                     onChange={(e) => handleConfigChange({ name: e.target.value })}
@@ -754,7 +753,7 @@
                                                                 <button
                                                                     key={idx}
                                                                     onMouseDown={(e) => {
-                                                                        e.preventDefault(); // 防止失去焦点
+                                                                        e.preventDefault();
                                                                         handleConfigChange({ name: store });
                                                                         setShowRecentStores(false);
                                                                         if (showToast) showToast('已填充客户名称', 'success');
@@ -955,40 +954,53 @@
         };
 
         // --- 页面组件: 独立沙盒测试 ---
-        const SandboxTestPage = ({ config, showToast }) => {
+        const SandboxTestPage = ({ config, showToast, withHeartFeedback }) => {
             const [testText, setTestText] = useState('');
             const [testResult, setTestResult] = useState(null);
             const [testing, setTesting] = useState(false);
 
             const handleTest = async () => {
                 if (!testText.trim()) return;
-                try {
-                    setTesting(true);
-                    const configToTest = {
-                        ...config,
-                        customers: config.customers.map((c, i) => ({ ...c, priority: i + 1 }))
-                    };
-                    const res = await fetch('/api/test', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ text: testText, config: configToTest })
-                    });
+                setTesting(true);
+                const configToTest = {
+                    ...config,
+                    customers: config.customers.map((c, i) => ({ ...c, priority: i + 1 }))
+                };
+
+                const testPromise = fetch('/api/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: testText, config: configToTest })
+                }).then(async (res) => {
                     if (res.status === 401) {
                         redirectToLogin();
-                        return;
+                        return { error: true };
                     }
                     const data = await res.json();
                     if (data.success) {
-                        setTestResult(data.data);
-                        if (showToast) showToast('解析成功！', 'success');
-                    } else {
-                        setTestResult({ error: data.error });
-                        if (showToast) showToast('解析失败', 'error');
+                        return { success: true, data: data.data };
                     }
-                } catch (error) {
-                    console.error('Test failed:', error);
-                    setTestResult({ error: '请求测试接口失败' });
-                    if (showToast) showToast('网络或服务器异常', 'error');
+                    return { error: true, errorMsg: data.error || '解析失败' };
+                }).catch(() => ({ error: true, errorMsg: '网络或服务器异常' }));
+
+                try {
+                    if (withHeartFeedback) {
+                        const result = await withHeartFeedback(testPromise, '正在心灵解析...', '解析完成', '解析失败');
+                        if (result && !result.error) {
+                            setTestResult(result.data);
+                        } else {
+                            setTestResult({ error: result?.errorMsg || '请求测试接口失败' });
+                        }
+                    } else {
+                        const result = await testPromise;
+                        if (result && !result.error) {
+                            setTestResult(result.data);
+                            if (showToast) showToast('解析成功！', 'success');
+                        } else {
+                            setTestResult({ error: result?.errorMsg || '解析失败' });
+                            if (showToast) showToast('解析失败', 'error');
+                        }
+                    }
                 } finally {
                     setTesting(false);
                 }
@@ -1180,25 +1192,42 @@
             };
 
             const handleRestore = async (filename) => {
-                try {
-                    setRestoring(true);
-                    const res = await fetch('/api/config/restore', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ filename })
-                    });
-                    if (res.status === 401) { redirectToLogin(); return; }
+                setRestoring(true);
+                const restorePromise = fetch('/api/config/restore', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filename })
+                }).then(async (res) => {
+                    if (res.status === 401) {
+                        redirectToLogin();
+                        return { error: true };
+                    }
                     const data = await res.json();
                     if (data.success) {
-                        setJsonText(JSON.stringify(data.data, null, 2));
-                        setShowBackups(false);
-                        setConfirmRestoreFile(null);
-                        if (showToast) showToast('读取成功，请检查后点击【保存重载】以生效', 'success');
-                    } else {
-                        if (showToast) showToast('读取备份失败', 'error');
+                        return { success: true, data: data.data };
                     }
-                } catch (e) {
-                    if (showToast) showToast('读取备份出错', 'error');
+                    return { error: true };
+                }).catch(() => ({ error: true }));
+
+                try {
+                    if (withHeartFeedback) {
+                        const result = await withHeartFeedback(restorePromise, '正在读取备份...', '读取成功', '读取失败');
+                        if (result && !result.error) {
+                            setJsonText(JSON.stringify(result.data, null, 2));
+                            setShowBackups(false);
+                            setConfirmRestoreFile(null);
+                        }
+                    } else {
+                        const result = await restorePromise;
+                        if (result && !result.error) {
+                            setJsonText(JSON.stringify(result.data, null, 2));
+                            setShowBackups(false);
+                            setConfirmRestoreFile(null);
+                            if (showToast) showToast('读取成功，请检查后点击【保存重载】以生效', 'success');
+                        } else {
+                            if (showToast) showToast('读取备份失败', 'error');
+                        }
+                    }
                 } finally {
                     setRestoring(false);
                 }
@@ -1332,7 +1361,7 @@
 
         // --- 页面组件: 系统状态 ---
         
-        const QueuePage = ({ showToast }) => {
+        const QueuePage = ({ showToast, withHeartFeedback }) => {
             const [items, setItems] = useState([]);
             const [loading, setLoading] = useState(true);
 
@@ -1356,40 +1385,53 @@
             }, []);
 
             const handleRetry = async (id) => {
-                try {
-                    const res = await fetch('/api/queue/retry', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ id })
-                    });
+                const retryPromise = fetch('/api/queue/retry', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id })
+                }).then(async (res) => {
                     const data = await res.json();
-                    if (data.success) {
+                    if (data.success) return { success: true };
+                    return { error: true, errorMsg: data.error || '重试失败' };
+                }).catch(() => ({ error: true, errorMsg: '请求失败' }));
+
+                if (withHeartFeedback) {
+                    await withHeartFeedback(retryPromise, '正在重试...', '重试成功', '重试失败');
+                } else {
+                    const result = await retryPromise;
+                    if (result && !result.error) {
                         if (showToast) showToast('重试成功', 'success');
-                        fetchQueue();
                     } else {
-                        if (showToast) showToast('重试失败: ' + data.error, 'error');
-                        fetchQueue();
+                        if (showToast) showToast('重试失败', 'error');
                     }
-                } catch (e) {
-                    if (showToast) showToast('请求失败', 'error');
                 }
+
+                fetchQueue();
             };
 
             const handleDelete = async (id) => {
                 if (!confirm('确定删除这条失败记录？')) return;
-                try {
-                    const res = await fetch('/api/queue/delete', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ id })
-                    });
-                    if (res.ok) {
+                const deletePromise = fetch('/api/queue/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id })
+                }).then((res) => {
+                    if (res.ok) return { success: true };
+                    return { error: true };
+                }).catch(() => ({ error: true }));
+
+                if (withHeartFeedback) {
+                    await withHeartFeedback(deletePromise, '正在删除...', '删除成功', '删除失败');
+                } else {
+                    const result = await deletePromise;
+                    if (result && !result.error) {
                         if (showToast) showToast('删除成功', 'success');
-                        fetchQueue();
+                    } else {
+                        if (showToast) showToast('删除失败', 'error');
                     }
-                } catch (e) {
-                    if (showToast) showToast('删除失败', 'error');
                 }
+
+                fetchQueue();
             };
 
             return (
@@ -1880,7 +1922,7 @@
                             }
                         }} saving={false} showToast={showToast} withHeartFeedback={withHeartFeedback} />;
                     case 'test':
-                        return <SandboxTestPage config={config} showToast={showToast} />;
+                        return <SandboxTestPage config={config} showToast={showToast} withHeartFeedback={withHeartFeedback} />;
                     case 'json':
                         return <JsonConfig config={config} fetchConfig={fetchConfig} showToast={showToast} withHeartFeedback={withHeartFeedback} />;
                     case 'status':
@@ -1888,7 +1930,7 @@
                     case 'logs':
                         return <LogsPage showToast={showToast} />;
                     case 'queue':
-                        return <QueuePage showToast={showToast} />;
+                        return <QueuePage showToast={showToast} withHeartFeedback={withHeartFeedback} />;
                     default:
                         return <VisualConfig config={config} setConfig={setConfig} loading={loading} showToast={showToast} />;
                 }
