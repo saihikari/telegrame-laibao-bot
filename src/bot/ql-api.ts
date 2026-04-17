@@ -143,6 +143,21 @@ export class QLApi {
         throw new Error("商户充值录入失败: " + JSON.stringify(data));
     }
 
+    async getReportLink(storeId: number): Promise<string | null> {
+        // TODO: 需要明确真实的 QL API URL 和字段名
+        // 目前暂时写一个模拟返回，待确认接口后修改
+        console.log(`[QL API] Fetching report link for storeId: ${storeId}`);
+        // 假设接口是 GET /api/store/getReportLink?storeId=xxx
+        // const data = await this.qlFetch(`/api/store/getReportLink?storeId=${storeId}`, { method: 'GET' });
+        // if (data.code === 100 && data.info?.data) {
+        //     return data.info.data;
+        // }
+        // return null;
+        
+        // --- 临时 fallback：如果有已知的 Google Sheet 链接，就直接用 ---
+        return null;
+    }
+
     private cachedRecentStores: { names: string[], expireAt: number } | null = null;
 
     async getRecentStoreNames(limit: number = 4): Promise<string[]> {

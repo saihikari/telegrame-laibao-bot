@@ -1,5 +1,5 @@
 import TelegramBot from 'node-telegram-bot-api';
-import { getConfig } from './config-loader';
+import { getConfig, saveConfig } from './config-loader';
 import { processMessage } from './rule-engine';
 import { ParsedData } from '../types/config.types';
 import { processAndWriteToQL, ParsedRecord } from './ql-writer';
@@ -383,6 +383,15 @@ export const startBot = async () => {
     const msg = query.message;
     if (!msg) return;
 
+    if (data === 'charge_cancel_report') {
+      bot.editMessageText('✅ 好的，已结束本次充值录入。', {
+        chat_id: msg.chat.id,
+        message_id: msg.message_id
+      });
+      bot.answerCallbackQuery(query.id);
+      return;
+    }
+
     if (data === 'charge_cancel') {
       const sessionKey = `${msg.chat.id}_${query.from.id}`;
       chargeSessions.delete(sessionKey);
@@ -509,6 +518,40 @@ export const startBot = async () => {
           });
           
           chargeSessions.delete(sessionKey);
+
+          // After charge is saved:
+          // 1. Auto-add to config if missing
+          const currentConfig = getConfig();
+          const existingCustomer = currentConfig.customers.find(c => c.name === targetStore.storeName);
+          if (!existingCustomer) {
+            currentConfig.customers.push({
+              name: targetStore.storeName,
+              priority: currentConfig.customers.length + 1,
+              match_keywords: [targetStore.storeName],
+              exclude_keywords: [],
+              rules: {}
+            });
+            saveConfig(currentConfig);
+            bot.sendMessage(msg.chat.id, `ℹ️ 提示：商户【${targetStore.storeName}】已自动添加到路由配置中。`);
+          }
+
+          // 2. Fetch daily report link and ask to open
+          try {
+            const reportUrl = await qlApi.getReportLink(targetStore.storeId);
+            if (reportUrl) {
+              bot.sendMessage(msg.chat.id, '✅ 充值录入成功！是否需要顺便录入日报？', {
+                reply_markup: {
+                  inline_keyboard: [[
+                    { text: '📝 录入日报 (打开网页)', url: reportUrl },
+                    { text: '❌ 暂不需要', callback_data: 'charge_cancel_report' }
+                  ]]
+                }
+              });
+            }
+          } catch (reportErr) {
+            console.error("[Report Link Error]", reportErr);
+          }
+
         } catch (err: any) {
           bot.editMessageText(`❌ QL充值录入失败！\n原因：${err.message}`, {
             chat_id: msg.chat.id,
