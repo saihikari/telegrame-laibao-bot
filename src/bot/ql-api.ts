@@ -90,6 +90,45 @@ export class QLApi {
         }
         throw new Error("添加 Offer 失败: " + JSON.stringify(data));
     }
+
+    private cachedRecentStores: { names: string[], expireAt: number } | null = null;
+
+    async getRecentStoreNames(limit: number = 4): Promise<string[]> {
+        // Use memory cache for 60 seconds to avoid hitting QL API frequently during fast typing or tab switching
+        if (this.cachedRecentStores && Date.now() < this.cachedRecentStores.expireAt) {
+            return this.cachedRecentStores.names;
+        }
+
+        // Fetch 30 rows instead of 100 to drastically reduce QL API response time (tested: ~1.5s vs ~6s)
+        const data = await this.qlFetch(`/api/offer/listOffer?pageNum=1&pageRow=30&productType=1`, { method: 'GET' });
+        if (data.code === 100) {
+            const records = data.info?.data || [];
+            
+            // Sort by updatedAt descending just to be absolutely sure
+            records.sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+            // Extract unique storeNames maintaining order
+            const uniqueStoreNames: string[] = [];
+            const seen = new Set<string>();
+
+            for (const record of records) {
+                const sName = record.storeName;
+                if (sName && !seen.has(sName)) {
+                    seen.add(sName);
+                    uniqueStoreNames.push(sName);
+                    if (uniqueStoreNames.length >= limit) break;
+                }
+            }
+
+            this.cachedRecentStores = {
+                names: uniqueStoreNames,
+                expireAt: Date.now() + 60000 // cache for 60 seconds
+            };
+
+            return uniqueStoreNames;
+        }
+        return [];
+    }
 }
 
 export const qlApi = new QLApi();

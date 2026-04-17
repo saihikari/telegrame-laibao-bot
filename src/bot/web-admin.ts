@@ -1,10 +1,10 @@
 import express from 'express';
 import { getConfig, saveConfig, backupConfig, getLastModified, getBackupCount, listBackups, restoreBackup } from './config-loader';
-import { qlApi } from './ql-api';
-import { readQueue, removeFromQueue, updateQueueItem } from './queue-log';
-import { processAndWriteToQL } from './ql-writer';
-import { processMessage } from './rule-engine';
 import { getBotInstance } from './telegram-bot';
+import { processMessage } from './rule-engine';
+import { readQueue, updateQueueItem, removeFromQueue } from './queue-log';
+import { processAndWriteToQL } from './ql-writer';
+import { qlApi } from './ql-api';
 import { readRecordLogs } from './record-log';
 import bodyParser from 'body-parser';
 
@@ -461,6 +461,15 @@ app.get('/api/queue', requireAuth, (req, res) => {
     const limit = parseInt(req.query.limit as string) || 100;
     const items = readQueue().slice(0, limit);
     res.json({ success: true, data: items });
+});
+
+app.get('/api/recent-stores', requireAuth, async (req, res) => {
+    try {
+        const storeNames = await qlApi.getRecentStoreNames(4);
+        res.json({ success: true, data: storeNames });
+    } catch (e: any) {
+        res.status(500).json({ success: false, error: e.message });
+    }
 });
 
 app.post('/api/queue/retry', requireAuth, async (req, res) => {

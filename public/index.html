@@ -341,6 +341,25 @@
         const [isDirty, setIsDirty] = useState(false);
         const [saveSuccess, setSaveSuccess] = useState(false);
         const [pendingSwitchIndex, setPendingSwitchIndex] = useState(null);
+        const [recentStores, setRecentStores] = useState([]);
+        const [showRecentStores, setShowRecentStores] = useState(false);
+
+        // Fetch recent stores for smart autocomplete
+        useEffect(() => {
+            const fetchRecentStores = async () => {
+                try {
+                    const res = await fetch('/api/recent-stores');
+                    if (res.status === 401) return;
+                    const json = await res.json();
+                    if (json.success && json.data) {
+                        setRecentStores(json.data);
+                    }
+                } catch (e) {
+                    console.error('Failed to fetch recent stores:', e);
+                }
+            };
+            fetchRecentStores();
+        }, []);
 
         const handleConfigChange = (updates) => {
             setIsDirty(true);
@@ -663,14 +682,42 @@
                                             基础设置
                                         </h2>
                                         <div className="space-y-3 md:space-y-4">
-                                            <div>
+                                            <div className="relative">
                                                 <label className="block text-xs md:text-sm font-medium text-tg-hint mb-1">客户名称</label>
                                                 <input 
                                                     type="text" 
                                                     value={activeCustomer.name} 
+                                                    onFocus={() => setShowRecentStores(true)}
+                                                    onBlur={() => setTimeout(() => setShowRecentStores(false), 200)}
                                                     onChange={(e) => handleConfigChange({ name: e.target.value })}
                                                     className="w-full px-2.5 py-1.5 md:px-3 md:py-2 border border-tg-hint/20 rounded-xl focus:outline-none focus:ring-1 focus:ring-[rgb(var(--primary))] focus:border-[rgb(var(--primary))] text-sm bg-tg-secondary_bg/50 text-tg-text"
                                                 />
+                                                {/* 奶油心灵感应智能提示 */}
+                                                {showRecentStores && recentStores.length > 0 && (
+                                                    <div className="mt-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                                                        <div className="flex items-center gap-1.5 mb-1.5 text-xs text-[rgb(var(--primary))] opacity-80">
+                                                            <Icon name="sparkles" size={12} />
+                                                            <span>奶油通过心灵感应猜你想录入：</span>
+                                                        </div>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {recentStores.map((store, idx) => (
+                                                                <button
+                                                                    key={idx}
+                                                                    onMouseDown={(e) => {
+                                                                        e.preventDefault(); // 防止失去焦点
+                                                                        handleConfigChange({ name: store });
+                                                                        setShowRecentStores(false);
+                                                                        if (showToast) showToast('已填充客户名称', 'success');
+                                                                    }}
+                                                                    className="group flex items-center gap-1.5 px-3 py-1.5 bg-[rgba(var(--primary),0.08)] hover:bg-[rgba(var(--primary),0.15)] border border-[rgba(var(--primary),0.15)] hover:border-[rgba(var(--primary),0.3)] rounded-full transition-all cursor-pointer"
+                                                                >
+                                                                    <span className="text-xs font-medium text-tg-text">{store}</span>
+                                                                    <Icon name="heart" size={12} className="text-[rgb(var(--primary))] opacity-40 group-hover:opacity-100 group-hover:fill-current transition-all" />
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                             <div>
                                                 <label className="block text-xs md:text-sm font-medium text-tg-hint mb-1">匹配关键词</label>
