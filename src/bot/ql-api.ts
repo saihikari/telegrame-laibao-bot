@@ -86,6 +86,9 @@ export class QLApi {
         });
 
         if (data.code === 100) {
+            // 主动使缓存失效：只要机器人成功录入了一条新包，立刻清空缓存
+            // 这样下一个用户点击输入框时，必定能拉取到刚刚录入的最热乎的 storeName
+            this.cachedRecentStores = null;
             return data;
         }
         throw new Error("添加 Offer 失败: " + JSON.stringify(data));
@@ -94,17 +97,17 @@ export class QLApi {
     private cachedRecentStores: { names: string[], expireAt: number } | null = null;
 
     async getRecentStoreNames(limit: number = 4): Promise<string[]> {
-        // Use memory cache for 60 seconds to avoid hitting QL API frequently during fast typing or tab switching
+        // Use memory cache for 15 seconds (reduced from 60s for higher real-time accuracy)
         if (this.cachedRecentStores && Date.now() < this.cachedRecentStores.expireAt) {
             return this.cachedRecentStores.names;
         }
 
-        // Fetch 30 rows instead of 100 to drastically reduce QL API response time (tested: ~1.5s vs ~6s)
+        // Fetch 30 rows instead of 100 to drastically reduce QL API response time
         const data = await this.qlFetch(`/api/offer/listOffer?pageNum=1&pageRow=30&productType=1`, { method: 'GET' });
         if (data.code === 100) {
             const records = data.info?.data || [];
             
-            // Sort by updatedAt descending just to be absolutely sure
+            // Sort by updatedAt descending
             records.sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
             // Extract unique storeNames maintaining order
@@ -122,7 +125,7 @@ export class QLApi {
 
             this.cachedRecentStores = {
                 names: uniqueStoreNames,
-                expireAt: Date.now() + 60000 // cache for 60 seconds
+                expireAt: Date.now() + 15000 // cache for 15 seconds
             };
 
             return uniqueStoreNames;

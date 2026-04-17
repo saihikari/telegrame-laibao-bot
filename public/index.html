@@ -345,19 +345,20 @@
         const [showRecentStores, setShowRecentStores] = useState(false);
 
         // Fetch recent stores for smart autocomplete
-        useEffect(() => {
-            const fetchRecentStores = async () => {
-                try {
-                    const res = await fetch('/api/recent-stores');
-                    if (res.status === 401) return;
-                    const json = await res.json();
-                    if (json.success && json.data) {
-                        setRecentStores(json.data);
-                    }
-                } catch (e) {
-                    console.error('Failed to fetch recent stores:', e);
+        const fetchRecentStores = async () => {
+            try {
+                const res = await fetch('/api/recent-stores');
+                if (res.status === 401) return;
+                const json = await res.json();
+                if (json.success && json.data) {
+                    setRecentStores(json.data);
                 }
-            };
+            } catch (e) {
+                console.error('Failed to fetch recent stores:', e);
+            }
+        };
+
+        useEffect(() => {
             fetchRecentStores();
         }, []);
 
@@ -687,7 +688,10 @@
                                                 <input 
                                                     type="text" 
                                                     value={activeCustomer.name} 
-                                                    onFocus={() => setShowRecentStores(true)}
+                                                    onFocus={() => {
+                                                        setShowRecentStores(true);
+                                                        fetchRecentStores(); // 悄悄拉取最新数据，防止长时间停留页面导致缓存过期
+                                                    }}
                                                     onBlur={() => setTimeout(() => setShowRecentStores(false), 200)}
                                                     onChange={(e) => handleConfigChange({ name: e.target.value })}
                                                     className="w-full px-2.5 py-1.5 md:px-3 md:py-2 border border-tg-hint/20 rounded-xl focus:outline-none focus:ring-1 focus:ring-[rgb(var(--primary))] focus:border-[rgb(var(--primary))] text-sm bg-tg-secondary_bg/50 text-tg-text"
