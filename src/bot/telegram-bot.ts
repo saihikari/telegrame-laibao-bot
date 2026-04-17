@@ -153,15 +153,21 @@ export const startBot = async () => {
 
   bot.onText(/商户充值/, (msg) => {
     const config = getConfig();
-    const customers = config.customers.map(c => c.name);
-    
-    // Create inline keyboard: first button is "手动输入"
+    const collator = new Intl.Collator('en', { numeric: true, sensitivity: 'base' });
+    const customers = config.customers
+      .map(c => (c.name || '').trim())
+      .filter(Boolean)
+      .sort((a, b) => {
+        const aDigit = /^\d/.test(a);
+        const bDigit = /^\d/.test(b);
+        if (aDigit !== bDigit) return aDigit ? 1 : -1;
+        return collator.compare(a, b);
+      });
+
     const keyboard: any[][] = [[{ text: '手动输入', callback_data: `charge_store:MANUAL` }]];
-    
-    // Add other customers, 2 per row
+
     let currentRow: any[] = [];
     for (const c of customers) {
-      // truncate long names to keep keyboard neat
       const shortName = c.length > 15 ? c.substring(0, 13) + '..' : c;
       currentRow.push({ text: shortName, callback_data: `charge_store:${c}` });
       if (currentRow.length === 2) {
