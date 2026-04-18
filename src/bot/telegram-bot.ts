@@ -538,26 +538,38 @@ export const startBot = async () => {
 
           // 2. Fetch daily report link and ask to open
           try {
-            const reportUrl = await qlApi.getReportLink(targetStore.storeId);
+            let reportUrl = await qlApi.getReportLink(targetStore.storeId);
             if (reportUrl) {
-              bot.sendMessage(msg.chat.id, '✅ 充值录入成功！是否需要顺便录入日报？', {
-                reply_markup: {
-                  inline_keyboard: [
-                    [
-                      { text: '内置打开', web_app: { url: reportUrl } },
-                      { text: '浏览器打开', url: reportUrl }
-                    ],
-                    [
-                      { text: '暂不需要', callback_data: 'charge_cancel_report' }
+              // Clean the URL just in case there are markdown backticks or quotes from the DB
+              reportUrl = reportUrl.replace(/[`'"]/g, '').trim();
+              if (!reportUrl.startsWith('http')) {
+                reportUrl = 'https://' + reportUrl;
+              }
+
+              try {
+                await bot.sendMessage(msg.chat.id, '✅ 充值录入成功！是否需要顺便录入日报？', {
+                  reply_markup: {
+                    inline_keyboard: [
+                      [
+                        { text: '内置打开', web_app: { url: reportUrl } },
+                        { text: '浏览器打开', url: reportUrl }
+                      ],
+                      [
+                        { text: '暂不需要', callback_data: 'charge_cancel_report' }
+                      ]
                     ]
-                  ]
-                }
-              });
+                  }
+                });
+              } catch (sendErr: any) {
+                console.error("[Telegram Send Error]", sendErr);
+                bot.sendMessage(msg.chat.id, `⚠️ 找到了日报链接，但 Telegram 拒绝了发送（可能链接格式不被支持）：\n${reportUrl}`);
+              }
             } else {
               bot.sendMessage(msg.chat.id, 'ℹ️ QL系统未配置该商户的日报链接。');
             }
-          } catch (reportErr) {
+          } catch (reportErr: any) {
             console.error("[Report Link Error]", reportErr);
+            bot.sendMessage(msg.chat.id, `⚠️ 获取日报链接出错：${reportErr.message}`);
           }
 
         } catch (err: any) {
