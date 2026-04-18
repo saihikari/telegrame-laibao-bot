@@ -548,6 +548,8 @@ export const startBot = async () => {
                   ]]
                 }
               });
+            } else {
+              bot.sendMessage(msg.chat.id, 'ℹ️ QL系统未配置该商户的日报链接。');
             }
           } catch (reportErr) {
             console.error("[Report Link Error]", reportErr);
