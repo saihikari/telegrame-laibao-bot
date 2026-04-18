@@ -273,7 +273,7 @@ export const startBot = async () => {
       } else {
         // New flow: User sends photo directly, trigger auto charge prompt
         const keyboard = getStoreKeyboard();
-        keyboard.push([{ text: '❌ 暂不需要', callback_data: `charge_cancel` }]);
+        keyboard.push([{ text: '暂不需要', callback_data: `charge_cancel` }]);
         
         chargeSessions.set(sessionKey, {
           step: 'WAIT_STORE_SELECTION',
@@ -542,8 +542,8 @@ export const startBot = async () => {
               bot.sendMessage(msg.chat.id, '✅ 充值录入成功！是否需要顺便录入日报？', {
                 reply_markup: {
                   inline_keyboard: [[
-                    { text: '📝 录入日报 (打开网页)', url: reportUrl },
-                    { text: '❌ 暂不需要', callback_data: 'charge_cancel_report' }
+                    { text: '录入日报 (打开网页)', url: reportUrl },
+                    { text: '暂不需要', callback_data: 'charge_cancel_report' }
                   ]]
                 }
               });
