@@ -251,6 +251,7 @@ export const startBot = async () => {
 
   bot.onText(/商户充值/, (msg) => {
     const keyboard = getStoreKeyboard();
+    keyboard.push([{ text: '暂不需要', callback_data: `charge_cancel` }]);
     bot.sendMessage(msg.chat.id, '请选择充值商户：', {
       reply_markup: {
         inline_keyboard: keyboard
