@@ -542,10 +542,15 @@ export const startBot = async () => {
             if (reportUrl) {
               bot.sendMessage(msg.chat.id, '✅ 充值录入成功！是否需要顺便录入日报？', {
                 reply_markup: {
-                  inline_keyboard: [[
-                    { text: '录入日报 (内置网页)', web_app: { url: reportUrl } },
-                    { text: '暂不需要', callback_data: 'charge_cancel_report' }
-                  ]]
+                  inline_keyboard: [
+                    [
+                      { text: '内置打开', web_app: { url: reportUrl } },
+                      { text: '浏览器打开', url: reportUrl }
+                    ],
+                    [
+                      { text: '暂不需要', callback_data: 'charge_cancel_report' }
+                    ]
+                  ]
                 }
               });
             } else {
