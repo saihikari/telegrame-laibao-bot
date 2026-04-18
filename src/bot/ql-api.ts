@@ -150,6 +150,7 @@ export class QLApi {
             if (data.code === 100 && data.info?.data?.length > 0) {
                 const storeInfo = data.info.data[0];
                 // Check common URL fields for Google Sheets link
+                if (storeInfo.outReportUrl) return storeInfo.outReportUrl;
                 if (storeInfo.tableUrl) return storeInfo.tableUrl;
                 if (storeInfo.reportUrl) return storeInfo.reportUrl;
                 if (storeInfo.sheetUrl) return storeInfo.sheetUrl;
