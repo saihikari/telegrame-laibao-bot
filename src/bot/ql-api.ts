@@ -155,6 +155,19 @@ export class QLApi {
                 if (storeInfo.sheetUrl) return storeInfo.sheetUrl;
                 if (storeInfo.link) return storeInfo.link;
                 if (storeInfo.url) return storeInfo.url;
+                
+                // fallback: let's see what keys are there for debugging
+                console.log(`[QL API] Store ${storeId} keys:`, Object.keys(storeInfo).join(', '));
+                // Try to find any key containing 'url' or 'link'
+                const fallbackKey = Object.keys(storeInfo).find(k => 
+                    (k.toLowerCase().includes('url') || k.toLowerCase().includes('link')) 
+                    && typeof storeInfo[k] === 'string' 
+                    && storeInfo[k].startsWith('http')
+                );
+                if (fallbackKey) {
+                    console.log(`[QL API] Found fallback URL field: ${fallbackKey}`);
+                    return storeInfo[fallbackKey];
+                }
             }
         } catch (e) {
             console.error(`[QL API] Error fetching report link:`, e);
