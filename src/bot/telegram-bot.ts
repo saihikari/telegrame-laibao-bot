@@ -545,14 +545,21 @@ export const startBot = async () => {
               if (!reportUrl.startsWith('http')) {
                 reportUrl = 'https://' + reportUrl;
               }
+              
+              // Ensure it's a valid, clean HTTPS URL for Telegram
+              try {
+                const parsedUrl = new URL(reportUrl);
+                reportUrl = parsedUrl.toString();
+              } catch (e) {
+                console.warn("[Report URL] Could not parse URL properly:", reportUrl);
+              }
 
               try {
                 await bot.sendMessage(msg.chat.id, '✅ 充值录入成功！是否需要顺便录入日报？', {
                   reply_markup: {
                     inline_keyboard: [
                       [
-                        { text: '内置打开', web_app: { url: reportUrl } },
-                        { text: '浏览器打开', url: reportUrl }
+                        { text: '打开日报', url: reportUrl }
                       ],
                       [
                         { text: '暂不需要', callback_data: 'charge_cancel_report' }
