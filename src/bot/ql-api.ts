@@ -144,17 +144,22 @@ export class QLApi {
     }
 
     async getReportLink(storeId: number): Promise<string | null> {
-        // TODO: 需要明确真实的 QL API URL 和字段名
-        // 目前暂时写一个模拟返回，待确认接口后修改
         console.log(`[QL API] Fetching report link for storeId: ${storeId}`);
-        // 假设接口是 GET /api/store/getReportLink?storeId=xxx
-        // const data = await this.qlFetch(`/api/store/getReportLink?storeId=${storeId}`, { method: 'GET' });
-        // if (data.code === 100 && data.info?.data) {
-        //     return data.info.data;
-        // }
-        // return null;
+        try {
+            const data = await this.qlFetch(`/api/store/listStore?pageNum=1&pageRow=20&storeId=${storeId}&showMoney=1`, { method: 'GET' });
+            if (data.code === 100 && data.info?.data?.length > 0) {
+                const storeInfo = data.info.data[0];
+                // Check common URL fields for Google Sheets link
+                if (storeInfo.tableUrl) return storeInfo.tableUrl;
+                if (storeInfo.reportUrl) return storeInfo.reportUrl;
+                if (storeInfo.sheetUrl) return storeInfo.sheetUrl;
+                if (storeInfo.link) return storeInfo.link;
+                if (storeInfo.url) return storeInfo.url;
+            }
+        } catch (e) {
+            console.error(`[QL API] Error fetching report link:`, e);
+        }
         
-        // --- 临时 fallback：如果有已知的 Google Sheet 链接，就直接用 ---
         return null;
     }
 
