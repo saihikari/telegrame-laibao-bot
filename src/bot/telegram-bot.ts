@@ -263,17 +263,17 @@ export const startBot = async () => {
     });
   });
 
-  bot.onText(/消耗报告/, (msg) => {
-    const keyboard = getStoreKeyboard('report_store');
-    // Prepend the "Select All" button
-    keyboard.unshift([{ text: '选择全部', callback_data: `report_store:ALL` }]);
-    keyboard.push([{ text: '暂不需要', callback_data: `report_cancel` }]);
-    bot.sendMessage(msg.chat.id, '请选择需要获取消耗报告的商户商户：', {
-      reply_markup: {
-        inline_keyboard: keyboard
-      }
-    });
-  });
+  // bot.onText(/消耗报告/, (msg) => {
+  //   const keyboard = getStoreKeyboard('report_store');
+  //   // Prepend the "Select All" button
+  //   keyboard.unshift([{ text: '选择全部', callback_data: `report_store:ALL` }]);
+  //   keyboard.push([{ text: '暂不需要', callback_data: `report_cancel` }]);
+  //   bot.sendMessage(msg.chat.id, '请选择需要获取消耗报告的商户商户：', {
+  //     reply_markup: {
+  //       inline_keyboard: keyboard
+  //     }
+  //   });
+  // });
 
   bot.on('message', async (msg) => {
     const sessionKey = `${msg.chat.id}_${msg.from?.id}`;
@@ -350,7 +350,8 @@ export const startBot = async () => {
 
     // 首先拦截指令，不要把它们当作常规消息去清洗
     if (!msg.text || msg.text.startsWith('/')) return;
-    if (msg.text.includes('商户充值') || msg.text.includes('消耗报告')) return; // handled by onText
+    if (msg.text.includes('商户充值')) return; // handled by onText
+    // if (msg.text.includes('消耗报告')) return; // handled by onText
 
     const config = getConfig();
     const results = processMessage(msg.text, config);
@@ -430,79 +431,79 @@ export const startBot = async () => {
       return;
     }
 
-    if (data?.startsWith('report_store:')) {
-      const storeName = data.split('report_store:')[1];
-      bot.editMessageText(`正在获取【${storeName === 'ALL' ? '全部商户' : storeName}】的消耗数据，请稍候...`, {
-        chat_id: msg.chat.id,
-        message_id: msg.message_id
-      });
+    // if (data?.startsWith('report_store:')) {
+    //   const storeName = data.split('report_store:')[1];
+    //   bot.editMessageText(`正在获取【${storeName === 'ALL' ? '全部商户' : storeName}】的消耗数据，请稍候...`, {
+    //     chat_id: msg.chat.id,
+    //     message_id: msg.message_id
+    //   });
 
-      try {
-        // Fetch report data
-        const records = await qlApi.listSumShow(579, storeName === 'ALL' ? undefined : storeName);
+    //   try {
+    //     // Fetch report data
+    //     const records = await qlApi.listSumShow(579, storeName === 'ALL' ? undefined : storeName);
         
-        // Filter for yesterday's logDate
-        const yesterday = new Date(Date.now() - 86400000);
-        const yyyy = yesterday.getFullYear();
-        const mm = String(yesterday.getMonth() + 1).padStart(2, '0');
-        const dd = String(yesterday.getDate()).padStart(2, '0');
-        const targetDate = `${yyyy}-${mm}-${dd}`;
+    //     // Filter for yesterday's logDate
+    //     const yesterday = new Date(Date.now() - 86400000);
+    //     const yyyy = yesterday.getFullYear();
+    //     const mm = String(yesterday.getMonth() + 1).padStart(2, '0');
+    //     const dd = String(yesterday.getDate()).padStart(2, '0');
+    //     const targetDate = `${yyyy}-${mm}-${dd}`;
         
-        let filteredRecords = records.filter((r: any) => {
-          if (r.logDate && r.logDate.startsWith(targetDate)) return true;
-          // If the API returns logDate without time, or different format, adjust here.
-          // Sometimes it might just be the exact string.
-          if (r.logDate === targetDate) return true;
-          return false;
-        });
+    //     let filteredRecords = records.filter((r: any) => {
+    //       if (r.logDate && r.logDate.startsWith(targetDate)) return true;
+    //       // If the API returns logDate without time, or different format, adjust here.
+    //       // Sometimes it might just be the exact string.
+    //       if (r.logDate === targetDate) return true;
+    //       return false;
+    //     });
 
-        if (filteredRecords.length === 0) {
-          bot.sendMessage(msg.chat.id, `【${storeName === 'ALL' ? '全部商户' : storeName}】在 ${targetDate} (昨日) 没有更新的消耗数据。`);
-          bot.answerCallbackQuery(query.id);
-          return;
-        }
+    //     if (filteredRecords.length === 0) {
+    //       bot.sendMessage(msg.chat.id, `【${storeName === 'ALL' ? '全部商户' : storeName}】在 ${targetDate} (昨日) 没有更新的消耗数据。`);
+    //       bot.answerCallbackQuery(query.id);
+    //       return;
+    //     }
 
-        // Sorting: Store Name (Ascending), Product Number (Ascending)
-        filteredRecords.sort((a: any, b: any) => {
-          const sNameA = a.storeName || '';
-          const sNameB = b.storeName || '';
-          if (sNameA !== sNameB) return sNameA.localeCompare(sNameB);
+    //     // Sorting: Store Name (Ascending), Product Number (Ascending)
+    //     filteredRecords.sort((a: any, b: any) => {
+    //       const sNameA = a.storeName || '';
+    //       const sNameB = b.storeName || '';
+    //       if (sNameA !== sNameB) return sNameA.localeCompare(sNameB);
           
-          const pNumA = a.bianHao || a.productNo || a.offerNo || a.id || '';
-          const pNumB = b.bianHao || b.productNo || b.offerNo || b.id || '';
-          return pNumA.toString().localeCompare(pNumB.toString());
-        });
+    //       const pNumA = a.bianHao || a.productNo || a.offerNo || a.id || '';
+    //       const pNumB = b.bianHao || b.productNo || b.offerNo || b.id || '';
+    //       return pNumA.toString().localeCompare(pNumB.toString());
+    //     });
 
-        // Grouping and formatting
-        let resultText = "【商户名称】\t【产品编号】\t【产品名称】\t【消耗量（USD）】\t【点击量】\t【展示量】\n";
-        let lastStoreName = "";
+    //     // Grouping and formatting
+    //     let resultText = "【商户名称】\t【产品编号】\t【产品名称】\t【消耗量（USD）】\t【点击量】\t【展示量】\n";
+    //     let lastStoreName = "";
 
-        for (const r of filteredRecords) {
-          const currentStoreName = r.storeName || '';
-          if (lastStoreName && currentStoreName !== lastStoreName) {
-            resultText += "\n"; // Blank line between different stores
-          }
-          lastStoreName = currentStoreName;
+    //     for (const r of filteredRecords) {
+    //       const currentStoreName = r.storeName || '';
+    //       if (lastStoreName && currentStoreName !== lastStoreName) {
+    //         resultText += "\n"; // Blank line between different stores
+    //       }
+    //       lastStoreName = currentStoreName;
 
-          // Mapping fields (using common QL variable names based on previous APIs)
-          const pName = r.productName || r.offerName || r.product || '';
-          const pNum = r.bianHao || r.productNo || r.offerNo || r.id || '';
-          const consume = r.consumeAmount || r.cost || r.consume || r.spend || '0';
-          const clicks = r.clicks || r.clickCount || r.click || '0';
-          const shows = r.shows || r.showCount || r.impressions || '0';
+    //       // Mapping fields (using common QL variable names based on previous APIs)
+    //       const pName = r.productName || r.offerName || r.product || '';
+    //       const pNum = r.bianHao || r.productNo || r.offerNo || r.id || '';
+    //       const consume = r.consumeAmount || r.cost || r.consume || r.spend || '0';
+    //       const clicks = r.clicks || r.clickCount || r.click || '0';
+    //       const shows = r.shows || r.showCount || r.impressions || '0';
 
-          resultText += `${currentStoreName}\t${pNum}\t${pName}\t${consume}\t${clicks}\t${shows}\n`;
-        }
+    //       resultText += `${currentStoreName}\t${pNum}\t${pName}\t${consume}\t${clicks}\t${shows}\n`;
+    //     }
 
-        bot.sendMessage(msg.chat.id, resultText);
+    //     bot.sendMessage(msg.chat.id, resultText);
 
-      } catch (err: any) {
-        console.error("[Report Error]", err);
-        bot.sendMessage(msg.chat.id, `获取消耗报告失败: ${err.message}`);
-      }
-      bot.answerCallbackQuery(query.id);
-      return;
-    }
+    //   } catch (err: any) {
+    //     console.error("[Report Error]", err);
+    //     bot.sendMessage(msg.chat.id, `获取消耗报告失败: ${err.message}`);
+    //   }
+    //   bot.answerCallbackQuery(query.id);
+    //   return;
+    // }
 
     // Handle interactive charge flow callbacks
     if (data?.startsWith('charge_store:')) {
