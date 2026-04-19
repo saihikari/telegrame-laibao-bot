@@ -6,11 +6,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.startWebServer = void 0;
 const express_1 = __importDefault(require("express"));
 const config_loader_1 = require("./config-loader");
-const ql_api_1 = require("./ql-api");
+const telegram_bot_1 = require("./telegram-bot");
+const rule_engine_1 = require("./rule-engine");
 const queue_log_1 = require("./queue-log");
 const ql_writer_1 = require("./ql-writer");
-const rule_engine_1 = require("./rule-engine");
-const telegram_bot_1 = require("./telegram-bot");
+const ql_api_1 = require("./ql-api");
 const record_log_1 = require("./record-log");
 const body_parser_1 = __importDefault(require("body-parser"));
 const path_1 = __importDefault(require("path"));
@@ -447,6 +447,15 @@ app.get('/api/queue', requireAuth, (req, res) => {
     const limit = parseInt(req.query.limit) || 100;
     const items = (0, queue_log_1.readQueue)().slice(0, limit);
     res.json({ success: true, data: items });
+});
+app.get('/api/recent-stores', requireAuth, async (req, res) => {
+    try {
+        const storeNames = await ql_api_1.qlApi.getRecentStoreNames(4);
+        res.json({ success: true, data: storeNames });
+    }
+    catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
 });
 app.post('/api/queue/retry', requireAuth, async (req, res) => {
     const { id } = req.body;
