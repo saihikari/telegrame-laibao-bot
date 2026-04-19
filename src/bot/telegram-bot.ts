@@ -350,7 +350,7 @@ export const startBot = async () => {
 
     // 首先拦截指令，不要把它们当作常规消息去清洗
     if (!msg.text || msg.text.startsWith('/')) return;
-    if (msg.text.includes('商户充值')) return; // handled by onText
+    if (msg.text.includes('商户充值') || msg.text.includes('消耗报告')) return; // handled by onText
 
     const config = getConfig();
     const results = processMessage(msg.text, config);
