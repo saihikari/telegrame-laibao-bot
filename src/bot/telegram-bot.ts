@@ -357,8 +357,10 @@ export const startBot = async () => {
 
     if (results.length > 0) {
       // Send initial cleaning notification to the same chat where the message was received
+      let cleaningMsgId: number | undefined;
       try {
-        await bot.sendMessage(msg.chat.id, '⚠️ 来包信息清洗中', { reply_to_message_id: msg.message_id });
+        const cleaningMsg = await bot.sendMessage(msg.chat.id, '⚠️ 来包信息清洗中', { reply_to_message_id: msg.message_id });
+        cleaningMsgId = cleaningMsg.message_id;
       } catch (err) {
         console.error(`[Bot] Failed to send cleaning message to ${msg.chat.id}:`, err);
       }
@@ -372,6 +374,14 @@ export const startBot = async () => {
         }
         if (idx < results.length - 1) summaryText += '\n';
       });
+
+      if (cleaningMsgId) {
+        try {
+          await bot.deleteMessage(msg.chat.id, cleaningMsgId);
+        } catch (e) {
+          console.error(`[Bot] Failed to delete cleaning message in ${msg.chat.id}:`, e);
+        }
+      }
 
       // Send the summary with inline keyboard back to the same chat
       try {
