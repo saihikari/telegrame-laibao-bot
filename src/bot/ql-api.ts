@@ -74,6 +74,24 @@ export class QLApi {
         throw new Error(`获取 Offer 列表失败 (storeId: ${storeId}): ` + JSON.stringify(data));
     }
 
+    async listSumShow(managerBId: number, storeName?: string): Promise<any[]> {
+        const params = new URLSearchParams({
+            pageNum: '1',
+            pageRow: '100', // Fetch more rows to ensure we get all data
+            productType: '1',
+            managerBId: managerBId.toString()
+        });
+        if (storeName) {
+            params.append('storeName', storeName);
+        }
+
+        const data = await this.qlFetch(`/api/offer/listSumShow?${params.toString()}`, { method: 'GET' });
+        if (data.code === 100) {
+            return data.info?.data || [];
+        }
+        throw new Error(`获取消耗报告失败: ` + JSON.stringify(data));
+    }
+
     async addOffer(offerObj: any): Promise<any> {
         const payload = {
             jsonStr: JSON.stringify(offerObj)
