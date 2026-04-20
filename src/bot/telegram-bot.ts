@@ -89,6 +89,8 @@ export const startBot = async () => {
   /customer - 列出所有客户名称
   /addmng - 添加管理员
   /delemng - 删除管理员
+  商户充值 - 唤起 OCR 充值截图录入面板
+  昨日消耗 - 导出昨日 QL 系统消耗数据 (CSV)
     `;
     bot.sendMessage(msg.chat.id, helpText, { parse_mode: 'Markdown' });
   });
@@ -106,6 +108,88 @@ export const startBot = async () => {
       text += `- ${c.name}\n`;
     });
     bot.sendMessage(msg.chat.id, text);
+  });
+
+    bot.onText(/昨日消耗/, async (msg) => {
+    const adminIds = getAdminTgIds();
+    if (!adminIds.includes(msg.from?.id.toString() || '')) {
+      await bot.sendMessage(msg.chat.id, '❌ 权限不足：只有管理员才能导出昨日消耗。', { reply_to_message_id: msg.message_id });
+      return;
+    }
+
+    const processingMsg = await bot.sendMessage(msg.chat.id, '⏳ 正在拉取昨日消耗数据并生成 CSV，请稍候...', { reply_to_message_id: msg.message_id });
+
+    const toYyyyMmDd = (d: Date) => {
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    };
+
+    const csvEscape = (v: unknown) => {
+      const s = v === null || v === undefined ? '' : String(v);
+      return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+
+    try {
+      const yesterday = new Date(Date.now() - 86400000);
+      const dateStr = toYyyyMmDd(yesterday);
+
+      const rowsRaw = await qlApi.listSumShowByDateRange({
+        managerBId: 579,
+        startStr: dateStr,
+        endStr: dateStr,
+        pageNum: 1,
+        pageRow: 200,
+        productType: 1
+      });
+
+      const rows = (rowsRaw || [])
+        .filter((r: any) => r && r.storeName && r.productName && r.productName !== '合计')
+        .map((r: any) => ({
+          logDate: dateStr,
+          storeName: r.storeName,
+          productName: r.productName,
+          consume: Number(r.consume ?? r.consumeShow ?? 0),
+          showNum: Number(r.showNum ?? 0),
+          clickNum: Number(r.clickNum ?? 0)
+        }))
+        .sort((a: any, b: any) => {
+          const s = String(a.storeName).localeCompare(String(b.storeName), 'zh-Hans-CN');
+          if (s !== 0) return s;
+          return String(a.productName).localeCompare(String(b.productName), 'zh-Hans-CN');
+        });
+
+      const header = ['logDate', 'storeName', 'productName', 'consume', 'showNum', 'clickNum'];
+      const lines = [header.join(',')];
+      for (const r of rows) {
+        lines.push([
+          csvEscape(r.logDate),
+          csvEscape(r.storeName),
+          csvEscape(r.productName),
+          csvEscape(r.consume),
+          csvEscape(r.showNum),
+          csvEscape(r.clickNum)
+        ].join(','));
+      }
+
+      const csv = lines.join('\n');
+      const filename = '昨日消耗.CSV';
+
+      await bot.sendDocument(
+        msg.chat.id,
+        Buffer.from(csv, 'utf8'),
+        { caption: `昨日消耗 (${dateStr})，共 ${rows.length} 行` },
+        { filename, contentType: 'text/csv' }
+      );
+
+      await bot.deleteMessage(msg.chat.id, processingMsg.message_id).catch(() => undefined);
+    } catch (e: any) {
+      await bot.editMessageText(`❌ 导出失败：${e.message}`, {
+        chat_id: msg.chat.id,
+        message_id: processingMsg.message_id
+      }).catch(() => undefined);
+    }
   });
 
   bot.onText(/^\/addmng(?:\s+(\d+))?$/, (msg, match) => {
@@ -350,6 +434,7 @@ export const startBot = async () => {
 
     // 首先拦截指令，不要把它们当作常规消息去清洗
     if (!msg.text || msg.text.startsWith('/')) return;
+    if (msg.text.includes('昨日消耗')) return;
     if (msg.text.includes('商户充值')) return; // handled by onText
     // if (msg.text.includes('消耗报告')) return; // handled by onText
 

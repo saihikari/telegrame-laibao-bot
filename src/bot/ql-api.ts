@@ -92,6 +92,36 @@ export class QLApi {
         throw new Error(`获取消耗报告失败: ` + JSON.stringify(data));
     }
 
+    
+
+    async listSumShowByDateRange(paramsInput: {
+        managerBId: number;
+        startStr: string;
+        endStr: string;
+        pageNum?: number;
+        pageRow?: number;
+        productType?: number;
+        storeName?: string;
+    }): Promise<any[]> {
+        const params = new URLSearchParams({
+            pageNum: String(paramsInput.pageNum ?? 1),
+            pageRow: String(paramsInput.pageRow ?? 200),
+            startStr: paramsInput.startStr,
+            endStr: paramsInput.endStr,
+            productType: String(paramsInput.productType ?? 1),
+            managerBId: String(paramsInput.managerBId)
+        });
+        if (paramsInput.storeName) {
+            params.append('storeName', paramsInput.storeName);
+        }
+
+        const data = await this.qlFetch(`/api/offer/listSumShow?${params.toString()}`, { method: 'GET' });
+        if (data.code === 100) {
+            return data.info?.data || [];
+        }
+        throw new Error(`获取消耗报告失败: ` + JSON.stringify(data));
+    }
+
     async addOffer(offerObj: any): Promise<any> {
         const payload = {
             jsonStr: JSON.stringify(offerObj)
