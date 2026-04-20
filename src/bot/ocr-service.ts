@@ -37,17 +37,25 @@ export async function recognizeChargeImage(imageBuffer: Buffer): Promise<OCRResu
     // Match common date formats: 2026-04-15, 2026/04/16, 2026年4月15日
     const dateRegex1 = /(20\d{2})[-/](0[1-9]|1[0-2])[-/](0[1-9]|[12]\d|3[01])/;
     const dateRegex2 = /(20\d{2})\s*年\s*([1-9]|1[0-2])\s*月\s*([1-9]|[12]\d|3[01])\s*日/;
-    
+    const dateRegex3 = /(0[1-9]|1[0-2])[-/](0[1-9]|[12]\d|3[01])[-/](20\d{2})/; // MM/DD/YYYY 或 MM-DD-YYYY
+
     let dMatch = text.match(dateRegex1);
     if (dMatch) {
-        payDay = `${dMatch[1]}-${dMatch[2]}-${dMatch[3]}`;
+      payDay = `${dMatch[1]}-${dMatch[2]}-${dMatch[3]}`;
     } else {
-        dMatch = text.match(dateRegex2);
+      dMatch = text.match(dateRegex2);
+      if (dMatch) {
+        const y = dMatch[1];
+        const m = dMatch[2].padStart(2, '0');
+        const d = dMatch[3].padStart(2, '0');
+        payDay = `${y}-${m}-${d}`;
+      } else {
+        dMatch = text.match(dateRegex3);
         if (dMatch) {
-            const m = dMatch[2].padStart(2, '0');
-            const d = dMatch[3].padStart(2, '0');
-            payDay = `${dMatch[1]}-${m}-${d}`;
+          // dMatch[1]是月, dMatch[2]是日, dMatch[3]是年
+          payDay = `${dMatch[3]}-${dMatch[1]}-${dMatch[2]}`;
         }
+      }
     }
 
     // If date not found in text, we'll let the user manually correct or fallback to today
