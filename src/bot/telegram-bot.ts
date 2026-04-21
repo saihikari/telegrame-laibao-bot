@@ -147,6 +147,7 @@ export const startBot = async () => {
       const rows = (rowsRaw || [])
         .filter((r: any) => r && r.storeName && r.productName && r.productName !== '合计')
         .map((r: any) => ({
+          offerID: r.offerId || '', // 提取 offerId，兼容空值
           logDate: dateStr,
           storeName: r.storeName,
           productName: r.productName,
@@ -159,16 +160,19 @@ export const startBot = async () => {
         .sort((a: any, b: any) => {
           const s = String(a.storeName).localeCompare(String(b.storeName), 'zh-Hans-CN');
           if (s !== 0) return s;
-          // 使用 numeric: true 开启自然排序，解决 APK6 跑到 APK55 后面的问题
-          return String(a.productName).localeCompare(String(b.productName), 'zh-Hans-CN', { numeric: true });
+          
+          // 如果 storeName 相同，则按 offerID 升序排序
+          // 使用 numeric: true 防止 "10" 排在 "2" 前面
+          return String(a.offerID).localeCompare(String(b.offerID), 'zh-Hans-CN', { numeric: true });
         });
 
       const header = [
-        'logDate日期', 
-        'storeName商户名称', 
-        'productName产品名称', 
-        'consume消耗', 
-        'showNum展示数', 
+        'offerID',
+        'logDate日期',
+        'storeName商户名称',
+        'productName产品名称',
+        'consume消耗',
+        'showNum展示数',
         'clickNum点击数',
         'registerNum注册数',
         'firstChargeNum首充数'
@@ -176,6 +180,7 @@ export const startBot = async () => {
       const lines = [header.join(',')];
       for (const r of rows) {
         lines.push([
+          csvEscape(r.offerID),
           csvEscape(r.logDate),
           csvEscape(r.storeName),
           csvEscape(r.productName),

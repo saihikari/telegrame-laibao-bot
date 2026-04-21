@@ -75,6 +75,8 @@ const startBot = async () => {
   /customer - 列出所有客户名称
   /addmng - 添加管理员
   /delemng - 删除管理员
+  商户充值 - 唤起 OCR 充值截图录入面板
+  昨日消耗 - 导出昨日 QL 系统消耗数据 (CSV)
     `;
         bot.sendMessage(msg.chat.id, helpText, { parse_mode: 'Markdown' });
     });
@@ -90,6 +92,88 @@ const startBot = async () => {
             text += `- ${c.name}\n`;
         });
         bot.sendMessage(msg.chat.id, text);
+    });
+    bot.onText(/昨日消耗/, async (msg) => {
+        const adminIds = (0, env_editor_1.getAdminTgIds)();
+        if (!adminIds.includes(msg.from?.id.toString() || '')) {
+            await bot.sendMessage(msg.chat.id, '❌ 权限不足：只有管理员才能导出昨日消耗。', { reply_to_message_id: msg.message_id });
+            return;
+        }
+        const processingMsg = await bot.sendMessage(msg.chat.id, '⏳ 正在拉取昨日消耗数据并生成 CSV，请稍候...', { reply_to_message_id: msg.message_id });
+        const toYyyyMmDd = (d) => {
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
+        };
+        const csvEscape = (v) => {
+            const s = v === null || v === undefined ? '' : String(v);
+            return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+        };
+        try {
+            const yesterday = new Date(Date.now() - 86400000);
+            const dateStr = toYyyyMmDd(yesterday);
+            const rowsRaw = await ql_api_1.qlApi.listSumShowByDateRange({
+                managerBId: 579,
+                startStr: dateStr,
+                endStr: dateStr,
+                pageNum: 1,
+                pageRow: 200,
+                productType: 1
+            });
+            const rows = (rowsRaw || [])
+                .filter((r) => r && r.storeName && r.productName && r.productName !== '合计')
+                .map((r) => ({
+                logDate: dateStr,
+                storeName: r.storeName,
+                productName: r.productName,
+                consume: Number(r.consume ?? r.consumeShow ?? 0),
+                showNum: Number(r.showNum ?? 0),
+                clickNum: Number(r.clickNum ?? 0),
+                registerNum: Number(r.registerNum ?? 0),
+                firstChargeNum: Number(r.firstChargeNum ?? 0)
+            }))
+                .sort((a, b) => {
+                const s = String(a.storeName).localeCompare(String(b.storeName), 'zh-Hans-CN');
+                if (s !== 0)
+                    return s;
+                // 使用 numeric: true 开启自然排序，解决 APK6 跑到 APK55 后面的问题
+                return String(a.productName).localeCompare(String(b.productName), 'zh-Hans-CN', { numeric: true });
+            });
+            const header = [
+                'logDate日期',
+                'storeName商户名称',
+                'productName产品名称',
+                'consume消耗',
+                'showNum展示数',
+                'clickNum点击数',
+                'registerNum注册数',
+                'firstChargeNum首充数'
+            ];
+            const lines = [header.join(',')];
+            for (const r of rows) {
+                lines.push([
+                    csvEscape(r.logDate),
+                    csvEscape(r.storeName),
+                    csvEscape(r.productName),
+                    csvEscape(r.consume),
+                    csvEscape(r.showNum),
+                    csvEscape(r.clickNum),
+                    csvEscape(r.registerNum),
+                    csvEscape(r.firstChargeNum)
+                ].join(','));
+            }
+            const csv = lines.join('\n');
+            const filename = '昨日消耗.CSV';
+            await bot.sendDocument(msg.chat.id, Buffer.from(csv, 'utf8'), { caption: `昨日消耗 (${dateStr})，共 ${rows.length} 行` }, { filename, contentType: 'text/csv' });
+            await bot.deleteMessage(msg.chat.id, processingMsg.message_id).catch(() => undefined);
+        }
+        catch (e) {
+            await bot.editMessageText(`❌ 导出失败：${e.message}`, {
+                chat_id: msg.chat.id,
+                message_id: processingMsg.message_id
+            }).catch(() => undefined);
+        }
     });
     bot.onText(/^\/addmng(?:\s+(\d+))?$/, (msg, match) => {
         const adminIds = (0, env_editor_1.getAdminTgIds)();
@@ -129,7 +213,7 @@ const startBot = async () => {
             bot.sendMessage(msg.chat.id, `⚠️ 找不到该管理员: \`${targetId}\``, { parse_mode: 'Markdown' });
         }
     });
-    const getStoreKeyboard = () => {
+    const getStoreKeyboard = (callbackPrefix = 'charge_store') => {
         const config = (0, config_loader_1.getConfig)();
         const textCollator = new Intl.Collator('en', { sensitivity: 'base' });
         const naturalCompare = (a, b) => {
@@ -170,12 +254,16 @@ const startBot = async () => {
                 return aDigit ? 1 : -1;
             return naturalCompare(a, b);
         });
-        const keyboard = [[{ text: '手动输入', callback_data: `charge_store:MANUAL` }]];
+        const keyboard = [];
+        if (callbackPrefix === 'charge_store') {
+            keyboard.push([{ text: '手动输入', callback_data: `charge_store:MANUAL` }]);
+        }
         let currentRow = [];
+        const columns = config.keyboardColumns || 3;
         for (const c of customers) {
             const shortName = c.length > 15 ? c.substring(0, 13) + '..' : c;
-            currentRow.push({ text: shortName, callback_data: `charge_store:${c}` });
-            if (currentRow.length === 3) {
+            currentRow.push({ text: shortName, callback_data: `${callbackPrefix}:${c}` });
+            if (currentRow.length === columns) {
                 keyboard.push(currentRow);
                 currentRow = [];
             }
@@ -231,6 +319,17 @@ const startBot = async () => {
             }
         });
     });
+    // bot.onText(/消耗报告/, (msg) => {
+    //   const keyboard = getStoreKeyboard('report_store');
+    //   // Prepend the "Select All" button
+    //   keyboard.unshift([{ text: '选择全部', callback_data: `report_store:ALL` }]);
+    //   keyboard.push([{ text: '暂不需要', callback_data: `report_cancel` }]);
+    //   bot.sendMessage(msg.chat.id, '请选择需要获取消耗报告的商户商户：', {
+    //     reply_markup: {
+    //       inline_keyboard: keyboard
+    //     }
+    //   });
+    // });
     bot.on('message', async (msg) => {
         const sessionKey = `${msg.chat.id}_${msg.from?.id}`;
         const session = chargeSessions.get(sessionKey);
@@ -299,14 +398,19 @@ const startBot = async () => {
         // 首先拦截指令，不要把它们当作常规消息去清洗
         if (!msg.text || msg.text.startsWith('/'))
             return;
+        if (msg.text.includes('昨日消耗'))
+            return;
         if (msg.text.includes('商户充值'))
             return; // handled by onText
+        // if (msg.text.includes('消耗报告')) return; // handled by onText
         const config = (0, config_loader_1.getConfig)();
         const results = (0, rule_engine_1.processMessage)(msg.text, config);
         if (results.length > 0) {
             // Send initial cleaning notification to the same chat where the message was received
+            let cleaningMsgId;
             try {
-                await bot.sendMessage(msg.chat.id, '⚠️ 来包信息清洗中', { reply_to_message_id: msg.message_id });
+                const cleaningMsg = await bot.sendMessage(msg.chat.id, '⚠️ 来包信息清洗中', { reply_to_message_id: msg.message_id });
+                cleaningMsgId = cleaningMsg.message_id;
             }
             catch (err) {
                 console.error(`[Bot] Failed to send cleaning message to ${msg.chat.id}:`, err);
@@ -321,6 +425,14 @@ const startBot = async () => {
                 if (idx < results.length - 1)
                     summaryText += '\n';
             });
+            if (cleaningMsgId) {
+                try {
+                    await bot.deleteMessage(msg.chat.id, cleaningMsgId);
+                }
+                catch (e) {
+                    console.error(`[Bot] Failed to delete cleaning message in ${msg.chat.id}:`, e);
+                }
+            }
             // Send the summary with inline keyboard back to the same chat
             try {
                 const sentMsg = await bot.sendMessage(msg.chat.id, summaryText, {
@@ -354,16 +466,77 @@ const startBot = async () => {
             bot.answerCallbackQuery(query.id);
             return;
         }
-        if (data === 'charge_cancel') {
+        if (data === 'charge_cancel' || data === 'report_cancel') {
             const sessionKey = `${msg.chat.id}_${query.from.id}`;
             chargeSessions.delete(sessionKey);
-            bot.editMessageText('已取消商户充值。', {
+            bot.editMessageText(data === 'charge_cancel' ? '已取消商户充值。' : '已取消消耗报告获取。', {
                 chat_id: msg.chat.id,
                 message_id: msg.message_id
             });
             bot.answerCallbackQuery(query.id);
             return;
         }
+        // if (data?.startsWith('report_store:')) {
+        //   const storeName = data.split('report_store:')[1];
+        //   bot.editMessageText(`正在获取【${storeName === 'ALL' ? '全部商户' : storeName}】的消耗数据，请稍候...`, {
+        //     chat_id: msg.chat.id,
+        //     message_id: msg.message_id
+        //   });
+        //   try {
+        //     // Fetch report data
+        //     const records = await qlApi.listSumShow(579, storeName === 'ALL' ? undefined : storeName);
+        //     // Filter for yesterday's logDate
+        //     const yesterday = new Date(Date.now() - 86400000);
+        //     const yyyy = yesterday.getFullYear();
+        //     const mm = String(yesterday.getMonth() + 1).padStart(2, '0');
+        //     const dd = String(yesterday.getDate()).padStart(2, '0');
+        //     const targetDate = `${yyyy}-${mm}-${dd}`;
+        //     let filteredRecords = records.filter((r: any) => {
+        //       if (r.logDate && r.logDate.startsWith(targetDate)) return true;
+        //       // If the API returns logDate without time, or different format, adjust here.
+        //       // Sometimes it might just be the exact string.
+        //       if (r.logDate === targetDate) return true;
+        //       return false;
+        //     });
+        //     if (filteredRecords.length === 0) {
+        //       bot.sendMessage(msg.chat.id, `【${storeName === 'ALL' ? '全部商户' : storeName}】在 ${targetDate} (昨日) 没有更新的消耗数据。`);
+        //       bot.answerCallbackQuery(query.id);
+        //       return;
+        //     }
+        //     // Sorting: Store Name (Ascending), Product Number (Ascending)
+        //     filteredRecords.sort((a: any, b: any) => {
+        //       const sNameA = a.storeName || '';
+        //       const sNameB = b.storeName || '';
+        //       if (sNameA !== sNameB) return sNameA.localeCompare(sNameB);
+        //       const pNumA = a.bianHao || a.productNo || a.offerNo || a.id || '';
+        //       const pNumB = b.bianHao || b.productNo || b.offerNo || b.id || '';
+        //       return pNumA.toString().localeCompare(pNumB.toString());
+        //     });
+        //     // Grouping and formatting
+        //     let resultText = "【商户名称】\t【产品编号】\t【产品名称】\t【消耗量（USD）】\t【点击量】\t【展示量】\n";
+        //     let lastStoreName = "";
+        //     for (const r of filteredRecords) {
+        //       const currentStoreName = r.storeName || '';
+        //       if (lastStoreName && currentStoreName !== lastStoreName) {
+        //         resultText += "\n"; // Blank line between different stores
+        //       }
+        //       lastStoreName = currentStoreName;
+        //       // Mapping fields (using common QL variable names based on previous APIs)
+        //       const pName = r.productName || r.offerName || r.product || '';
+        //       const pNum = r.bianHao || r.productNo || r.offerNo || r.id || '';
+        //       const consume = r.consumeAmount || r.cost || r.consume || r.spend || '0';
+        //       const clicks = r.clicks || r.clickCount || r.click || '0';
+        //       const shows = r.shows || r.showCount || r.impressions || '0';
+        //       resultText += `${currentStoreName}\t${pNum}\t${pName}\t${consume}\t${clicks}\t${shows}\n`;
+        //     }
+        //     bot.sendMessage(msg.chat.id, resultText);
+        //   } catch (err: any) {
+        //     console.error("[Report Error]", err);
+        //     bot.sendMessage(msg.chat.id, `获取消耗报告失败: ${err.message}`);
+        //   }
+        //   bot.answerCallbackQuery(query.id);
+        //   return;
+        // }
         // Handle interactive charge flow callbacks
         if (data?.startsWith('charge_store:')) {
             const storeName = data.split('charge_store:')[1];
