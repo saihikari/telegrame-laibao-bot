@@ -152,15 +152,27 @@ export const startBot = async () => {
           productName: r.productName,
           consume: Number(r.consume ?? r.consumeShow ?? 0),
           showNum: Number(r.showNum ?? 0),
-          clickNum: Number(r.clickNum ?? 0)
+          clickNum: Number(r.clickNum ?? 0),
+          registerNum: Number(r.registerNum ?? 0),
+          firstChargeNum: Number(r.firstChargeNum ?? 0)
         }))
         .sort((a: any, b: any) => {
           const s = String(a.storeName).localeCompare(String(b.storeName), 'zh-Hans-CN');
           if (s !== 0) return s;
-          return String(a.productName).localeCompare(String(b.productName), 'zh-Hans-CN');
+          // 使用 numeric: true 开启自然排序，解决 APK6 跑到 APK55 后面的问题
+          return String(a.productName).localeCompare(String(b.productName), 'zh-Hans-CN', { numeric: true });
         });
 
-      const header = ['logDate', 'storeName', 'productName', 'consume', 'showNum', 'clickNum'];
+      const header = [
+        'logDate日期', 
+        'storeName商户名称', 
+        'productName产品名称', 
+        'consume消耗', 
+        'showNum展示数', 
+        'clickNum点击数',
+        'registerNum注册数',
+        'firstChargeNum首充数'
+      ];
       const lines = [header.join(',')];
       for (const r of rows) {
         lines.push([
@@ -169,7 +181,9 @@ export const startBot = async () => {
           csvEscape(r.productName),
           csvEscape(r.consume),
           csvEscape(r.showNum),
-          csvEscape(r.clickNum)
+          csvEscape(r.clickNum),
+          csvEscape(r.registerNum),
+          csvEscape(r.firstChargeNum)
         ].join(','));
       }
 
