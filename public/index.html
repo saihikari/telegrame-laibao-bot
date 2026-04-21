@@ -678,11 +678,11 @@
                                                 )}
                                                 <div className="flex flex-col justify-center md:justify-start items-center md:items-start mb-1 md:mb-2">
                                                     <div className="flex justify-between items-center w-full">
-                                                        <h3 className={`font-semibold truncate w-full text-xs md:text-base md:pr-4 ${activeCustomerIndex === index ? 'text-[rgb(var(--primary))]' : 'text-tg-text'}`} title={c.name}>{c.name}</h3>
-                                                        <span className="hidden md:inline-block text-xs bg-tg-secondary_bg text-tg-hint px-1.5 py-0.5 rounded-md font-mono shrink-0">#{index + 1}</span>
+                                                        <h3 className={`font-semibold truncate w-full text-[10px] md:text-sm md:pr-4 ${activeCustomerIndex === index ? 'text-[rgb(var(--primary))]' : 'text-tg-text'}`} title={c.name}>{c.name}</h3>
+                                                        <span className="hidden md:inline-block text-[10px] bg-tg-secondary_bg text-tg-hint px-1.5 py-0.5 rounded-md font-mono shrink-0">#{index + 1}</span>
                                                     </div>
                                                     {regexPrefix && (
-                                                        <div className="text-[9px] md:text-[10px] text-red-500/80 dark:text-red-400/80 font-mono truncate w-full text-left mt-0.5" title={regexPrefix}>
+                                                        <div className="text-[8px] md:text-[9px] text-red-500/80 dark:text-red-400/80 font-mono truncate w-full text-center mt-0.5" title={regexPrefix}>
                                                             {regexPrefix}
                                                         </div>
                                                     )}
