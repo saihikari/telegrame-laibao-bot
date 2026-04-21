@@ -579,8 +579,20 @@
                             <div className="grid grid-cols-4 md:grid-cols-1 gap-2 md:gap-3 md:space-y-0 w-full">
                                 {config.customers.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase())).map((c, idx) => {
                                     const index = config.customers.findIndex(orig => orig === c);
+
+                                    // 提取“编号”字段的正则表达式前缀
+                                    let regexPrefix = null;
+                                    if (c.rules && c.rules['编号'] && c.rules['编号'].type === 'regex' && c.rules['编号'].pattern) {
+                                      const pattern = c.rules['编号'].pattern;
+                                      // 提取括号前面的字符串，例如 "59Y-([^\\s]+)" 提取出 "59Y-"
+                                      const match = pattern.match(/^([^(]+)\(/);
+                                      if (match && match[1]) {
+                                        regexPrefix = match[1];
+                                      }
+                                    }
+
                                     return (
-                                        <div 
+                                        <div
                                             key={`${c.name}-${index}`}
                                             draggable
                                             onDragStart={(e) => handleDragStart(e, index)}
@@ -599,9 +611,16 @@
                                                 {c.match_keywords?.length > 0 && (
                                                     <span className="absolute -top-1 -right-1 md:right-1 md:top-1 w-2 h-2 rounded-full bg-[rgb(var(--primary))] shadow-sm"></span>
                                                 )}
-                                                <div className="flex flex-col md:flex-row justify-center md:justify-between items-center md:items-start mb-1 md:mb-2">
-                                                    <h3 className={`font-semibold truncate w-full text-xs md:text-base md:pr-4 ${activeCustomerIndex === index ? 'text-[rgb(var(--primary))]' : 'text-tg-text'}`} title={c.name}>{c.name}</h3>
-                                                    <span className="hidden md:inline-block text-xs bg-tg-secondary_bg text-tg-hint px-1.5 py-0.5 rounded-md font-mono shrink-0">#{index + 1}</span>
+                                                <div className="flex flex-col justify-center md:justify-start items-center md:items-start mb-1 md:mb-2">
+                                                    <div className="flex justify-between items-center w-full">
+                                                        <h3 className={`font-semibold truncate w-full text-[10px] md:text-sm md:pr-4 ${activeCustomerIndex === index ? 'text-[rgb(var(--primary))]' : 'text-tg-text'}`} title={c.name}>{c.name}</h3>
+                                                        <span className="hidden md:inline-block text-[10px] bg-tg-secondary_bg text-tg-hint px-1.5 py-0.5 rounded-md font-mono shrink-0">#{index + 1}</span>
+                                                    </div>
+                                                    {regexPrefix && (
+                                                        <div className="text-[8px] md:text-[9px] text-red-500/80 dark:text-red-400/80 font-mono truncate w-full text-center mt-0.5" title={regexPrefix}>
+                                                            {regexPrefix}
+                                                        </div>
+                                                    )}
                                                 </div>
                                                 <div className="hidden md:flex flex-wrap gap-1">
                                                     {c.match_keywords?.slice(0, 3).map((kw, i) => (
