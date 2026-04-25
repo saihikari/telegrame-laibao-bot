@@ -465,9 +465,46 @@ app.get('/api/queue', requireAuth, (req, res) => {
 
 app.get('/api/recent-offers', requireAuth, async (req, res) => {
     try {
-        const limit = parseInt(req.query.limit as string) || 100;
+        const limit = parseInt(req.query.limit as string) || 1000;
         const offers = await qlApi.listRecentOffers(limit);
-        res.json({ success: true, data: offers });
+        
+        // 获取 store 列表以便查找商务经理
+        let stores = [];
+        try {
+            stores = await qlApi.listStoreToSelect();
+        } catch (e) {
+            console.error('[Web Admin] Failed to fetch stores for manager mapping:', e);
+        }
+        
+        const storeMap = new Map();
+        stores.forEach((s: any) => {
+            storeMap.set(s.storeId || s.id, s.managerName || s.managerBName || '未知');
+        });
+
+        // 计算今天和昨天的时间边界
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const yesterday = new Date(today.getTime() - 86400000);
+
+        // 过滤出“今天”和“昨天”新加的 offer，并补充商务经理名称
+        const filteredOffers = offers
+            .filter((o: any) => {
+                const createdStr = o.createdAt || o.createTime;
+                if (!createdStr) return false;
+                const createdDate = new Date(createdStr);
+                return createdDate >= yesterday;
+            })
+            .map((o: any) => ({
+                ...o,
+                managerName: o.managerName || o.managerBName || storeMap.get(o.storeId) || '未知'
+            }))
+            .sort((a: any, b: any) => {
+                const dateA = new Date(a.createdAt || a.createTime).getTime();
+                const dateB = new Date(b.createdAt || b.createTime).getTime();
+                return dateB - dateA; // 倒序，最新的在前面
+            });
+
+        res.json({ success: true, data: filteredOffers });
     } catch (e: any) {
         res.status(500).json({ success: false, error: e.message });
     }

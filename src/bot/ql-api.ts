@@ -227,7 +227,7 @@ export class QLApi {
 
     private cachedRecentStores: { names: string[], expireAt: number } | null = null;
 
-    async listRecentOffers(pageRow: number = 100): Promise<any[]> {
+    async listRecentOffers(pageRow: number = 1000): Promise<any[]> {
         const data = await this.qlFetch(`/api/offer/listOffer?pageNum=1&pageRow=${pageRow}&productType=1`, { method: 'GET' });
         if (data.code === 100) {
             return data.info?.data || [];
