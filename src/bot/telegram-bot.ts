@@ -437,9 +437,88 @@ export const startBot = async () => {
     });
   };
 
-  bot.onText(/暂停广告/, (msg) => handleAdAction(msg, '暂停'));
-  bot.onText(/开启广告/, (msg) => handleAdAction(msg, '开启'));
-  bot.onText(/下架广告/, (msg) => handleAdAction(msg, '下架'));
+  bot.onText(/^(?:\/)?暂停广告$/, (msg) => handleAdAction(msg, '暂停'));
+  bot.onText(/^(?:\/)?开启广告$/, (msg) => handleAdAction(msg, '开启'));
+  bot.onText(/^(?:\/)?下架广告$/, (msg) => handleAdAction(msg, '下架'));
+
+  bot.onText(/(暂停|开启|下架)广告/, async (msg) => {
+    const text = msg.text?.trim() || '';
+    if (/^(?:\/)?(暂停|开启|下架)广告$/.test(text)) return; // handed by exact match above
+
+    const lines = text.split('\n');
+    const tasks: { productName: string, action: '暂停'|'开启'|'下架' }[] = [];
+    
+    for (const line of lines) {
+      const trimLine = line.trim();
+      if (!trimLine || /^(?:\/)?(暂停|开启|下架)广告$/.test(trimLine)) continue;
+
+      let match = trimLine.match(/(.*?)\s*(暂停|开启|下架)广告/);
+      if (match && match[1].trim()) {
+        tasks.push({ productName: match[1].trim(), action: match[2] as any });
+        continue;
+      }
+      
+      match = trimLine.match(/(暂停|开启|下架)广告\s*(.*)/);
+      if (match && match[2].trim()) {
+        tasks.push({ productName: match[2].trim(), action: match[1] as any });
+        continue;
+      }
+    }
+
+    if (tasks.length === 0) return;
+
+    const loadingMsg = await bot.sendMessage(msg.chat.id, `⏳ 检测到快捷广告操作，正在全局查找 ${tasks.length} 个产品...`, { reply_to_message_id: msg.message_id });
+
+    try {
+      const offers = await qlApi.listRecentOffers(3000); // 查最近 3000 条，基本能覆盖所有活跃包
+      let successCount = 0;
+      let failCount = 0;
+      let resultsText = '';
+      const operatedOffers: any[] = [];
+
+      for (const task of tasks) {
+        const target = offers.find(o => {
+          const name = (o.product || o.productName || '');
+          return name.includes(task.productName) || task.productName.includes(name);
+        });
+
+        if (!target) {
+          resultsText += `❌ ${task.productName}: 未找到匹配产品\n`;
+          failCount++;
+          continue;
+        }
+
+        try {
+          await qlApi.editPStatus(target.id, task.action);
+          target.pStatus = task.action;
+          operatedOffers.push(target);
+          resultsText += `✅ ${task.productName}: 已${task.action}\n`;
+          successCount++;
+        } catch (e: any) {
+          resultsText += `❌ ${task.productName}: 操作失败(${e.message})\n`;
+          failCount++;
+        }
+      }
+
+      await bot.editMessageText(`🎯 快捷操作执行完毕！\n\n${resultsText}\n总计：成功 ${successCount} 个，失败 ${failCount} 个`, {
+        chat_id: msg.chat.id,
+        message_id: loadingMsg.message_id
+      });
+
+      if (operatedOffers.length > 0) {
+        const picMsg = await bot.sendMessage(msg.chat.id, `📸 正在生成截图证明...`, { reply_to_message_id: msg.message_id });
+        try {
+          const buffer = await generateOffersScreenshot(operatedOffers);
+          await bot.sendPhoto(msg.chat.id, buffer, { reply_to_message_id: msg.message_id });
+          await bot.deleteMessage(msg.chat.id, picMsg.message_id);
+        } catch (e: any) {
+          await bot.editMessageText(`⚠️ 截图生成失败: ${e.message}`, { chat_id: msg.chat.id, message_id: picMsg.message_id });
+        }
+      }
+    } catch (e: any) {
+      await bot.editMessageText(`❌ 全局查询失败: ${e.message}`, { chat_id: msg.chat.id, message_id: loadingMsg.message_id });
+    }
+  });
 
   // bot.onText(/消耗报告/, (msg) => {
   //   const keyboard = getStoreKeyboard('report_store');
