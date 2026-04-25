@@ -491,6 +491,7 @@ export const startBot = async () => {
       // Send the summary with inline keyboard back to the same chat
       try {
         const sentMsg = await bot.sendMessage(msg.chat.id, summaryText, {
+          disable_web_page_preview: true,
           reply_markup: {
             inline_keyboard: [[
               { text: 'Y录入', callback_data: `record_yes` },
@@ -808,7 +809,8 @@ export const startBot = async () => {
     if (data === 'record_no') {
       bot.editMessageText(summaryText + '\n\n❌ 已取消录入，本次来包信息不作记录。', {
         chat_id: msg.chat.id,
-        message_id: msg.message_id
+        message_id: msg.message_id,
+        disable_web_page_preview: true
       });
       pendingRecords.delete(key);
       bot.answerCallbackQuery(query.id);
@@ -816,7 +818,8 @@ export const startBot = async () => {
       // Use the summaryText we explicitly saved, instead of msg.text which might be the original uncleaned user message
       await bot.editMessageText(summaryText + '\n\n⏳ 正在录入，请稍候...', {
         chat_id: msg.chat.id,
-        message_id: msg.message_id
+        message_id: msg.message_id,
+        disable_web_page_preview: true
       });
       bot.answerCallbackQuery(query.id);
 
@@ -849,7 +852,8 @@ export const startBot = async () => {
 
       await bot.editMessageText(finalText, {
         chat_id: msg.chat.id,
-        message_id: msg.message_id
+        message_id: msg.message_id,
+        disable_web_page_preview: true
       });
 
       pendingRecords.delete(key);
