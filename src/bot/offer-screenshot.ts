@@ -6,6 +6,13 @@ export async function generateOffersScreenshot(offers: any[]): Promise<Buffer> {
 
     let rowsHtml = '';
     for (const o of offers) {
+        let statusClass = 'dropdown-orange'; // default to pause
+        if (o.pStatus === '开启') {
+            statusClass = 'dropdown-green';
+        } else if (o.pStatus === '下架') {
+            statusClass = 'dropdown-red';
+        }
+
         rowsHtml += `
         <tr>
             <td class="store-name">${o.storeName || '未知商户'}</td>
@@ -19,7 +26,7 @@ export async function generateOffersScreenshot(offers: any[]): Promise<Buffer> {
                 <a href="#">${o.productUrl || o.url || 'https://play.google.com/store/apps/'}</a><br/>
                 <span class="text-green">在线</span>
             </td>
-            <td><div class="dropdown-orange">${o.pStatus || '未知'} <span class="arrow">v</span></div></td>
+            <td><div class="${statusClass}">${o.pStatus || '未知'} <span class="arrow">v</span></div></td>
             <td><div class="btn-blue">查看</div></td>
         </tr>
         `;
@@ -105,8 +112,7 @@ export async function generateOffersScreenshot(offers: any[]): Promise<Buffer> {
                 text-align: center;
                 margin-top: 8px;
             }
-            .dropdown-orange {
-                background: #e6a23c;
+            .dropdown-orange, .dropdown-red, .dropdown-green {
                 color: white;
                 padding: 6px 12px;
                 border-radius: 3px;
@@ -117,7 +123,16 @@ export async function generateOffersScreenshot(offers: any[]): Promise<Buffer> {
                 cursor: pointer;
                 width: 60px;
             }
-            .dropdown-orange .arrow {
+            .dropdown-orange {
+                background: #eab466; /* 暂停 - 黄橙色 */
+            }
+            .dropdown-red {
+                background: #f56c6c; /* 下架 - 红色 */
+            }
+            .dropdown-green {
+                background: #67c23a; /* 开启 - 绿色 */
+            }
+            .dropdown-orange .arrow, .dropdown-red .arrow, .dropdown-green .arrow {
                 font-size: 10px;
                 opacity: 0.8;
                 transform: scaleY(0.8);
