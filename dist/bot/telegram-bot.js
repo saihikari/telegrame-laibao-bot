@@ -392,10 +392,16 @@ const startBot = async () => {
             let currentRow = [];
             const columns = (0, config_loader_1.getConfig)().keyboardColumns || 3;
             managers.forEach(m => {
-                let btnText = String(m.nickName || m.name || m.id || '').trim();
-                if (!btnText)
-                    btnText = '未知人员';
-                currentRow.push({ text: btnText, callback_data: `newoffer_mng:${m.id}` });
+                const mId = typeof m === 'object' ? (m.userId || m.id) : m;
+                let btnText = typeof m === 'object'
+                    ? String(m.nickName || m.userName || m.realName || m.name || m.account || m.phone || mId || '')
+                    : String(m);
+                btnText = btnText.trim();
+                if (!btnText || btnText === 'undefined' || btnText === '[object Object]') {
+                    // 如果还是找不到名字，截取 JSON 前 10 个字符显示出来，方便排查数据结构
+                    btnText = typeof m === 'object' ? JSON.stringify(m).substring(0, 10) : '未知人员';
+                }
+                currentRow.push({ text: btnText, callback_data: `newoffer_mng:${mId}` });
                 if (currentRow.length === columns) {
                     keyboard.push(currentRow);
                     currentRow = [];
@@ -902,9 +908,15 @@ const startBot = async () => {
             }
             let targetManagerName = '全部人员';
             if (mngIdStr !== 'ALL') {
-                const m = session.managers.find(x => String(x.id) === mngIdStr);
-                if (m)
-                    targetManagerName = m.nickName || m.name || String(m.id);
+                const m = session.managers.find(x => {
+                    const xId = typeof x === 'object' ? (x.userId || x.id) : x;
+                    return String(xId) === mngIdStr;
+                });
+                if (m) {
+                    targetManagerName = typeof m === 'object'
+                        ? String(m.nickName || m.userName || m.realName || m.name || m.account || m.phone || m.userId || m.id || mngIdStr)
+                        : String(m);
+                }
             }
             bot.editMessageText(`⏳ 正在拉取【${targetManagerName}】过去 48 小时新建的数据，请稍候...`, {
                 chat_id: msg.chat.id,
