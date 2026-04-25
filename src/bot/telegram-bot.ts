@@ -457,10 +457,17 @@ export const startBot = async () => {
   bot.onText(/^(?:\/)?新包查询$/, async (msg) => {
     const sessionKey = `${msg.chat.id}_${msg.from?.id}`;
     
-    const loadingMsg = await bot.sendMessage(msg.chat.id, '⏳ 正在拉取系统成员列表，请稍候...', { reply_to_message_id: msg.message_id });
+    const loadingMsg = await bot.sendMessage(msg.chat.id, '⏳ 正在为您生成经理列表...', { reply_to_message_id: msg.message_id });
     
     try {
-      const managers = await qlApi.listManagers();
+      // 改为直接使用指定人员名单，不需要再去拉取全量列表
+      const managers: any[] = [
+        { roleId: 3, nickname: "永银", userId: 648, username: "1225601158@qq.com" },
+        { roleId: 3, nickname: "小咸", userId: 579, username: "15721332270" },
+        { roleId: 8, nickname: "Stephy", userId: 455, username: "13795353834" },
+        { roleId: 1, nickname: "arylin", userId: 2, username: "13641611667" },
+        { roleId: 3, nickname: "tang.stephy", userId: 679, username: "stephy.tang314@gmail.com" }
+      ];
       newOfferQuerySessions.set(sessionKey, { managers });
 
       const keyboard: any[][] = [];
