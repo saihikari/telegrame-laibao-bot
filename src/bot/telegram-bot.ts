@@ -7,6 +7,7 @@ import { qlApi } from './ql-api';
 import { getAdminTgIds, addAdminTgId, removeAdminTgId } from '../utils/env-editor';
 import { recognizeChargeImage } from './ocr-service';
 import { appendRecordLog } from './record-log';
+import { generateOffersScreenshot } from './offer-screenshot';
 
 const token = process.env.BOT_TOKEN || '';
 const internalChatIds = (process.env.INTERNAL_CHAT_IDS || '').split(',').map(id => id.trim());
@@ -866,20 +867,43 @@ export const startBot = async () => {
         try {
           let successCount = 0;
           let failCount = 0;
+          const pausedOffers: any[] = [];
           
           for (const offerId of Array.from(session.selectedOffers!)) {
             try {
               await qlApi.editPStatus(offerId, '暂停');
+              const offerObj = session.activeOffers!.find(o => o.id === offerId);
+              if (offerObj) pausedOffers.push(offerObj);
               successCount++;
             } catch (e) {
               failCount++;
             }
           }
           
-          bot.editMessageText(`✅ 批量暂停完成！\n\n🎯 成功暂停：${successCount} 个\n❌ 暂停失败：${failCount} 个`, {
+          await bot.editMessageText(`✅ 批量暂停完成！\n\n🎯 成功暂停：${successCount} 个\n❌ 暂停失败：${failCount} 个`, {
             chat_id: msg.chat.id,
             message_id: msg.message_id
           });
+
+          if (pausedOffers.length > 0) {
+            const loadingMsg = await bot.sendMessage(msg.chat.id, `📸 正在生成网页截图证明，请稍候...`, {
+              reply_to_message_id: msg.message_id
+            });
+            try {
+              const imageBuffer = await generateOffersScreenshot(pausedOffers);
+              await bot.sendPhoto(msg.chat.id, imageBuffer, {
+                caption: `✅ 商户【${session.storeName}】广告暂停已在系统中生效`,
+                reply_to_message_id: msg.message_id
+              });
+              await bot.deleteMessage(msg.chat.id, loadingMsg.message_id);
+            } catch (err: any) {
+              console.error('Screenshot error:', err);
+              await bot.editMessageText(`⚠️ 截图生成失败，但操作已成功。(${err.message})`, {
+                chat_id: msg.chat.id,
+                message_id: loadingMsg.message_id
+              });
+            }
+          }
         } catch (err: any) {
           bot.editMessageText(`❌ 暂停操作失败：${err.message}`, {
             chat_id: msg.chat.id,
