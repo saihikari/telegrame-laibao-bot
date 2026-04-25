@@ -235,12 +235,27 @@ export class QLApi {
 
     private cachedRecentStores: { names: string[], expireAt: number } | null = null;
 
-    async listRecentOffers(pageRow: number = 1000): Promise<any[]> {
-        const data = await this.qlFetch(`/api/offer/listOffer?pageNum=1&pageRow=${pageRow}&productType=1`, { method: 'GET' });
-        if (data.code === 100) {
-            return data.info?.data || [];
+    async listRecentOffers(totalCount: number = 1000): Promise<any[]> {
+        // 为了防止单次请求过大（如 pageRow=3000）导致 QL 接口崩溃或超时返回 HTML 502/504
+        // 我们将其拆分为多个 pageRow=500 的小请求并合并
+        const pageSize = 500;
+        const totalPages = Math.ceil(totalCount / pageSize);
+        let allOffers: any[] = [];
+        
+        for (let i = 1; i <= totalPages; i++) {
+            const data = await this.qlFetch(`/api/offer/listOffer?pageNum=${i}&pageRow=${pageSize}&productType=1`, { method: 'GET' });
+            if (data.code === 100 && data.info?.data) {
+                allOffers = allOffers.concat(data.info.data);
+                // 如果当前页返回的数据少于 pageSize，说明已经没数据了，提前结束
+                if (data.info.data.length < pageSize) break;
+            } else {
+                if (i === 1) {
+                    throw new Error(`获取最近 Offer 列表失败: ` + JSON.stringify(data));
+                }
+                break;
+            }
         }
-        throw new Error(`获取最近 Offer 列表失败: ` + JSON.stringify(data));
+        return allOffers;
     }
 
     async getRecentStoreNames(limit: number = 4): Promise<string[]> {
