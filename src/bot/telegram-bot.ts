@@ -269,6 +269,34 @@ export const startBot = async () => {
     }
   });
 
+  
+  const buildOfferKeyboard = (activeOffers: any[], selectedOffers: Set<number>, columns: number): any[][] => {
+    const keyboard: any[][] = [];
+    let currentRow: any[] = [];
+    
+    activeOffers.forEach(o => {
+      const isSelected = selectedOffers.has(o.id);
+      const text = `${isSelected ? '✅' : '⬜'} ${o.product || o.productName}`;
+      // Shorten the name if it's too long? The user didn't ask for it, but let's keep the original text
+      currentRow.push({ text, callback_data: `adaction_prod:${o.id}` });
+      
+      if (currentRow.length === columns) {
+        keyboard.push(currentRow);
+        currentRow = [];
+      }
+    });
+    
+    if (currentRow.length > 0) {
+      keyboard.push(currentRow);
+    }
+    
+    keyboard.push([{ text: '✅ 全选 / 🟩 全不选', callback_data: `adaction_prod:ALL` }]);
+    keyboard.push([{ text: `▶️ 确定操作已选 (${selectedOffers.size})`, callback_data: `adaction_confirm` }]);
+    keyboard.push([{ text: '暂不需要', callback_data: `adaction_cancel` }]);
+    
+    return keyboard;
+  };
+
   const getStoreKeyboard = (callbackPrefix = 'charge_store'): any[][] => {
     const config = getConfig();
     const textCollator = new Intl.Collator('en', { sensitivity: 'base' });
@@ -520,13 +548,9 @@ export const startBot = async () => {
           return;
         }
 
-        const keyboard: any[][] = [];
-        activeOffers.forEach(o => {
-          keyboard.push([{ text: `⬜ ${o.product || o.productName}`, callback_data: `adaction_prod:${o.id}` }]);
-        });
-        keyboard.push([{ text: '✅ 全选 / 🟩 全不选', callback_data: `adaction_prod:ALL` }]);
-        keyboard.push([{ text: '▶️ 确定操作已选 (0)', callback_data: `adaction_confirm` }]);
-        keyboard.push([{ text: '暂不需要', callback_data: `adaction_cancel` }]);
+        const config = getConfig();
+        const columns = config.keyboardColumns || 3;
+        const keyboard = buildOfferKeyboard(activeOffers, pauseAdSession.selectedOffers!, columns);
 
         await bot.editMessageText(`你选择的商户是“${targetStore.storeName}”，请点击打勾选择需要操作广告的产品：`, {
           chat_id: msg.chat.id,
@@ -793,13 +817,9 @@ export const startBot = async () => {
             return;
           }
 
-          const keyboard: any[][] = [];
-          activeOffers.forEach(o => {
-            keyboard.push([{ text: `⬜ ${o.product || o.productName}`, callback_data: `adaction_prod:${o.id}` }]);
-          });
-          keyboard.push([{ text: '✅ 全选 / 🟩 全不选', callback_data: `adaction_prod:ALL` }]);
-          keyboard.push([{ text: '▶️ 确定操作已选 (0)', callback_data: `adaction_confirm` }]);
-          keyboard.push([{ text: '暂不需要', callback_data: `adaction_cancel` }]);
+          const config = getConfig();
+          const columns = config.keyboardColumns || 3;
+          const keyboard = buildOfferKeyboard(activeOffers, session.selectedOffers!, columns);
 
           bot.editMessageText(`你选择的商户是“${targetStore.storeName}”，请点击打勾选择需要操作广告的产品：`, {
             chat_id: msg.chat.id,
@@ -846,14 +866,9 @@ export const startBot = async () => {
       }
 
       // Re-render keyboard
-      const keyboard: any[][] = [];
-      session.activeOffers.forEach(o => {
-        const isSelected = session.selectedOffers!.has(o.id);
-        keyboard.push([{ text: `${isSelected ? '✅' : '⬜'} ${o.product || o.productName}`, callback_data: `adaction_prod:${o.id}` }]);
-      });
-      keyboard.push([{ text: '✅ 全选 / 🟩 全不选', callback_data: `adaction_prod:ALL` }]);
-      keyboard.push([{ text: `▶️ 确定操作已选 (${session.selectedOffers.size})`, callback_data: `adaction_confirm` }]);
-      keyboard.push([{ text: '暂不需要', callback_data: `adaction_cancel` }]);
+      const config = getConfig();
+      const columns = config.keyboardColumns || 3;
+      const keyboard = buildOfferKeyboard(session.activeOffers, session.selectedOffers!, columns);
 
       bot.editMessageReplyMarkup({ inline_keyboard: keyboard }, {
         chat_id: msg.chat.id,
