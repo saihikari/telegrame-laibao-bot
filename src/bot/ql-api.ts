@@ -66,12 +66,20 @@ export class QLApi {
         throw new Error("获取商户列表失败: " + JSON.stringify(data));
     }
 
-    async listOffer(storeId: number): Promise<any[]> {
-        const data = await this.qlFetch(`/api/offer/listOffer?pageNum=1&pageRow=10&storeId=${storeId}&productType=1`, { method: 'GET' });
+    async listOffer(storeId: number, pageRow: number = 100): Promise<any[]> {
+        const data = await this.qlFetch(`/api/offer/listOffer?pageNum=1&pageRow=${pageRow}&storeId=${storeId}&productType=1`, { method: 'GET' });
         if (data.code === 100) {
             return data.info?.data || [];
         }
         throw new Error(`获取 Offer 列表失败 (storeId: ${storeId}): ` + JSON.stringify(data));
+    }
+
+    async editPStatus(id: number, pStatus: string = '暂停'): Promise<boolean> {
+        const data = await this.qlFetch(`/api/offer/editPStatus?id=${id}&pStatus=${encodeURIComponent(pStatus)}`, { method: 'GET' });
+        if (data.code === 100) {
+            return true;
+        }
+        throw new Error(`暂停广告失败 (Offer ID: ${id}): ` + JSON.stringify(data));
     }
 
     async listSumShow(managerBId: number, storeName?: string): Promise<any[]> {

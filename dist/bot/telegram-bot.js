@@ -22,6 +22,7 @@ let bot;
 // Key: <chatId>_<messageId>, Value: { results: ParsedData[], summaryText: string }
 const pendingRecords = new Map();
 const chargeSessions = new Map();
+const pauseAdSessions = new Map();
 const getBotInstance = () => bot;
 exports.getBotInstance = getBotInstance;
 const startBot = async () => {
@@ -124,6 +125,7 @@ const startBot = async () => {
             const rows = (rowsRaw || [])
                 .filter((r) => r && r.storeName && r.productName && r.productName !== '合计')
                 .map((r) => ({
+                offerID: r.offerId || '', // 提取 offerId，兼容空值
                 logDate: dateStr,
                 storeName: r.storeName,
                 productName: r.productName,
@@ -137,10 +139,12 @@ const startBot = async () => {
                 const s = String(a.storeName).localeCompare(String(b.storeName), 'zh-Hans-CN');
                 if (s !== 0)
                     return s;
-                // 使用 numeric: true 开启自然排序，解决 APK6 跑到 APK55 后面的问题
-                return String(a.productName).localeCompare(String(b.productName), 'zh-Hans-CN', { numeric: true });
+                // 如果 storeName 相同，则按 offerID 升序排序
+                // 使用 numeric: true 防止 "10" 排在 "2" 前面
+                return String(a.offerID).localeCompare(String(b.offerID), 'zh-Hans-CN', { numeric: true });
             });
             const header = [
+                'offerID',
                 'logDate日期',
                 'storeName商户名称',
                 'productName产品名称',
@@ -153,6 +157,7 @@ const startBot = async () => {
             const lines = [header.join(',')];
             for (const r of rows) {
                 lines.push([
+                    csvEscape(r.offerID),
                     csvEscape(r.logDate),
                     csvEscape(r.storeName),
                     csvEscape(r.productName),
@@ -319,6 +324,17 @@ const startBot = async () => {
             }
         });
     });
+    bot.onText(/暂停广告/, (msg) => {
+        const sessionKey = `${msg.chat.id}_${msg.from?.id}`;
+        pauseAdSessions.set(sessionKey, { step: 'WAIT_STORE_SELECTION' });
+        const keyboard = getStoreKeyboard('pausead_store');
+        keyboard.push([{ text: '暂不需要', callback_data: `pausead_cancel` }]);
+        bot.sendMessage(msg.chat.id, '请选择需要暂停广告的商户：', {
+            reply_markup: {
+                inline_keyboard: keyboard
+            }
+        });
+    });
     // bot.onText(/消耗报告/, (msg) => {
     //   const keyboard = getStoreKeyboard('report_store');
     //   // Prepend the "Select All" button
@@ -395,6 +411,53 @@ const startBot = async () => {
             }
             return;
         }
+        const pauseAdSession = pauseAdSessions.get(sessionKey);
+        if (pauseAdSession && pauseAdSession.step === 'WAIT_STORE_NAME_MANUAL' && msg.text && !msg.text.startsWith('/')) {
+            const storeName = msg.text.trim();
+            pauseAdSession.storeName = storeName;
+            const processingMsg = await bot.sendMessage(msg.chat.id, `正在查询商户【${storeName}】的广告列表...`, { reply_to_message_id: msg.message_id });
+            try {
+                const stores = await ql_api_1.qlApi.listStoreToSelect();
+                const targetStore = stores.find(s => s.storeName.includes(storeName));
+                if (!targetStore) {
+                    throw new Error(`找不到包含 '${storeName}' 的商户`);
+                }
+                pauseAdSession.storeId = targetStore.storeId;
+                const offers = await ql_api_1.qlApi.listOffer(targetStore.storeId, 100);
+                // 过滤开启状态的广告，假设 pStatus === '开启' 或者 status === 1
+                const activeOffers = offers.filter(o => o.pStatus === '开启' || o.status === 1);
+                pauseAdSession.activeOffers = activeOffers;
+                pauseAdSession.step = 'WAIT_PRODUCT_SELECTION';
+                pauseAdSessions.set(sessionKey, pauseAdSession);
+                if (activeOffers.length === 0) {
+                    await bot.editMessageText(`商户【${targetStore.storeName}】下没有开启状态的广告。`, {
+                        chat_id: msg.chat.id,
+                        message_id: processingMsg.message_id
+                    });
+                    pauseAdSessions.delete(sessionKey);
+                    return;
+                }
+                const keyboard = [];
+                activeOffers.forEach(o => {
+                    keyboard.push([{ text: o.product || o.productName, callback_data: `pausead_prod:${o.id}` }]);
+                });
+                keyboard.push([{ text: '选择全部', callback_data: `pausead_prod:ALL` }]);
+                keyboard.push([{ text: '暂不需要', callback_data: `pausead_cancel` }]);
+                await bot.editMessageText(`你选择的商户是“${targetStore.storeName}”，请选择需要暂停广告的产品：`, {
+                    chat_id: msg.chat.id,
+                    message_id: processingMsg.message_id,
+                    reply_markup: { inline_keyboard: keyboard }
+                });
+            }
+            catch (err) {
+                await bot.editMessageText(`查询失败: ${err.message}`, {
+                    chat_id: msg.chat.id,
+                    message_id: processingMsg.message_id
+                });
+                pauseAdSessions.delete(sessionKey);
+            }
+            return;
+        }
         // 首先拦截指令，不要把它们当作常规消息去清洗
         if (!msg.text || msg.text.startsWith('/'))
             return;
@@ -436,6 +499,7 @@ const startBot = async () => {
             // Send the summary with inline keyboard back to the same chat
             try {
                 const sentMsg = await bot.sendMessage(msg.chat.id, summaryText, {
+                    disable_web_page_preview: true,
                     reply_markup: {
                         inline_keyboard: [[
                                 { text: 'Y录入', callback_data: `record_yes` },
@@ -466,10 +530,16 @@ const startBot = async () => {
             bot.answerCallbackQuery(query.id);
             return;
         }
-        if (data === 'charge_cancel' || data === 'report_cancel') {
+        if (data === 'charge_cancel' || data === 'report_cancel' || data === 'pausead_cancel') {
             const sessionKey = `${msg.chat.id}_${query.from.id}`;
             chargeSessions.delete(sessionKey);
-            bot.editMessageText(data === 'charge_cancel' ? '已取消商户充值。' : '已取消消耗报告获取。', {
+            pauseAdSessions.delete(sessionKey);
+            const textMap = {
+                'charge_cancel': '已取消商户充值。',
+                'report_cancel': '已取消消耗报告获取。',
+                'pausead_cancel': '已取消暂停广告。'
+            };
+            bot.editMessageText(textMap[data] || '已取消。', {
                 chat_id: msg.chat.id,
                 message_id: msg.message_id
             });
@@ -570,6 +640,121 @@ const startBot = async () => {
                     });
                 }
             }
+            bot.answerCallbackQuery(query.id);
+            return;
+        }
+        if (data?.startsWith('pausead_store:')) {
+            const storeName = data.split('pausead_store:')[1];
+            const sessionKey = `${msg.chat.id}_${query.from.id}`;
+            const session = pauseAdSessions.get(sessionKey) || {};
+            if (storeName === 'MANUAL') {
+                session.step = 'WAIT_STORE_NAME_MANUAL';
+                pauseAdSessions.set(sessionKey, session);
+                bot.editMessageText('请回复输入您要暂停广告的商户名称（如：XX-XX）：', {
+                    chat_id: msg.chat.id,
+                    message_id: msg.message_id
+                });
+            }
+            else {
+                session.storeName = storeName;
+                pauseAdSessions.set(sessionKey, session);
+                bot.editMessageText(`正在查询商户【${storeName}】的广告列表...`, {
+                    chat_id: msg.chat.id,
+                    message_id: msg.message_id
+                });
+                ql_api_1.qlApi.listStoreToSelect().then(stores => {
+                    const targetStore = stores.find(s => s.storeName.includes(storeName));
+                    if (!targetStore)
+                        throw new Error(`找不到包含 '${storeName}' 的商户`);
+                    session.storeId = targetStore.storeId;
+                    return ql_api_1.qlApi.listOffer(targetStore.storeId, 100).then(offers => ({ targetStore, offers }));
+                }).then(({ targetStore, offers }) => {
+                    const activeOffers = offers.filter(o => o.pStatus === '开启' || o.status === 1);
+                    session.activeOffers = activeOffers;
+                    session.step = 'WAIT_PRODUCT_SELECTION';
+                    pauseAdSessions.set(sessionKey, session);
+                    if (activeOffers.length === 0) {
+                        bot.editMessageText(`商户【${targetStore.storeName}】下没有开启状态的广告。`, {
+                            chat_id: msg.chat.id,
+                            message_id: msg.message_id
+                        });
+                        pauseAdSessions.delete(sessionKey);
+                        return;
+                    }
+                    const keyboard = [];
+                    activeOffers.forEach(o => {
+                        keyboard.push([{ text: o.product || o.productName, callback_data: `pausead_prod:${o.id}` }]);
+                    });
+                    keyboard.push([{ text: '选择全部', callback_data: `pausead_prod:ALL` }]);
+                    keyboard.push([{ text: '暂不需要', callback_data: `pausead_cancel` }]);
+                    bot.editMessageText(`你选择的商户是“${targetStore.storeName}”，请选择需要暂停广告的产品：`, {
+                        chat_id: msg.chat.id,
+                        message_id: msg.message_id,
+                        reply_markup: { inline_keyboard: keyboard }
+                    });
+                }).catch(err => {
+                    bot.editMessageText(`查询失败: ${err.message}`, {
+                        chat_id: msg.chat.id,
+                        message_id: msg.message_id
+                    });
+                    pauseAdSessions.delete(sessionKey);
+                });
+            }
+            bot.answerCallbackQuery(query.id);
+            return;
+        }
+        if (data?.startsWith('pausead_prod:')) {
+            const offerIdStr = data.split('pausead_prod:')[1];
+            const sessionKey = `${msg.chat.id}_${query.from.id}`;
+            const session = pauseAdSessions.get(sessionKey);
+            if (!session || session.step !== 'WAIT_PRODUCT_SELECTION' || !session.activeOffers) {
+                bot.answerCallbackQuery(query.id, { text: '会话已过期' });
+                return;
+            }
+            bot.editMessageText(`⏳ 正在处理暂停请求，请稍候...`, {
+                chat_id: msg.chat.id,
+                message_id: msg.message_id
+            });
+            const processPause = async () => {
+                try {
+                    if (offerIdStr === 'ALL') {
+                        let successCount = 0;
+                        let failCount = 0;
+                        for (const offer of session.activeOffers) {
+                            try {
+                                await ql_api_1.qlApi.editPStatus(offer.id, '暂停');
+                                successCount++;
+                            }
+                            catch (e) {
+                                failCount++;
+                            }
+                        }
+                        bot.editMessageText(`✅ 批量暂停完成！\n成功：${successCount}个\n失败：${failCount}个`, {
+                            chat_id: msg.chat.id,
+                            message_id: msg.message_id
+                        });
+                    }
+                    else {
+                        const offerId = parseInt(offerIdStr, 10);
+                        const offer = session.activeOffers.find(o => o.id === offerId);
+                        await ql_api_1.qlApi.editPStatus(offerId, '暂停');
+                        bot.editMessageText(`✅ 产品【${offer ? (offer.product || offer.productName) : offerId}】已成功暂停。`, {
+                            chat_id: msg.chat.id,
+                            message_id: msg.message_id
+                        });
+                    }
+                }
+                catch (err) {
+                    bot.editMessageText(`❌ 暂停操作失败：${err.message}`, {
+                        chat_id: msg.chat.id,
+                        message_id: msg.message_id
+                    });
+                }
+                finally {
+                    pauseAdSessions.delete(sessionKey);
+                }
+            };
+            processPause();
             bot.answerCallbackQuery(query.id);
             return;
         }
@@ -723,7 +908,8 @@ const startBot = async () => {
         if (data === 'record_no') {
             bot.editMessageText(summaryText + '\n\n❌ 已取消录入，本次来包信息不作记录。', {
                 chat_id: msg.chat.id,
-                message_id: msg.message_id
+                message_id: msg.message_id,
+                disable_web_page_preview: true
             });
             pendingRecords.delete(key);
             bot.answerCallbackQuery(query.id);
@@ -732,7 +918,8 @@ const startBot = async () => {
             // Use the summaryText we explicitly saved, instead of msg.text which might be the original uncleaned user message
             await bot.editMessageText(summaryText + '\n\n⏳ 正在录入，请稍候...', {
                 chat_id: msg.chat.id,
-                message_id: msg.message_id
+                message_id: msg.message_id,
+                disable_web_page_preview: true
             });
             bot.answerCallbackQuery(query.id);
             const startAtMs = Date.now();
@@ -759,7 +946,8 @@ const startBot = async () => {
             }
             await bot.editMessageText(finalText, {
                 chat_id: msg.chat.id,
-                message_id: msg.message_id
+                message_id: msg.message_id,
+                disable_web_page_preview: true
             });
             pendingRecords.delete(key);
         }

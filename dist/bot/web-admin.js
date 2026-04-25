@@ -448,6 +448,50 @@ app.get('/api/queue', requireAuth, (req, res) => {
     const items = (0, queue_log_1.readQueue)().slice(0, limit);
     res.json({ success: true, data: items });
 });
+app.get('/api/recent-offers', requireAuth, async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit) || 1000;
+        const offers = await ql_api_1.qlApi.listRecentOffers(limit);
+        // 获取 store 列表以便查找商务经理
+        let stores = [];
+        try {
+            stores = await ql_api_1.qlApi.listStoreToSelect();
+        }
+        catch (e) {
+            console.error('[Web Admin] Failed to fetch stores for manager mapping:', e);
+        }
+        const storeMap = new Map();
+        stores.forEach((s) => {
+            storeMap.set(s.storeId || s.id, s.managerName || s.managerBName || '未知');
+        });
+        // 计算今天和昨天的时间边界
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const yesterday = new Date(today.getTime() - 86400000);
+        // 过滤出“今天”和“昨天”新加的 offer，并补充商务经理名称
+        const filteredOffers = offers
+            .filter((o) => {
+            const createdStr = o.createdAt || o.createTime;
+            if (!createdStr)
+                return false;
+            const createdDate = new Date(createdStr);
+            return createdDate >= yesterday;
+        })
+            .map((o) => ({
+            ...o,
+            managerName: o.managerName || o.managerBName || storeMap.get(o.storeId) || '未知'
+        }))
+            .sort((a, b) => {
+            const dateA = new Date(a.createdAt || a.createTime).getTime();
+            const dateB = new Date(b.createdAt || b.createTime).getTime();
+            return dateB - dateA; // 倒序，最新的在前面
+        });
+        res.json({ success: true, data: filteredOffers });
+    }
+    catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
 app.get('/api/recent-stores', requireAuth, async (req, res) => {
     try {
         const storeNames = await ql_api_1.qlApi.getRecentStoreNames(4);
