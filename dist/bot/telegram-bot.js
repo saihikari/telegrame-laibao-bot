@@ -227,8 +227,18 @@ const startBot = async () => {
         let currentRow = [];
         activeOffers.forEach(o => {
             const isSelected = selectedOffers.has(o.id);
-            const text = `${isSelected ? '✅' : '⬜'} ${o.product || o.productName}`;
-            // Shorten the name if it's too long? The user didn't ask for it, but let's keep the original text
+            let rawName = o.product || o.productName || '';
+            // Calculate max length dynamically based on columns
+            // If 3 columns, about 10 chars. If 2 columns, maybe 15. If 1 column, no truncate.
+            let maxLength = 10;
+            if (columns === 2)
+                maxLength = 15;
+            if (columns === 1)
+                maxLength = 999;
+            if (rawName.length > maxLength) {
+                rawName = '..' + rawName.substring(rawName.length - (maxLength - 2));
+            }
+            const text = `${isSelected ? '✅' : '⬜'} ${rawName}`;
             currentRow.push({ text, callback_data: `adaction_prod:${o.id}` });
             if (currentRow.length === columns) {
                 keyboard.push(currentRow);
