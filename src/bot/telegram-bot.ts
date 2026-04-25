@@ -43,6 +43,12 @@ interface AdActionState {
 }
 const adActionSessions = new Map<string, AdActionState>();
 
+interface FastAdActionState {
+    tasks: { productName: string, action: '暂停'|'开启'|'下架', targetOffer?: any }[];
+}
+const fastAdSessions = new Map<string, FastAdActionState>();
+
+
 export const getBotInstance = () => bot;
 
 export const startBot = async () => {
@@ -446,7 +452,7 @@ export const startBot = async () => {
     if (/^(?:\/)?(暂停|开启|下架)广告$/.test(text)) return; // handed by exact match above
 
     const lines = text.split('\n');
-    const tasks: { productName: string, action: '暂停'|'开启'|'下架' }[] = [];
+    const tasks: { productName: string, action: '暂停'|'开启'|'下架', targetOffer?: any }[] = [];
     
     for (const line of lines) {
       const trimLine = line.trim();
@@ -467,14 +473,12 @@ export const startBot = async () => {
 
     if (tasks.length === 0) return;
 
-    const loadingMsg = await bot.sendMessage(msg.chat.id, `⏳ 检测到快捷广告操作，正在全局查找 ${tasks.length} 个产品...`, { reply_to_message_id: msg.message_id });
+    const loadingMsg = await bot.sendMessage(msg.chat.id, `⏳ 正在为您检测操作意图并检索产品...`, { reply_to_message_id: msg.message_id });
 
     try {
-      const offers = await qlApi.listRecentOffers(3000); // 查最近 3000 条，基本能覆盖所有活跃包
-      let successCount = 0;
-      let failCount = 0;
-      let resultsText = '';
-      const operatedOffers: any[] = [];
+      const offers = await qlApi.listRecentOffers(3000);
+      let confirmText = '🔍 **检测到以下快捷广告操作请求：**\n\n';
+      let hasValidTask = false;
 
       for (const task of tasks) {
         const target = offers.find(o => {
@@ -483,38 +487,42 @@ export const startBot = async () => {
         });
 
         if (!target) {
-          resultsText += `❌ ${task.productName}: 未找到匹配产品\n`;
-          failCount++;
-          continue;
-        }
-
-        try {
-          await qlApi.editPStatus(target.id, task.action);
-          target.pStatus = task.action;
-          operatedOffers.push(target);
-          resultsText += `✅ ${task.productName}: 已${task.action}\n`;
-          successCount++;
-        } catch (e: any) {
-          resultsText += `❌ ${task.productName}: 操作失败(${e.message})\n`;
-          failCount++;
+          confirmText += `❌ 未找到匹配产品: \`${task.productName}\`\n`;
+        } else {
+          task.targetOffer = target;
+          hasValidTask = true;
+          confirmText += `✅ 是否需要 **${task.action}** 【${target.storeName || '未知商户'}】 下面的 \`${target.product || target.productName}\` 的广告？\n`;
         }
       }
 
-      await bot.editMessageText(`🎯 快捷操作执行完毕！\n\n${resultsText}\n总计：成功 ${successCount} 个，失败 ${failCount} 个`, {
+      if (!hasValidTask) {
+        await bot.editMessageText(confirmText + '\n⚠️ 所有产品均未找到，无法继续操作。', {
+          chat_id: msg.chat.id,
+          message_id: loadingMsg.message_id,
+          parse_mode: 'Markdown'
+        });
+        return;
+      }
+
+      confirmText += '\n请确认是否立即执行上述有效操作？';
+
+      const sessionKey = `${msg.chat.id}_${msg.message_id}`;
+      fastAdSessions.set(sessionKey, { tasks });
+
+      await bot.editMessageText(confirmText, {
         chat_id: msg.chat.id,
-        message_id: loadingMsg.message_id
+        message_id: loadingMsg.message_id,
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: '确认执行', callback_data: `fast_ad_confirm:yes:${msg.message_id}` },
+              { text: '取消', callback_data: `fast_ad_confirm:no:${msg.message_id}` }
+            ]
+          ]
+        }
       });
 
-      if (operatedOffers.length > 0) {
-        const picMsg = await bot.sendMessage(msg.chat.id, `📸 正在生成截图证明...`, { reply_to_message_id: msg.message_id });
-        try {
-          const buffer = await generateOffersScreenshot(operatedOffers);
-          await bot.sendPhoto(msg.chat.id, buffer, { reply_to_message_id: msg.message_id });
-          await bot.deleteMessage(msg.chat.id, picMsg.message_id);
-        } catch (e: any) {
-          await bot.editMessageText(`⚠️ 截图生成失败: ${e.message}`, { chat_id: msg.chat.id, message_id: picMsg.message_id });
-        }
-      }
     } catch (e: any) {
       await bot.editMessageText(`❌ 全局查询失败: ${e.message}`, { chat_id: msg.chat.id, message_id: loadingMsg.message_id });
     }
@@ -1050,6 +1058,81 @@ export const startBot = async () => {
       bot.answerCallbackQuery(query.id);
       return;
     }
+    if (data?.startsWith('fast_ad_confirm:')) {
+      const parts = data.split(':');
+      const action = parts[1]; // 'yes' or 'no'
+      const originalMsgId = parts[2];
+      const sessionKey = `${msg.chat.id}_${originalMsgId}`;
+      const session = fastAdSessions.get(sessionKey);
+
+      if (!session) {
+        bot.answerCallbackQuery(query.id, { text: '会话已过期' });
+        return;
+      }
+
+      if (action === 'no') {
+        fastAdSessions.delete(sessionKey);
+        bot.editMessageText('❌ 已取消快捷广告操作。', {
+          chat_id: msg.chat.id,
+          message_id: msg.message_id
+        });
+        bot.answerCallbackQuery(query.id);
+        return;
+      }
+
+      // Execute 'yes'
+      bot.editMessageText(`⏳ 正在执行批量广告操作...`, {
+        chat_id: msg.chat.id,
+        message_id: msg.message_id
+      });
+
+      const processFastAction = async () => {
+        try {
+          let successCount = 0;
+          let failCount = 0;
+          let resultsText = '';
+          const operatedOffers: any[] = [];
+
+          for (const task of session.tasks) {
+            if (!task.targetOffer) continue;
+            
+            try {
+              await qlApi.editPStatus(task.targetOffer.id, task.action);
+              task.targetOffer.pStatus = task.action;
+              operatedOffers.push(task.targetOffer);
+              resultsText += `✅ ${task.targetOffer.product || task.targetOffer.productName}: 已${task.action}\n`;
+              successCount++;
+            } catch (e: any) {
+              resultsText += `❌ ${task.targetOffer.product || task.targetOffer.productName}: 操作失败(${e.message})\n`;
+              failCount++;
+            }
+          }
+
+          await bot.editMessageText(`🎯 快捷操作执行完毕！\n\n${resultsText}\n总计：成功 ${successCount} 个，失败 ${failCount} 个`, {
+            chat_id: msg.chat.id,
+            message_id: msg.message_id
+          });
+
+          if (operatedOffers.length > 0) {
+            const picMsg = await bot.sendMessage(msg.chat.id, `📸 正在生成截图证明...`, { reply_to_message_id: msg.message_id });
+            try {
+              const buffer = await generateOffersScreenshot(operatedOffers);
+              await bot.sendPhoto(msg.chat.id, buffer, { reply_to_message_id: msg.message_id });
+              await bot.deleteMessage(msg.chat.id, picMsg.message_id);
+            } catch (e: any) {
+              await bot.editMessageText(`⚠️ 截图生成失败: ${e.message}`, { chat_id: msg.chat.id, message_id: picMsg.message_id });
+            }
+          }
+        } finally {
+          fastAdSessions.delete(sessionKey);
+        }
+      };
+
+      processFastAction();
+      bot.answerCallbackQuery(query.id);
+      return;
+    }
+
 
     if (data?.startsWith('charge_confirm:')) {
       const action = data.split('charge_confirm:')[1];
