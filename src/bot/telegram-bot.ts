@@ -37,6 +37,7 @@ interface PauseAdState {
     storeName?: string;
     storeId?: number;
     activeOffers?: any[];
+    selectedOffers?: Set<number>;
 }
 const pauseAdSessions = new Map<string, PauseAdState>();
 
@@ -492,6 +493,7 @@ export const startBot = async () => {
         // 过滤开启状态的广告，假设 pStatus === '开启' 或者 status === 1
         const activeOffers = offers.filter(o => o.pStatus === '开启' || o.status === 1);
         pauseAdSession.activeOffers = activeOffers;
+        pauseAdSession.selectedOffers = new Set<number>();
         pauseAdSession.step = 'WAIT_PRODUCT_SELECTION';
         pauseAdSessions.set(sessionKey, pauseAdSession);
 
@@ -506,12 +508,13 @@ export const startBot = async () => {
 
         const keyboard: any[][] = [];
         activeOffers.forEach(o => {
-          keyboard.push([{ text: o.product || o.productName, callback_data: `pausead_prod:${o.id}` }]);
+          keyboard.push([{ text: `⬜ ${o.product || o.productName}`, callback_data: `pausead_prod:${o.id}` }]);
         });
-        keyboard.push([{ text: '选择全部', callback_data: `pausead_prod:ALL` }]);
+        keyboard.push([{ text: '✅ 全选 / 🟩 全不选', callback_data: `pausead_prod:ALL` }]);
+        keyboard.push([{ text: '▶️ 确定暂停已选 (0)', callback_data: `pausead_confirm` }]);
         keyboard.push([{ text: '暂不需要', callback_data: `pausead_cancel` }]);
 
-        await bot.editMessageText(`你选择的商户是“${targetStore.storeName}”，请选择需要暂停广告的产品：`, {
+        await bot.editMessageText(`你选择的商户是“${targetStore.storeName}”，请点击打勾选择需要暂停广告的产品：`, {
           chat_id: msg.chat.id,
           message_id: processingMsg.message_id,
           reply_markup: { inline_keyboard: keyboard }
@@ -757,6 +760,7 @@ export const startBot = async () => {
         }).then(({ targetStore, offers }) => {
           const activeOffers = offers.filter(o => o.pStatus === '开启' || o.status === 1);
           session.activeOffers = activeOffers;
+          session.selectedOffers = new Set<number>();
           session.step = 'WAIT_PRODUCT_SELECTION';
           pauseAdSessions.set(sessionKey, session);
 
@@ -771,12 +775,13 @@ export const startBot = async () => {
 
           const keyboard: any[][] = [];
           activeOffers.forEach(o => {
-            keyboard.push([{ text: o.product || o.productName, callback_data: `pausead_prod:${o.id}` }]);
+            keyboard.push([{ text: `⬜ ${o.product || o.productName}`, callback_data: `pausead_prod:${o.id}` }]);
           });
-          keyboard.push([{ text: '选择全部', callback_data: `pausead_prod:ALL` }]);
+          keyboard.push([{ text: '✅ 全选 / 🟩 全不选', callback_data: `pausead_prod:ALL` }]);
+          keyboard.push([{ text: '▶️ 确定暂停已选 (0)', callback_data: `pausead_confirm` }]);
           keyboard.push([{ text: '暂不需要', callback_data: `pausead_cancel` }]);
 
-          bot.editMessageText(`你选择的商户是“${targetStore.storeName}”，请选择需要暂停广告的产品：`, {
+          bot.editMessageText(`你选择的商户是“${targetStore.storeName}”，请点击打勾选择需要暂停广告的产品：`, {
             chat_id: msg.chat.id,
             message_id: msg.message_id,
             reply_markup: { inline_keyboard: keyboard }
@@ -798,42 +803,83 @@ export const startBot = async () => {
       const sessionKey = `${msg.chat.id}_${query.from.id}`;
       const session = pauseAdSessions.get(sessionKey);
 
-      if (!session || session.step !== 'WAIT_PRODUCT_SELECTION' || !session.activeOffers) {
+      if (!session || session.step !== 'WAIT_PRODUCT_SELECTION' || !session.activeOffers || !session.selectedOffers) {
         bot.answerCallbackQuery(query.id, { text: '会话已过期' });
         return;
       }
 
-      bot.editMessageText(`⏳ 正在处理暂停请求，请稍候...`, {
+      if (offerIdStr === 'ALL') {
+        if (session.selectedOffers.size === session.activeOffers.length) {
+          // If all are selected, deselect all
+          session.selectedOffers.clear();
+        } else {
+          // Select all
+          session.activeOffers.forEach(o => session.selectedOffers!.add(o.id));
+        }
+      } else {
+        const offerId = parseInt(offerIdStr, 10);
+        if (session.selectedOffers.has(offerId)) {
+          session.selectedOffers.delete(offerId);
+        } else {
+          session.selectedOffers.add(offerId);
+        }
+      }
+
+      // Re-render keyboard
+      const keyboard: any[][] = [];
+      session.activeOffers.forEach(o => {
+        const isSelected = session.selectedOffers!.has(o.id);
+        keyboard.push([{ text: `${isSelected ? '✅' : '⬜'} ${o.product || o.productName}`, callback_data: `pausead_prod:${o.id}` }]);
+      });
+      keyboard.push([{ text: '✅ 全选 / 🟩 全不选', callback_data: `pausead_prod:ALL` }]);
+      keyboard.push([{ text: `▶️ 确定暂停已选 (${session.selectedOffers.size})`, callback_data: `pausead_confirm` }]);
+      keyboard.push([{ text: '暂不需要', callback_data: `pausead_cancel` }]);
+
+      bot.editMessageReplyMarkup({ inline_keyboard: keyboard }, {
+        chat_id: msg.chat.id,
+        message_id: msg.message_id
+      });
+      bot.answerCallbackQuery(query.id);
+      return;
+    }
+
+    if (data === 'pausead_confirm') {
+      const sessionKey = `${msg.chat.id}_${query.from.id}`;
+      const session = pauseAdSessions.get(sessionKey);
+
+      if (!session || session.step !== 'WAIT_PRODUCT_SELECTION' || !session.activeOffers || !session.selectedOffers) {
+        bot.answerCallbackQuery(query.id, { text: '会话已过期' });
+        return;
+      }
+
+      if (session.selectedOffers.size === 0) {
+        bot.answerCallbackQuery(query.id, { text: '请至少选择一个产品！', show_alert: true });
+        return;
+      }
+
+      bot.editMessageText(`⏳ 正在批量暂停 ${session.selectedOffers.size} 个广告，请稍候...`, {
         chat_id: msg.chat.id,
         message_id: msg.message_id
       });
 
       const processPause = async () => {
         try {
-          if (offerIdStr === 'ALL') {
-            let successCount = 0;
-            let failCount = 0;
-            for (const offer of session.activeOffers!) {
-              try {
-                await qlApi.editPStatus(offer.id, '暂停');
-                successCount++;
-              } catch (e) {
-                failCount++;
-              }
+          let successCount = 0;
+          let failCount = 0;
+          
+          for (const offerId of Array.from(session.selectedOffers!)) {
+            try {
+              await qlApi.editPStatus(offerId, '暂停');
+              successCount++;
+            } catch (e) {
+              failCount++;
             }
-            bot.editMessageText(`✅ 批量暂停完成！\n成功：${successCount}个\n失败：${failCount}个`, {
-              chat_id: msg.chat.id,
-              message_id: msg.message_id
-            });
-          } else {
-            const offerId = parseInt(offerIdStr, 10);
-            const offer = session.activeOffers!.find(o => o.id === offerId);
-            await qlApi.editPStatus(offerId, '暂停');
-            bot.editMessageText(`✅ 产品【${offer ? (offer.product || offer.productName) : offerId}】已成功暂停。`, {
-              chat_id: msg.chat.id,
-              message_id: msg.message_id
-            });
           }
+          
+          bot.editMessageText(`✅ 批量暂停完成！\n\n🎯 成功暂停：${successCount} 个\n❌ 暂停失败：${failCount} 个`, {
+            chat_id: msg.chat.id,
+            message_id: msg.message_id
+          });
         } catch (err: any) {
           bot.editMessageText(`❌ 暂停操作失败：${err.message}`, {
             chat_id: msg.chat.id,
