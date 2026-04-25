@@ -1057,15 +1057,17 @@ export const startBot = async () => {
         }
       }
 
-      bot.editMessageText(`⏳ 正在拉取【${targetManagerName}】过去 48 小时新建的数据，请稍候...`, {
+      await bot.editMessageText(`⏳ 正在拉取【${targetManagerName}】过去 48 小时新建的数据，请稍候...`, {
         chat_id: msg.chat.id,
         message_id: msg.message_id
       });
 
       const processQuery = async () => {
         try {
+          console.log(`[新包查询] 开始处理: ${targetManagerName}`);
           // 1. Fetch recent offers
           const offers = await qlApi.listRecentOffers(3000); // Need enough rows to cover 48 hours
+          console.log(`[新包查询] 获取了 ${offers.length} 条广告数据`);
           
           // 2. Filter offers: past 48 hours AND manager matched
           const nowTime = Date.now();
@@ -1094,10 +1096,10 @@ export const startBot = async () => {
           }
 
           // 3. We need contact details. The contact is in listStore API.
-          // Since we might need multiple stores, let's fetch stores.
-          // If a specific manager is selected, we fetch their stores. If ALL, we might need all stores.
+          console.log(`[新包查询] 过滤出 ${targetOffers.length} 条目标广告，开始获取商户详情...`);
           const mIdArg = mngIdStr === 'ALL' ? undefined : parseInt(mngIdStr, 10);
           const stores = await qlApi.listStores(mIdArg);
+          console.log(`[新包查询] 获取了 ${stores.length} 条商户数据`);
           
           // Create a lookup map for stores
           const storeMap = new Map<number, any>();

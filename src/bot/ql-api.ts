@@ -1,6 +1,27 @@
 import fetch from 'node-fetch';
 import FormData from 'form-data';
 
+
+
+
+async function fetchWithTimeout(resource: string, options: any = {}) {
+    const { timeout = 25000 } = options;
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    
+    try {
+        const response = await fetch(resource, { ...options, signal: controller.signal });
+        clearTimeout(id);
+        return response;
+    } catch (e: any) {
+        clearTimeout(id);
+        if (e.name === 'AbortError') {
+            throw new Error(`API 请求超时 (${timeout/1000}s)`);
+        }
+        throw e;
+    }
+}
+
 export class QLApi {
     private currentToken: string | null = null;
     private tokenExpireTime: number = 0;
@@ -16,7 +37,7 @@ export class QLApi {
         
         console.log(`[QL API] Logging in with user: ${payload.phone}`);
 
-        const response = await fetch(`${this.baseUrl}/api/user/login`, {
+        const response = await fetchWithTimeout(`${this.baseUrl}/api/user/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -44,14 +65,14 @@ export class QLApi {
             ...(options.headers || {})
         };
 
-        const res = await fetch(`${this.baseUrl}${path}`, { ...options, headers });
+        const res = await fetchWithTimeout(`${this.baseUrl}${path}`, { ...options, headers });
         const data = await res.json();
 
         if (data.code === 401 || (data.msg && data.msg.toLowerCase().includes("token"))) {
             console.log("[QL API] Token 失效或被踢，触发强制重新登录...");
             await this.login();
             headers.token = this.currentToken;
-            const retryRes = await fetch(`${this.baseUrl}${path}`, { ...options, headers });
+            const retryRes = await fetchWithTimeout(`${this.baseUrl}${path}`, { ...options, headers });
             return await retryRes.json();
         }
 
