@@ -392,7 +392,10 @@ const startBot = async () => {
             let currentRow = [];
             const columns = (0, config_loader_1.getConfig)().keyboardColumns || 3;
             managers.forEach(m => {
-                currentRow.push({ text: m.nickName || m.name || m.id, callback_data: `newoffer_mng:${m.id}` });
+                let btnText = String(m.nickName || m.name || m.id || '').trim();
+                if (!btnText)
+                    btnText = '未知人员';
+                currentRow.push({ text: btnText, callback_data: `newoffer_mng:${m.id}` });
                 if (currentRow.length === columns) {
                     keyboard.push(currentRow);
                     currentRow = [];
