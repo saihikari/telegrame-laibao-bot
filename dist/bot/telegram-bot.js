@@ -921,8 +921,11 @@ const startBot = async () => {
                 });
                 if (m) {
                     targetManagerName = typeof m === 'object'
-                        ? String(m.nickName || m.userName || m.realName || m.name || m.account || m.phone || m.userId || m.id || mngIdStr)
+                        ? String(m.nickname || m.nickName || m.userName || m.realName || m.name || m.account || m.phone || m.userId || m.id || mngIdStr)
                         : String(m);
+                }
+                else {
+                    targetManagerName = mngIdStr;
                 }
             }
             bot.editMessageText(`⏳ 正在拉取【${targetManagerName}】过去 48 小时新建的数据，请稍候...`, {
@@ -945,7 +948,7 @@ const startBot = async () => {
                             return false;
                         // Check manager
                         if (mngIdStr !== 'ALL') {
-                            if (String(o.createdBy) !== mngIdStr)
+                            if (String(o.createdBy) !== mngIdStr && String(o.managerId) !== mngIdStr)
                                 return false;
                         }
                         return true;

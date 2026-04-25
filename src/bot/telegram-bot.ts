@@ -1050,8 +1050,10 @@ export const startBot = async () => {
         });
         if (m) {
           targetManagerName = typeof m === 'object' 
-            ? String(m.nickName || m.userName || m.realName || m.name || m.account || m.phone || m.userId || m.id || mngIdStr) 
+            ? String(m.nickname || m.nickName || m.userName || m.realName || m.name || m.account || m.phone || m.userId || m.id || mngIdStr) 
             : String(m);
+        } else {
+          targetManagerName = mngIdStr;
         }
       }
 
@@ -1077,7 +1079,7 @@ export const startBot = async () => {
             
             // Check manager
             if (mngIdStr !== 'ALL') {
-              if (String(o.createdBy) !== mngIdStr) return false;
+              if (String(o.createdBy) !== mngIdStr && String(o.managerId) !== mngIdStr) return false;
             }
             return true;
           });

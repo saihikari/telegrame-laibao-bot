@@ -302,11 +302,17 @@ export class QLApi {
         const url = managerId 
             ? `/api/store/listStore?pageNum=1&pageRow=1000&managerId=${managerId}&showMoney=1`
             : `/api/store/listStore?pageNum=1&pageRow=1000&showMoney=1`;
-        const data = await this.qlFetch(url, { method: 'GET' });
-        if (data.code === 100) {
-            return data.info?.data || [];
+        try {
+            const data = await this.qlFetch(url, { method: 'GET' });
+            if (data.code === 100) {
+                return data.info?.data || [];
+            }
+            console.error('获取商户详情业务失败:', data);
+            return []; // Fallback to empty array instead of throwing error to prevent crash
+        } catch (e: any) {
+            console.error('获取商户详情异常:', e.message);
+            return []; // Ignore errors so CSV generation won't break entirely
         }
-        throw new Error('获取商户详情失败: ' + JSON.stringify(data));
     }
 }
 
