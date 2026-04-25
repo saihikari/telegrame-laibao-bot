@@ -228,15 +228,21 @@ const startBot = async () => {
         activeOffers.forEach(o => {
             const isSelected = selectedOffers.has(o.id);
             let rawName = o.product || o.productName || '';
-            // Calculate max length dynamically based on columns
-            // If 3 columns, about 10 chars. If 2 columns, maybe 15. If 1 column, no truncate.
-            let maxLength = 10;
-            if (columns === 2)
-                maxLength = 15;
-            if (columns === 1)
-                maxLength = 999;
-            if (rawName.length > maxLength) {
-                rawName = '..' + rawName.substring(rawName.length - (maxLength - 2));
+            // 如果包含 '-GG-'，则直接截取它后面的内容作为显示名称
+            if (rawName.includes('-GG-')) {
+                const parts = rawName.split('-GG-');
+                rawName = parts[parts.length - 1]; // 取最后一部分，比如 'APK103'
+            }
+            else {
+                // 如果没有 '-GG-'，则走备用的安全长度截断逻辑
+                let maxLength = 10;
+                if (columns === 2)
+                    maxLength = 15;
+                if (columns === 1)
+                    maxLength = 999;
+                if (rawName.length > maxLength) {
+                    rawName = '..' + rawName.substring(rawName.length - (maxLength - 2));
+                }
             }
             const text = `${isSelected ? '✅' : '⬜'} ${rawName}`;
             currentRow.push({ text, callback_data: `adaction_prod:${o.id}` });
