@@ -476,22 +476,33 @@ export const startBot = async () => {
     const loadingMsg = await bot.sendMessage(msg.chat.id, `⏳ 正在为您检测操作意图并检索产品...`, { reply_to_message_id: msg.message_id });
 
     try {
-      const offers = await qlApi.listRecentOffers(3000);
       let confirmText = '🔍 **检测到以下快捷广告操作请求：**\n\n';
       let hasValidTask = false;
 
+      // 针对每个任务，单独向 QL 接口发起带名称搜索的查询，极大提升效率
       for (const task of tasks) {
-        const target = offers.find(o => {
-          const name = (o.product || o.productName || '');
-          return name.includes(task.productName) || task.productName.includes(name);
-        });
+        try {
+          // 通过 url 参数直接让 QL 服务器帮我们搜产品名
+          const res = await qlApi.qlFetch(`/api/offer/listOffer?pageNum=1&pageRow=10&productName=${encodeURIComponent(task.productName)}`, { method: 'GET' });
+          let target = null;
+          
+          if (res.code === 100 && res.info?.data?.length > 0) {
+             // 从返回结果中找精确包含的
+             target = res.info.data.find((o: any) => {
+               const name = (o.product || o.productName || '');
+               return name.includes(task.productName) || task.productName.includes(name);
+             });
+          }
 
-        if (!target) {
-          confirmText += `❌ 未找到匹配产品: \`${task.productName}\`\n`;
-        } else {
-          task.targetOffer = target;
-          hasValidTask = true;
-          confirmText += `✅ 是否需要 **${task.action}** 【${target.storeName || '未知商户'}】 下面的 \`${target.product || target.productName}\` 的广告？\n`;
+          if (!target) {
+            confirmText += `❌ 未找到匹配产品: \`${task.productName}\`\n`;
+          } else {
+            task.targetOffer = target;
+            hasValidTask = true;
+            confirmText += `✅ 是否需要 **${task.action}** 【${target.storeName || '未知商户'}】 下面的 \`${target.product || target.productName}\` 的广告？\n`;
+          }
+        } catch (e: any) {
+           confirmText += `❌ 查询报错: \`${task.productName}\` (${e.message})\n`;
         }
       }
 
