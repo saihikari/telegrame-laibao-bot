@@ -25,6 +25,7 @@ const pendingRecords = new Map();
 const chargeSessions = new Map();
 const adActionSessions = new Map();
 const fastAdSessions = new Map();
+const newOfferQuerySessions = new Map();
 const getBotInstance = () => bot;
 exports.getBotInstance = getBotInstance;
 const startBot = async () => {
@@ -83,6 +84,7 @@ const startBot = async () => {
   暂停广告 - 唤起商户列表，支持多选暂停处于开启状态的广告
   开启广告 - 唤起商户列表，支持多选开启处于暂停状态的广告
   下架广告 - 唤起商户列表，支持多选下架当前的广告
+  新包查询 - 唤起经理列表，导出最近 48 小时内新建的包的详细数据(CSV)
     `;
         bot.sendMessage(msg.chat.id, helpText, { parse_mode: 'Markdown' });
     });
@@ -380,6 +382,40 @@ const startBot = async () => {
     bot.onText(/^(?:\/)?暂停广告$/, (msg) => handleAdAction(msg, '暂停'));
     bot.onText(/^(?:\/)?开启广告$/, (msg) => handleAdAction(msg, '开启'));
     bot.onText(/^(?:\/)?下架广告$/, (msg) => handleAdAction(msg, '下架'));
+    bot.onText(/^(?:\/)?新包查询$/, async (msg) => {
+        const sessionKey = `${msg.chat.id}_${msg.from?.id}`;
+        const loadingMsg = await bot.sendMessage(msg.chat.id, '⏳ 正在拉取系统成员列表，请稍候...', { reply_to_message_id: msg.message_id });
+        try {
+            const managers = await ql_api_1.qlApi.listManagers();
+            newOfferQuerySessions.set(sessionKey, { managers });
+            const keyboard = [];
+            let currentRow = [];
+            const columns = (0, config_loader_1.getConfig)().keyboardColumns || 3;
+            managers.forEach(m => {
+                currentRow.push({ text: m.nickName || m.name || m.id, callback_data: `newoffer_mng:${m.id}` });
+                if (currentRow.length === columns) {
+                    keyboard.push(currentRow);
+                    currentRow = [];
+                }
+            });
+            if (currentRow.length > 0) {
+                keyboard.push(currentRow);
+            }
+            keyboard.push([{ text: '查询全部 (耗时较长)', callback_data: `newoffer_mng:ALL` }]);
+            keyboard.push([{ text: '暂不需要', callback_data: `newoffer_cancel` }]);
+            await bot.editMessageText('请选择要查询的归属人 (查询过去 48 小时新建)：', {
+                chat_id: msg.chat.id,
+                message_id: loadingMsg.message_id,
+                reply_markup: { inline_keyboard: keyboard }
+            });
+        }
+        catch (e) {
+            await bot.editMessageText('❌ 拉取成员列表失败: ' + e.message, {
+                chat_id: msg.chat.id,
+                message_id: loadingMsg.message_id
+            });
+        }
+    });
     bot.onText(/(暂停|开启|下架)广告/, async (msg) => {
         const text = msg.text?.trim() || '';
         if (/^(?:\/)?(暂停|开启|下架)广告$/.test(text))
@@ -840,6 +876,112 @@ const startBot = async () => {
                     adActionSessions.delete(sessionKey);
                 });
             }
+            bot.answerCallbackQuery(query.id);
+            return;
+        }
+        if (data === 'newoffer_cancel') {
+            const sessionKey = `${msg.chat.id}_${query.from.id}`;
+            newOfferQuerySessions.delete(sessionKey);
+            bot.editMessageText('已取消新包查询。', {
+                chat_id: msg.chat.id,
+                message_id: msg.message_id
+            });
+            bot.answerCallbackQuery(query.id);
+            return;
+        }
+        if (data?.startsWith('newoffer_mng:')) {
+            const mngIdStr = data.split('newoffer_mng:')[1];
+            const sessionKey = `${msg.chat.id}_${query.from.id}`;
+            const session = newOfferQuerySessions.get(sessionKey);
+            if (!session || !session.managers) {
+                bot.answerCallbackQuery(query.id, { text: '会话已过期，请重新发送指令' });
+                return;
+            }
+            let targetManagerName = '全部人员';
+            if (mngIdStr !== 'ALL') {
+                const m = session.managers.find(x => String(x.id) === mngIdStr);
+                if (m)
+                    targetManagerName = m.nickName || m.name || String(m.id);
+            }
+            bot.editMessageText(`⏳ 正在拉取【${targetManagerName}】过去 48 小时新建的数据，请稍候...`, {
+                chat_id: msg.chat.id,
+                message_id: msg.message_id
+            });
+            const processQuery = async () => {
+                try {
+                    // 1. Fetch recent offers
+                    const offers = await ql_api_1.qlApi.listRecentOffers(3000); // Need enough rows to cover 48 hours
+                    // 2. Filter offers: past 48 hours AND manager matched
+                    const nowTime = Date.now();
+                    const fortyEightHoursMs = 48 * 60 * 60 * 1000;
+                    const targetOffers = offers.filter(o => {
+                        // Check time
+                        if (!o.createdAt)
+                            return false;
+                        const createdTime = new Date(o.createdAt).getTime();
+                        if (nowTime - createdTime > fortyEightHoursMs)
+                            return false;
+                        // Check manager
+                        if (mngIdStr !== 'ALL') {
+                            if (String(o.createdBy) !== mngIdStr)
+                                return false;
+                        }
+                        return true;
+                    });
+                    if (targetOffers.length === 0) {
+                        await bot.editMessageText(`🎯 【${targetManagerName}】在过去 48 小时内没有新建任何包。`, {
+                            chat_id: msg.chat.id,
+                            message_id: msg.message_id
+                        });
+                        newOfferQuerySessions.delete(sessionKey);
+                        return;
+                    }
+                    // 3. We need contact details. The contact is in listStore API.
+                    // Since we might need multiple stores, let's fetch stores.
+                    // If a specific manager is selected, we fetch their stores. If ALL, we might need all stores.
+                    const mIdArg = mngIdStr === 'ALL' ? undefined : parseInt(mngIdStr, 10);
+                    const stores = await ql_api_1.qlApi.listStores(mIdArg);
+                    // Create a lookup map for stores
+                    const storeMap = new Map();
+                    stores.forEach(s => storeMap.set(s.id || s.storeId, s));
+                    // 4. Build CSV
+                    let csvContent = '\uFEFF'; // BOM for Excel UTF-8
+                    csvContent += '商户名称,产品名称,投放国家,产品链接,商户联系人,联系电话,创建时间\n';
+                    targetOffers.forEach(o => {
+                        const storeName = `"${(o.storeName || '').replace(/"/g, '""')}"`;
+                        const productName = `"${(o.product || o.productName || '').replace(/"/g, '""')}"`;
+                        const country = `"${(o.targetCountry || '').replace(/"/g, '""')}"`;
+                        const url = `"${(o.productUrl || o.url || '').replace(/"/g, '""')}"`;
+                        const createdAt = `"${(o.createdAt || '').replace(/"/g, '""')}"`;
+                        let contactName = '""';
+                        let phone = '""';
+                        if (o.storeId && storeMap.has(o.storeId)) {
+                            const storeDetail = storeMap.get(o.storeId);
+                            contactName = `"${(storeDetail.contactName || '').replace(/"/g, '""')}"`;
+                            phone = `"${(storeDetail.phone || '').replace(/"/g, '""')}"`;
+                        }
+                        csvContent += `${storeName},${productName},${country},${url},${contactName},${phone},${createdAt}\n`;
+                    });
+                    const buffer = Buffer.from(csvContent, 'utf-8');
+                    const dateStr = new Date().toISOString().substring(0, 10);
+                    const filename = `新包查询_${targetManagerName}_${dateStr}.csv`;
+                    await bot.sendDocument(msg.chat.id, buffer, {}, {
+                        filename: filename,
+                        contentType: 'text/csv'
+                    });
+                    await bot.deleteMessage(msg.chat.id, msg.message_id);
+                }
+                catch (e) {
+                    await bot.editMessageText(`❌ 查询或导出失败: ${e.message}`, {
+                        chat_id: msg.chat.id,
+                        message_id: msg.message_id
+                    });
+                }
+                finally {
+                    newOfferQuerySessions.delete(sessionKey);
+                }
+            };
+            processQuery();
             bot.answerCallbackQuery(query.id);
             return;
         }

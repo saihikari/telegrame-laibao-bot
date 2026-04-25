@@ -275,6 +275,24 @@ export class QLApi {
         }
         return [];
     }
+    async listManagers(): Promise<any[]> {
+        const data = await this.qlFetch('/api/user/listManagers?pageNum=1&pageRow=1000', { method: 'GET' });
+        if (data.code === 100) {
+            return data.info?.data || [];
+        }
+        throw new Error('获取经理列表失败: ' + JSON.stringify(data));
+    }
+
+    async listStores(managerId?: number): Promise<any[]> {
+        const url = managerId 
+            ? `/api/store/listStore?pageNum=1&pageRow=1000&managerId=${managerId}&showMoney=1`
+            : `/api/store/listStore?pageNum=1&pageRow=1000&showMoney=1`;
+        const data = await this.qlFetch(url, { method: 'GET' });
+        if (data.code === 100) {
+            return data.info?.data || [];
+        }
+        throw new Error('获取商户详情失败: ' + JSON.stringify(data));
+    }
 }
 
 export const qlApi = new QLApi();
