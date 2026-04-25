@@ -101,6 +101,7 @@ export const startBot = async () => {
   /delemng - 删除管理员
   商户充值 - 唤起 OCR 充值截图录入面板
   昨日消耗 - 导出昨日 QL 系统消耗数据 (CSV)
+  暂停广告 - 唤起商户列表，支持多选暂停处于开启状态的广告
     `;
     bot.sendMessage(msg.chat.id, helpText, { parse_mode: 'Markdown' });
   });
