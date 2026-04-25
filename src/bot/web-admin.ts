@@ -463,6 +463,16 @@ app.get('/api/queue', requireAuth, (req, res) => {
     res.json({ success: true, data: items });
 });
 
+app.get('/api/recent-offers', requireAuth, async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit as string) || 100;
+        const offers = await qlApi.listRecentOffers(limit);
+        res.json({ success: true, data: offers });
+    } catch (e: any) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 app.get('/api/recent-stores', requireAuth, async (req, res) => {
     try {
         const storeNames = await qlApi.getRecentStoreNames(4);

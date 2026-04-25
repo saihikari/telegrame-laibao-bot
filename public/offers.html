@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>活跃 Offer 列表</title>
+
+    <link rel="icon" href="/admin/logo.jpg">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="活跃 Offer">
+
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+    <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script src="/admin/lib/lucide.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        tg: {
+                            bg: '#ffffff',
+                            secondary_bg: '#f3f4f6',
+                            text: '#000000',
+                            hint: '#9ca3af',
+                            link: '#3b82f6',
+                            button: '#3b82f6',
+                            button_text: '#ffffff',
+                            secondary_button: '#f3f4f6',
+                            secondary_button_text: '#000000',
+                            destructive: '#ef4444',
+                            accent: '#3b82f6',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: var(--fb-bg, #ffffff);
+            color: var(--fb-text, #000000);
+            -webkit-tap-highlight-color: transparent;
+        }
+        :root {
+            --primary: 59, 130, 246; /* blue-500 */
+        }
+        /* Custom scrollbar for table */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.05);
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(0,0,0,0.1);
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body class="antialiased min-h-screen flex flex-col font-sans">
+    <div id="root" class="flex-1 flex flex-col h-screen overflow-hidden"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        // --- Lucide Icon Wrapper ---
+        const Icon = ({ name, size = 24, color = 'currentColor', className = '' }) => {
+            const svgRef = React.useRef(null);
+            useEffect(() => {
+                if (svgRef.current && window.lucide && window.lucide.icons[name]) {
+                    svgRef.current.innerHTML = '';
+                    const iconNode = window.lucide.icons[name];
+                    const svgElement = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                    Object.entries(iconNode[1]).forEach(([k, v]) => svgElement.setAttribute(k, v));
+                    svgElement.setAttribute('width', size);
+                    svgElement.setAttribute('height', size);
+                    svgElement.setAttribute('stroke', color);
+                    svgElement.setAttribute('stroke-width', '2');
+                    svgElement.setAttribute('stroke-linecap', 'round');
+                    svgElement.setAttribute('stroke-linejoin', 'round');
+                    svgElement.setAttribute('fill', 'none');
+                    if (className) svgElement.setAttribute('class', className);
+                    iconNode[2].forEach(child => {
+                        const childElement = document.createElementNS('http://www.w3.org/2000/svg', child[0]);
+                        Object.entries(child[1]).forEach(([k, v]) => childElement.setAttribute(k, v));
+                        svgElement.appendChild(childElement);
+                    });
+                    svgRef.current.appendChild(svgElement);
+                }
+            }, [name, size, color, className]);
+            return <span ref={svgRef} className={`inline-flex items-center justify-center ${className}`} />;
+        };
+
+        const App = () => {
+            const [offers, setOffers] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState('');
+            const [searchTerm, setSearchTerm] = useState('');
+
+            const fetchOffers = async () => {
+                setLoading(true);
+                setError('');
+                try {
+                    // limit=200 提取最近 200 个包
+                    const res = await fetch('/api/recent-offers?limit=200');
+                    if (!res.ok) {
+                        if (res.status === 401 || res.status === 403) {
+                            window.location.href = '/admin/login';
+                            return;
+                        }
+                        throw new Error(`HTTP ${res.status}`);
+                    }
+                    const data = await res.json();
+                    if (data.success) {
+                        setOffers(data.data || []);
+                    } else {
+                        throw new Error(data.error || '获取数据失败');
+                    }
+                } catch (err) {
+                    setError(err.message);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            useEffect(() => {
+                fetchOffers();
+            }, []);
+
+            const filteredOffers = useMemo(() => {
+                if (!searchTerm) return offers;
+                const lower = searchTerm.toLowerCase();
+                return offers.filter(o => 
+                    String(o.storeName || '').toLowerCase().includes(lower) ||
+                    String(o.product || '').toLowerCase().includes(lower) ||
+                    String(o.id || '').includes(lower) ||
+                    String(o.bianHao || '').toLowerCase().includes(lower)
+                );
+            }, [offers, searchTerm]);
+
+            const formatDate = (dateString) => {
+                if (!dateString) return '-';
+                const d = new Date(dateString);
+                if (isNaN(d.getTime())) return dateString;
+                return d.toLocaleString('zh-CN', { 
+                    year: 'numeric', month: '2-digit', day: '2-digit',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit',
+                    hour12: false 
+                });
+            };
+
+            return (
+                <div className="flex flex-col h-full bg-tg-bg text-tg-text">
+                    {/* Header */}
+                    <header className="flex-none p-4 md:p-6 border-b border-[rgba(var(--primary),0.1)] flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white/5">
+                        <div>
+                            <h1 className="text-xl md:text-2xl font-bold flex items-center gap-2">
+                                <Icon name="package" size={28} className="text-[rgb(var(--primary))]" />
+                                最近活跃 Offer 列表
+                            </h1>
+                            <p className="text-xs md:text-sm text-tg-hint mt-1">展示 QL 系统中最新录入或活跃的包信息</p>
+                        </div>
+                        
+                        <div className="flex items-center gap-3 w-full md:w-auto">
+                            <div className="relative flex-1 md:w-64">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <Icon name="search" size={16} className="text-tg-hint" />
+                                </div>
+                                <input
+                                    type="text"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    placeholder="搜索包名/商户/ID..."
+                                    className="block w-full pl-10 pr-3 py-2 border border-gray-200 dark:border-gray-700 rounded-xl leading-5 bg-tg-secondary_bg text-tg-text placeholder-tg-hint focus:outline-none focus:ring-2 focus:ring-[rgb(var(--primary))] focus:border-[rgb(var(--primary))] sm:text-sm transition-all"
+                                />
+                            </div>
+                            <button 
+                                onClick={fetchOffers} 
+                                disabled={loading}
+                                className="flex items-center gap-1 bg-[rgba(var(--primary),0.1)] text-[rgb(var(--primary))] hover:bg-[rgba(var(--primary),0.2)] px-3 py-2 rounded-xl transition-colors disabled:opacity-50"
+                            >
+                                <Icon name="refresh-cw" size={18} className={loading ? 'animate-spin' : ''} />
+                                <span className="hidden md:inline text-sm font-medium">刷新</span>
+                            </button>
+                        </div>
+                    </header>
+
+                    {/* Content */}
+                    <main className="flex-1 overflow-hidden p-4 md:p-6 bg-tg-secondary_bg/30">
+                        <div className="h-full bg-tg-bg rounded-2xl border border-[rgba(var(--primary),0.1)] shadow-sm overflow-hidden flex flex-col">
+                            
+                            {error && (
+                                <div className="p-4 bg-red-50 text-red-500 border-b border-red-100 flex items-center gap-2">
+                                    <Icon name="alert-circle" size={18} />
+                                    <span className="text-sm font-medium">{error}</span>
+                                </div>
+                            )}
+
+                            <div className="flex-1 overflow-auto custom-scrollbar">
+                                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800 text-sm">
+                                    <thead className="bg-tg-secondary_bg sticky top-0 z-10">
+                                        <tr>
+                                            <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-tg-hint uppercase tracking-wider whitespace-nowrap">Offer ID</th>
+                                            <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-tg-hint uppercase tracking-wider whitespace-nowrap">商户名称</th>
+                                            <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-tg-hint uppercase tracking-wider min-w-[200px]">产品名称 (Product)</th>
+                                            <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-tg-hint uppercase tracking-wider whitespace-nowrap">编号</th>
+                                            <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-tg-hint uppercase tracking-wider whitespace-nowrap">状态</th>
+                                            <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-tg-hint uppercase tracking-wider whitespace-nowrap">系统录入时间</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-tg-bg divide-y divide-gray-100 dark:divide-gray-800/50">
+                                        {loading && offers.length === 0 ? (
+                                            <tr>
+                                                <td colSpan="6" className="px-4 py-12 text-center text-tg-hint">
+                                                    <Icon name="loader-2" size={32} className="animate-spin mx-auto mb-3 opacity-50" />
+                                                    <p>正在加载数据...</p>
+                                                </td>
+                                            </tr>
+                                        ) : filteredOffers.length === 0 ? (
+                                            <tr>
+                                                <td colSpan="6" className="px-4 py-12 text-center text-tg-hint">
+                                                    <Icon name="inbox" size={32} className="mx-auto mb-3 opacity-30" />
+                                                    <p>暂无活跃 Offer 数据</p>
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            filteredOffers.map((o, i) => (
+                                                <tr key={o.id || i} className="hover:bg-[rgba(var(--primary),0.02)] transition-colors">
+                                                    <td className="px-4 py-3 whitespace-nowrap font-mono text-tg-text/70">{o.id || '-'}</td>
+                                                    <td className="px-4 py-3 whitespace-nowrap font-medium">{o.storeName || '-'}</td>
+                                                    <td className="px-4 py-3 text-[rgb(var(--primary))] font-medium break-all">{o.product || o.productName || '-'}</td>
+                                                    <td className="px-4 py-3 whitespace-nowrap">
+                                                        <span className="px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded-md font-mono text-xs">
+                                                            {o.bianHao || '-'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 whitespace-nowrap">
+                                                        {o.status === 1 ? (
+                                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">上架</span>
+                                                        ) : o.status === 2 ? (
+                                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">下架</span>
+                                                        ) : (
+                                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">{o.status ?? '未知'}</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-4 py-3 whitespace-nowrap text-tg-hint tabular-nums">
+                                                        {formatDate(o.createdAt || o.createTime)}
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <div className="p-3 border-t border-[rgba(var(--primary),0.1)] bg-tg-secondary_bg/50 text-xs text-tg-hint flex justify-between items-center">
+                                <span>共加载 {offers.length} 条数据</span>
+                                {searchTerm && <span>搜索结果: {filteredOffers.length} 条</span>}
+                            </div>
+                        </div>
+                    </main>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

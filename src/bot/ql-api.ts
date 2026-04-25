@@ -227,6 +227,14 @@ export class QLApi {
 
     private cachedRecentStores: { names: string[], expireAt: number } | null = null;
 
+    async listRecentOffers(pageRow: number = 100): Promise<any[]> {
+        const data = await this.qlFetch(`/api/offer/listOffer?pageNum=1&pageRow=${pageRow}&productType=1`, { method: 'GET' });
+        if (data.code === 100) {
+            return data.info?.data || [];
+        }
+        throw new Error(`获取最近 Offer 列表失败: ` + JSON.stringify(data));
+    }
+
     async getRecentStoreNames(limit: number = 4): Promise<string[]> {
         if (this.cachedRecentStores && Date.now() < this.cachedRecentStores.expireAt) {
             return this.cachedRecentStores.names;
