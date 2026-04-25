@@ -401,7 +401,7 @@ const startBot = async () => {
             managers.forEach(m => {
                 const mId = typeof m === 'object' ? (m.userId || m.id) : m;
                 let btnText = typeof m === 'object'
-                    ? String(m.nickName || m.userName || m.realName || m.name || m.account || m.phone || mId || '')
+                    ? String(m.nickname || m.nickName || m.userName || m.realName || m.name || m.account || m.phone || mId || '')
                     : String(m);
                 btnText = btnText.trim();
                 if (!btnText || btnText === 'undefined' || btnText === '[object Object]') {
