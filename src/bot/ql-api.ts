@@ -320,20 +320,28 @@ export class QLApi {
     }
 
     async listStores(managerId?: number): Promise<any[]> {
-        const url = managerId 
-            ? `/api/store/listStore?pageNum=1&pageRow=1000&managerId=${managerId}&showMoney=1`
-            : `/api/store/listStore?pageNum=1&pageRow=1000&showMoney=1`;
-        try {
-            const data = await this.qlFetch(url, { method: 'GET' });
-            if (data.code === 100) {
-                return data.info?.data || [];
+        const pageSize = 300;
+        let allStores: any[] = [];
+        
+        for (let i = 1; i <= 5; i++) {
+            const url = managerId 
+                ? `/api/store/listStore?pageNum=${i}&pageRow=${pageSize}&managerId=${managerId}&showMoney=1`
+                : `/api/store/listStore?pageNum=${i}&pageRow=${pageSize}&showMoney=1`;
+            try {
+                const data = await this.qlFetch(url, { method: 'GET' });
+                if (data.code === 100 && data.info?.data) {
+                    allStores = allStores.concat(data.info.data);
+                    if (data.info.data.length < pageSize) break; // 已经拉完所有数据，提前结束
+                } else {
+                    console.error(`获取商户详情第 ${i} 页失败:`, data);
+                    break;
+                }
+            } catch (e: any) {
+                console.error(`获取商户详情第 ${i} 页异常:`, e.message);
+                break; // 如果有一页挂了，就带着前面拉取到的返回，不要把整个流程卡死
             }
-            console.error('获取商户详情业务失败:', data);
-            return []; // Fallback to empty array instead of throwing error to prevent crash
-        } catch (e: any) {
-            console.error('获取商户详情异常:', e.message);
-            return []; // Ignore errors so CSV generation won't break entirely
         }
+        return allStores;
     }
 }
 

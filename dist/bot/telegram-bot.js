@@ -935,26 +935,42 @@ const startBot = async () => {
             const processQuery = async () => {
                 try {
                     console.log(`[新包查询] 开始处理: ${targetManagerName}`);
-                    // 1. Fetch recent offers
-                    const offers = await ql_api_1.qlApi.listRecentOffers(3000); // Need enough rows to cover 48 hours
-                    console.log(`[新包查询] 获取了 ${offers.length} 条广告数据`);
-                    // 2. Filter offers: past 48 hours AND manager matched
                     const nowTime = Date.now();
                     const fortyEightHoursMs = 48 * 60 * 60 * 1000;
-                    const targetOffers = offers.filter(o => {
-                        // Check time
-                        if (!o.createdAt)
-                            return false;
-                        const createdTime = new Date(o.createdAt).getTime();
-                        if (nowTime - createdTime > fortyEightHoursMs)
-                            return false;
-                        // Check manager
-                        if (mngIdStr !== 'ALL') {
-                            if (String(o.createdBy) !== mngIdStr && String(o.managerId) !== mngIdStr)
-                                return false;
+                    const targetOffers = [];
+                    // 1 & 2. 边拉取边过滤，基于 createdAt 倒序的“早停算法”
+                    for (let i = 1; i <= 20; i++) {
+                        console.log(`[新包查询] 正在拉取第 ${i} 页广告数据...`);
+                        const res = await ql_api_1.qlApi.qlFetch(`/api/offer/listOffer?pageNum=${i}&pageRow=200&productType=1`, { method: 'GET' });
+                        if (res.code === 100 && res.info?.data && res.info.data.length > 0) {
+                            const pageData = res.info.data;
+                            for (const o of pageData) {
+                                if (!o.createdAt)
+                                    continue;
+                                const createdTime = new Date(o.createdAt).getTime();
+                                if (nowTime - createdTime <= fortyEightHoursMs) {
+                                    if (mngIdStr === 'ALL' || String(o.createdBy) === mngIdStr || String(o.managerId) === mngIdStr) {
+                                        targetOffers.push(o);
+                                    }
+                                }
+                            }
+                            // 获取这页最后一条数据的创建时间，如果已经超过 48 小时，说明后面所有的包都更老，直接早停（跳出循环）！
+                            const lastItem = pageData[pageData.length - 1];
+                            if (lastItem && lastItem.createdAt) {
+                                const lastTime = new Date(lastItem.createdAt).getTime();
+                                if (nowTime - lastTime > fortyEightHoursMs) {
+                                    console.log(`[新包查询] 触及 48 小时边界，触发早停算法，成功拦截后续无用请求！`);
+                                    break;
+                                }
+                            }
+                            if (pageData.length < 200)
+                                break; // 到底了
                         }
-                        return true;
-                    });
+                        else {
+                            break;
+                        }
+                    }
+                    console.log(`[新包查询] 最终过滤出 ${targetOffers.length} 条目标广告，开始获取商户详情...`);
                     if (targetOffers.length === 0) {
                         await bot.editMessageText(`🎯 【${targetManagerName}】在过去 48 小时内没有新建任何包。`, {
                             chat_id: msg.chat.id,
@@ -964,7 +980,6 @@ const startBot = async () => {
                         return;
                     }
                     // 3. We need contact details. The contact is in listStore API.
-                    console.log(`[新包查询] 过滤出 ${targetOffers.length} 条目标广告，开始获取商户详情...`);
                     const mIdArg = mngIdStr === 'ALL' ? undefined : parseInt(mngIdStr, 10);
                     const stores = await ql_api_1.qlApi.listStores(mIdArg);
                     console.log(`[新包查询] 获取了 ${stores.length} 条商户数据`);
