@@ -12,6 +12,7 @@ const ql_api_1 = require("./ql-api");
 const env_editor_1 = require("../utils/env-editor");
 const ocr_service_1 = require("./ocr-service");
 const record_log_1 = require("./record-log");
+const offer_screenshot_1 = require("./offer-screenshot");
 const token = process.env.BOT_TOKEN || '';
 const internalChatIds = (process.env.INTERNAL_CHAT_IDS || '').split(',').map(id => id.trim());
 const adminPort = process.env.ADMIN_PORT || '8070';
@@ -22,7 +23,7 @@ let bot;
 // Key: <chatId>_<messageId>, Value: { results: ParsedData[], summaryText: string }
 const pendingRecords = new Map();
 const chargeSessions = new Map();
-const pauseAdSessions = new Map();
+const adActionSessions = new Map();
 const getBotInstance = () => bot;
 exports.getBotInstance = getBotInstance;
 const startBot = async () => {
@@ -78,6 +79,9 @@ const startBot = async () => {
   /delemng - 删除管理员
   商户充值 - 唤起 OCR 充值截图录入面板
   昨日消耗 - 导出昨日 QL 系统消耗数据 (CSV)
+  暂停广告 - 唤起商户列表，支持多选暂停处于开启状态的广告
+  开启广告 - 唤起商户列表，支持多选开启处于暂停状态的广告
+  下架广告 - 唤起商户列表，支持多选下架当前的广告
     `;
         bot.sendMessage(msg.chat.id, helpText, { parse_mode: 'Markdown' });
     });
@@ -324,17 +328,20 @@ const startBot = async () => {
             }
         });
     });
-    bot.onText(/暂停广告/, (msg) => {
+    const handleAdAction = (msg, actionType) => {
         const sessionKey = `${msg.chat.id}_${msg.from?.id}`;
-        pauseAdSessions.set(sessionKey, { step: 'WAIT_STORE_SELECTION' });
-        const keyboard = getStoreKeyboard('pausead_store');
-        keyboard.push([{ text: '暂不需要', callback_data: `pausead_cancel` }]);
-        bot.sendMessage(msg.chat.id, '请选择需要暂停广告的商户：', {
+        adActionSessions.set(sessionKey, { actionType, step: 'WAIT_STORE_SELECTION' });
+        const keyboard = getStoreKeyboard('adaction_store');
+        keyboard.push([{ text: '暂不需要', callback_data: `adaction_cancel` }]);
+        bot.sendMessage(msg.chat.id, `请选择需要${actionType}广告的商户：`, {
             reply_markup: {
                 inline_keyboard: keyboard
             }
         });
-    });
+    };
+    bot.onText(/暂停广告/, (msg) => handleAdAction(msg, '暂停'));
+    bot.onText(/开启广告/, (msg) => handleAdAction(msg, '开启'));
+    bot.onText(/下架广告/, (msg) => handleAdAction(msg, '下架'));
     // bot.onText(/消耗报告/, (msg) => {
     //   const keyboard = getStoreKeyboard('report_store');
     //   // Prepend the "Select All" button
@@ -411,7 +418,7 @@ const startBot = async () => {
             }
             return;
         }
-        const pauseAdSession = pauseAdSessions.get(sessionKey);
+        const pauseAdSession = adActionSessions.get(sessionKey);
         if (pauseAdSession && pauseAdSession.step === 'WAIT_STORE_NAME_MANUAL' && msg.text && !msg.text.startsWith('/')) {
             const storeName = msg.text.trim();
             pauseAdSession.storeName = storeName;
@@ -424,28 +431,36 @@ const startBot = async () => {
                 }
                 pauseAdSession.storeId = targetStore.storeId;
                 const offers = await ql_api_1.qlApi.listOffer(targetStore.storeId, 100);
-                // 过滤开启状态的广告，假设 pStatus === '开启' 或者 status === 1
-                const activeOffers = offers.filter(o => o.pStatus === '开启' || o.status === 1);
+                const actionType = pauseAdSession.actionType;
+                const activeOffers = offers.filter(o => {
+                    if (actionType === '暂停')
+                        return o.pStatus === '开启' || o.status === 1;
+                    if (actionType === '开启')
+                        return o.pStatus === '暂停' || o.status === 2;
+                    if (actionType === '下架')
+                        return o.pStatus !== '下架' && o.status !== 3;
+                    return true;
+                });
                 pauseAdSession.activeOffers = activeOffers;
                 pauseAdSession.selectedOffers = new Set();
                 pauseAdSession.step = 'WAIT_PRODUCT_SELECTION';
-                pauseAdSessions.set(sessionKey, pauseAdSession);
+                adActionSessions.set(sessionKey, pauseAdSession);
                 if (activeOffers.length === 0) {
-                    await bot.editMessageText(`商户【${targetStore.storeName}】下没有开启状态的广告。`, {
+                    await bot.editMessageText(`商户【${targetStore.storeName}】下没有符合操作条件的广告。`, {
                         chat_id: msg.chat.id,
                         message_id: processingMsg.message_id
                     });
-                    pauseAdSessions.delete(sessionKey);
+                    adActionSessions.delete(sessionKey);
                     return;
                 }
                 const keyboard = [];
                 activeOffers.forEach(o => {
-                    keyboard.push([{ text: `⬜ ${o.product || o.productName}`, callback_data: `pausead_prod:${o.id}` }]);
+                    keyboard.push([{ text: `⬜ ${o.product || o.productName}`, callback_data: `adaction_prod:${o.id}` }]);
                 });
-                keyboard.push([{ text: '✅ 全选 / 🟩 全不选', callback_data: `pausead_prod:ALL` }]);
-                keyboard.push([{ text: '▶️ 确定暂停已选 (0)', callback_data: `pausead_confirm` }]);
-                keyboard.push([{ text: '暂不需要', callback_data: `pausead_cancel` }]);
-                await bot.editMessageText(`你选择的商户是“${targetStore.storeName}”，请点击打勾选择需要暂停广告的产品：`, {
+                keyboard.push([{ text: '✅ 全选 / 🟩 全不选', callback_data: `adaction_prod:ALL` }]);
+                keyboard.push([{ text: '▶️ 确定操作已选 (0)', callback_data: `adaction_confirm` }]);
+                keyboard.push([{ text: '暂不需要', callback_data: `adaction_cancel` }]);
+                await bot.editMessageText(`你选择的商户是“${targetStore.storeName}”，请点击打勾选择需要操作广告的产品：`, {
                     chat_id: msg.chat.id,
                     message_id: processingMsg.message_id,
                     reply_markup: { inline_keyboard: keyboard }
@@ -456,7 +471,7 @@ const startBot = async () => {
                     chat_id: msg.chat.id,
                     message_id: processingMsg.message_id
                 });
-                pauseAdSessions.delete(sessionKey);
+                adActionSessions.delete(sessionKey);
             }
             return;
         }
@@ -532,14 +547,14 @@ const startBot = async () => {
             bot.answerCallbackQuery(query.id);
             return;
         }
-        if (data === 'charge_cancel' || data === 'report_cancel' || data === 'pausead_cancel') {
+        if (data === 'charge_cancel' || data === 'report_cancel' || data === 'adaction_cancel') {
             const sessionKey = `${msg.chat.id}_${query.from.id}`;
             chargeSessions.delete(sessionKey);
-            pauseAdSessions.delete(sessionKey);
+            adActionSessions.delete(sessionKey);
             const textMap = {
                 'charge_cancel': '已取消商户充值。',
                 'report_cancel': '已取消消耗报告获取。',
-                'pausead_cancel': '已取消暂停广告。'
+                'adaction_cancel': '已取消操作。'
             };
             bot.editMessageText(textMap[data] || '已取消。', {
                 chat_id: msg.chat.id,
@@ -645,21 +660,21 @@ const startBot = async () => {
             bot.answerCallbackQuery(query.id);
             return;
         }
-        if (data?.startsWith('pausead_store:')) {
-            const storeName = data.split('pausead_store:')[1];
+        if (data?.startsWith('adaction_store:')) {
+            const storeName = data.split('adaction_store:')[1];
             const sessionKey = `${msg.chat.id}_${query.from.id}`;
-            const session = pauseAdSessions.get(sessionKey) || {};
+            const session = adActionSessions.get(sessionKey) || {};
             if (storeName === 'MANUAL') {
                 session.step = 'WAIT_STORE_NAME_MANUAL';
-                pauseAdSessions.set(sessionKey, session);
-                bot.editMessageText('请回复输入您要暂停广告的商户名称（如：XX-XX）：', {
+                adActionSessions.set(sessionKey, session);
+                bot.editMessageText('请回复输入您要操作广告的商户名称（如：XX-XX）：', {
                     chat_id: msg.chat.id,
                     message_id: msg.message_id
                 });
             }
             else {
                 session.storeName = storeName;
-                pauseAdSessions.set(sessionKey, session);
+                adActionSessions.set(sessionKey, session);
                 bot.editMessageText(`正在查询商户【${storeName}】的广告列表...`, {
                     chat_id: msg.chat.id,
                     message_id: msg.message_id
@@ -671,27 +686,36 @@ const startBot = async () => {
                     session.storeId = targetStore.storeId;
                     return ql_api_1.qlApi.listOffer(targetStore.storeId, 100).then(offers => ({ targetStore, offers }));
                 }).then(({ targetStore, offers }) => {
-                    const activeOffers = offers.filter(o => o.pStatus === '开启' || o.status === 1);
+                    const actionType = session.actionType;
+                    const activeOffers = offers.filter(o => {
+                        if (actionType === '暂停')
+                            return o.pStatus === '开启' || o.status === 1;
+                        if (actionType === '开启')
+                            return o.pStatus === '暂停' || o.status === 2;
+                        if (actionType === '下架')
+                            return o.pStatus !== '下架' && o.status !== 3;
+                        return true;
+                    });
                     session.activeOffers = activeOffers;
                     session.selectedOffers = new Set();
                     session.step = 'WAIT_PRODUCT_SELECTION';
-                    pauseAdSessions.set(sessionKey, session);
+                    adActionSessions.set(sessionKey, session);
                     if (activeOffers.length === 0) {
-                        bot.editMessageText(`商户【${targetStore.storeName}】下没有开启状态的广告。`, {
+                        bot.editMessageText(`商户【${targetStore.storeName}】下没有符合操作条件的广告。`, {
                             chat_id: msg.chat.id,
                             message_id: msg.message_id
                         });
-                        pauseAdSessions.delete(sessionKey);
+                        adActionSessions.delete(sessionKey);
                         return;
                     }
                     const keyboard = [];
                     activeOffers.forEach(o => {
-                        keyboard.push([{ text: `⬜ ${o.product || o.productName}`, callback_data: `pausead_prod:${o.id}` }]);
+                        keyboard.push([{ text: `⬜ ${o.product || o.productName}`, callback_data: `adaction_prod:${o.id}` }]);
                     });
-                    keyboard.push([{ text: '✅ 全选 / 🟩 全不选', callback_data: `pausead_prod:ALL` }]);
-                    keyboard.push([{ text: '▶️ 确定暂停已选 (0)', callback_data: `pausead_confirm` }]);
-                    keyboard.push([{ text: '暂不需要', callback_data: `pausead_cancel` }]);
-                    bot.editMessageText(`你选择的商户是“${targetStore.storeName}”，请点击打勾选择需要暂停广告的产品：`, {
+                    keyboard.push([{ text: '✅ 全选 / 🟩 全不选', callback_data: `adaction_prod:ALL` }]);
+                    keyboard.push([{ text: '▶️ 确定操作已选 (0)', callback_data: `adaction_confirm` }]);
+                    keyboard.push([{ text: '暂不需要', callback_data: `adaction_cancel` }]);
+                    bot.editMessageText(`你选择的商户是“${targetStore.storeName}”，请点击打勾选择需要操作广告的产品：`, {
                         chat_id: msg.chat.id,
                         message_id: msg.message_id,
                         reply_markup: { inline_keyboard: keyboard }
@@ -701,16 +725,16 @@ const startBot = async () => {
                         chat_id: msg.chat.id,
                         message_id: msg.message_id
                     });
-                    pauseAdSessions.delete(sessionKey);
+                    adActionSessions.delete(sessionKey);
                 });
             }
             bot.answerCallbackQuery(query.id);
             return;
         }
-        if (data?.startsWith('pausead_prod:')) {
-            const offerIdStr = data.split('pausead_prod:')[1];
+        if (data?.startsWith('adaction_prod:')) {
+            const offerIdStr = data.split('adaction_prod:')[1];
             const sessionKey = `${msg.chat.id}_${query.from.id}`;
-            const session = pauseAdSessions.get(sessionKey);
+            const session = adActionSessions.get(sessionKey);
             if (!session || session.step !== 'WAIT_PRODUCT_SELECTION' || !session.activeOffers || !session.selectedOffers) {
                 bot.answerCallbackQuery(query.id, { text: '会话已过期' });
                 return;
@@ -738,11 +762,11 @@ const startBot = async () => {
             const keyboard = [];
             session.activeOffers.forEach(o => {
                 const isSelected = session.selectedOffers.has(o.id);
-                keyboard.push([{ text: `${isSelected ? '✅' : '⬜'} ${o.product || o.productName}`, callback_data: `pausead_prod:${o.id}` }]);
+                keyboard.push([{ text: `${isSelected ? '✅' : '⬜'} ${o.product || o.productName}`, callback_data: `adaction_prod:${o.id}` }]);
             });
-            keyboard.push([{ text: '✅ 全选 / 🟩 全不选', callback_data: `pausead_prod:ALL` }]);
-            keyboard.push([{ text: `▶️ 确定暂停已选 (${session.selectedOffers.size})`, callback_data: `pausead_confirm` }]);
-            keyboard.push([{ text: '暂不需要', callback_data: `pausead_cancel` }]);
+            keyboard.push([{ text: '✅ 全选 / 🟩 全不选', callback_data: `adaction_prod:ALL` }]);
+            keyboard.push([{ text: `▶️ 确定操作已选 (${session.selectedOffers.size})`, callback_data: `adaction_confirm` }]);
+            keyboard.push([{ text: '暂不需要', callback_data: `adaction_cancel` }]);
             bot.editMessageReplyMarkup({ inline_keyboard: keyboard }, {
                 chat_id: msg.chat.id,
                 message_id: msg.message_id
@@ -750,9 +774,9 @@ const startBot = async () => {
             bot.answerCallbackQuery(query.id);
             return;
         }
-        if (data === 'pausead_confirm') {
+        if (data === 'adaction_confirm') {
             const sessionKey = `${msg.chat.id}_${query.from.id}`;
-            const session = pauseAdSessions.get(sessionKey);
+            const session = adActionSessions.get(sessionKey);
             if (!session || session.step !== 'WAIT_PRODUCT_SELECTION' || !session.activeOffers || !session.selectedOffers) {
                 bot.answerCallbackQuery(query.id, { text: '会话已过期' });
                 return;
@@ -761,7 +785,7 @@ const startBot = async () => {
                 bot.answerCallbackQuery(query.id, { text: '请至少选择一个产品！', show_alert: true });
                 return;
             }
-            bot.editMessageText(`⏳ 正在批量暂停 ${session.selectedOffers.size} 个广告，请稍候...`, {
+            bot.editMessageText(`⏳ 正在批量处理 ${session.selectedOffers.size} 个广告，请稍候...`, {
                 chat_id: msg.chat.id,
                 message_id: msg.message_id
             });
@@ -769,28 +793,54 @@ const startBot = async () => {
                 try {
                     let successCount = 0;
                     let failCount = 0;
+                    const pausedOffers = [];
                     for (const offerId of Array.from(session.selectedOffers)) {
                         try {
-                            await ql_api_1.qlApi.editPStatus(offerId, '暂停');
+                            await ql_api_1.qlApi.editPStatus(offerId, session.actionType);
+                            const offerObj = session.activeOffers.find(o => o.id === offerId);
+                            if (offerObj) {
+                                offerObj.pStatus = session.actionType;
+                                pausedOffers.push(offerObj);
+                            }
                             successCount++;
                         }
                         catch (e) {
                             failCount++;
                         }
                     }
-                    bot.editMessageText(`✅ 批量暂停完成！\n\n🎯 成功暂停：${successCount} 个\n❌ 暂停失败：${failCount} 个`, {
+                    await bot.editMessageText(`✅ 批量操作完成！\n\n🎯 成功：${successCount} 个\n❌ 失败：${failCount} 个`, {
                         chat_id: msg.chat.id,
                         message_id: msg.message_id
                     });
+                    if (pausedOffers.length > 0) {
+                        const loadingMsg = await bot.sendMessage(msg.chat.id, `📸 正在生成网页截图证明，请稍候...`, {
+                            reply_to_message_id: msg.message_id
+                        });
+                        try {
+                            const imageBuffer = await (0, offer_screenshot_1.generateOffersScreenshot)(pausedOffers);
+                            await bot.sendPhoto(msg.chat.id, imageBuffer, {
+                                caption: `✅ 商户【${session.storeName}】广告操作已在系统中生效`,
+                                reply_to_message_id: msg.message_id
+                            });
+                            await bot.deleteMessage(msg.chat.id, loadingMsg.message_id);
+                        }
+                        catch (err) {
+                            console.error('Screenshot error:', err);
+                            await bot.editMessageText(`⚠️ 截图生成失败，但操作已成功。(${err.message})`, {
+                                chat_id: msg.chat.id,
+                                message_id: loadingMsg.message_id
+                            });
+                        }
+                    }
                 }
                 catch (err) {
-                    bot.editMessageText(`❌ 暂停操作失败：${err.message}`, {
+                    bot.editMessageText(`❌ 操作失败：${err.message}`, {
                         chat_id: msg.chat.id,
                         message_id: msg.message_id
                     });
                 }
                 finally {
-                    pauseAdSessions.delete(sessionKey);
+                    adActionSessions.delete(sessionKey);
                 }
             };
             processPause();

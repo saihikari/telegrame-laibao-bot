@@ -19,7 +19,7 @@ export async function generateOffersScreenshot(offers: any[]): Promise<Buffer> {
                 <a href="#">${o.productUrl || o.url || 'https://play.google.com/store/apps/'}</a><br/>
                 <span class="text-green">在线</span>
             </td>
-            <td><div class="dropdown-orange">暂停 <span class="arrow">v</span></div></td>
+            <td><div class="dropdown-orange">${o.pStatus || '未知'} <span class="arrow">v</span></div></td>
             <td><div class="btn-blue">查看</div></td>
         </tr>
         `;
