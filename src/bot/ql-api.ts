@@ -55,46 +55,49 @@ export class QLApi {
     }
 
     async qlFetch(path: string, options: any = {}) {
-        // 1. 优先检查 .env 中是否配置了静态长效 Token
         const staticToken = process.env.QL_STATIC_TOKEN;
+        // 只有在明确传入 options.useStaticToken=true 且环境里配了静态 Token 时，才使用特权 Token
+        const isStaticMode = options.useStaticToken && staticToken;
         
-        // 如果配置了静态 Token，则直接将其赋值给 currentToken 并标记为不过期
-        if (staticToken && !this.currentToken) {
-            console.log("[QL API] 检测到静态 Token (QL_STATIC_TOKEN)，将直接使用静态凭证发起请求。");
-            this.currentToken = staticToken;
-            this.tokenExpireTime = Infinity; // 永不过期
-        }
+        let currentRequestToken = this.currentToken;
         
-        // 2. 如果既没有静态 Token，也没有动态 Token（或者动态 Token 已过期），则走常规的账号密码登录流程
-        if (!this.currentToken || Date.now() > this.tokenExpireTime) {
-            await this.login();
+        if (isStaticMode) {
+            currentRequestToken = staticToken;
+        } else {
+            // 普通业务走真实的账号密码动态 Token
+            if (!this.currentToken || Date.now() > this.tokenExpireTime) {
+                await this.login();
+            }
+            currentRequestToken = this.currentToken;
         }
 
         const headers = {
             'Content-Type': 'application/json',
-            'token': this.currentToken,
+            'token': currentRequestToken,
             ...(options.headers || {})
         };
 
         const res = await fetchWithTimeout(`${this.baseUrl}${path}`, { ...options, headers });
         const data = await res.json();
 
-        // 3. 兜底处理：万一 Token 被踢或过期 (401)
         if (data.code === 401 || (data.msg && data.msg.toLowerCase().includes("token"))) {
             console.log("[QL API] Token 失效或被踢...");
             
-            // 如果当前使用的是静态 Token，说明配置的静态 Token 已经彻底失效了，直接报错（不要去尝试密码登录覆盖静态策略）
-            if (staticToken && this.currentToken === staticToken) {
-                console.error("[QL API] 致命错误：环境变量中配置的 QL_STATIC_TOKEN 已经失效或无权限！请更新 .env 文件。");
-                throw new Error("静态 Token (QL_STATIC_TOKEN) 已失效，请求被服务器拒绝 (401)。请联系管理员更新 Token。");
+            if (isStaticMode) {
+                console.log("[QL API] 静态 Token 失效，降级回退到普通账号密码登录...");
+                if (!this.currentToken || Date.now() > this.tokenExpireTime) {
+                    await this.login();
+                }
+                headers.token = this.currentToken;
+                const fallbackRes = await fetchWithTimeout(`${this.baseUrl}${path}`, { ...options, headers });
+                return await fallbackRes.json();
+            } else {
+                console.log("[QL API] 触发强制重新登录...");
+                await this.login();
+                headers.token = this.currentToken;
+                const retryRes = await fetchWithTimeout(`${this.baseUrl}${path}`, { ...options, headers });
+                return await retryRes.json();
             }
-            
-            // 如果是常规密码登录的，走自动续期流程
-            console.log("[QL API] 触发强制重新登录...");
-            await this.login();
-            headers.token = this.currentToken;
-            const retryRes = await fetchWithTimeout(`${this.baseUrl}${path}`, { ...options, headers });
-            return await retryRes.json();
         }
 
         return data;
@@ -340,7 +343,7 @@ export class QLApi {
         throw new Error('获取经理列表失败: ' + JSON.stringify(data));
     }
 
-    async listStores(managerId?: number): Promise<any[]> {
+    async listStores(managerId?: number, useStaticToken: boolean = false): Promise<any[]> {
         const pageSize = 300;
         let allStores: any[] = [];
         
@@ -349,7 +352,7 @@ export class QLApi {
                 ? `/api/store/listStore?pageNum=${i}&pageRow=${pageSize}&managerId=${managerId}&showMoney=1`
                 : `/api/store/listStore?pageNum=${i}&pageRow=${pageSize}&showMoney=1`;
             try {
-                const data = await this.qlFetch(url, { method: 'GET' });
+                const data = await this.qlFetch(url, { method: 'GET', useStaticToken });
                 if (data.code === 100 && data.info?.data) {
                     allStores = allStores.concat(data.info.data);
                     if (data.info.data.length < pageSize) break; // 已经拉完所有数据，提前结束

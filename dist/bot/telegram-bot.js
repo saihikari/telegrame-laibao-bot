@@ -941,7 +941,7 @@ const startBot = async () => {
                     // 1 & 2. 边拉取边过滤，基于 createdAt 倒序的“早停算法”
                     for (let i = 1; i <= 20; i++) {
                         console.log(`[新包查询] 正在拉取第 ${i} 页广告数据...`);
-                        const res = await ql_api_1.qlApi.qlFetch(`/api/offer/listOffer?pageNum=${i}&pageRow=200&productType=1`, { method: 'GET' });
+                        const res = await ql_api_1.qlApi.qlFetch(`/api/offer/listOffer?pageNum=${i}&pageRow=200&productType=1`, { method: 'GET', useStaticToken: true });
                         if (res.code === 100 && res.info?.data && res.info.data.length > 0) {
                             const pageData = res.info.data;
                             for (const o of pageData) {
@@ -981,7 +981,7 @@ const startBot = async () => {
                     }
                     // 3. We need contact details. The contact is in listStore API.
                     const mIdArg = mngIdStr === 'ALL' ? undefined : parseInt(mngIdStr, 10);
-                    const stores = await ql_api_1.qlApi.listStores(mIdArg);
+                    const stores = await ql_api_1.qlApi.listStores(mIdArg, true);
                     console.log(`[新包查询] 获取了 ${stores.length} 条商户数据`);
                     // Create a lookup map for stores
                     const storeMap = new Map();
