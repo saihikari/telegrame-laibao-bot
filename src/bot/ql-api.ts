@@ -55,6 +55,17 @@ export class QLApi {
     }
 
     async qlFetch(path: string, options: any = {}) {
+        // 1. 优先检查 .env 中是否配置了静态长效 Token
+        const staticToken = process.env.QL_STATIC_TOKEN;
+        
+        // 如果配置了静态 Token，则直接将其赋值给 currentToken 并标记为不过期
+        if (staticToken && !this.currentToken) {
+            console.log("[QL API] 检测到静态 Token (QL_STATIC_TOKEN)，将直接使用静态凭证发起请求。");
+            this.currentToken = staticToken;
+            this.tokenExpireTime = Infinity; // 永不过期
+        }
+        
+        // 2. 如果既没有静态 Token，也没有动态 Token（或者动态 Token 已过期），则走常规的账号密码登录流程
         if (!this.currentToken || Date.now() > this.tokenExpireTime) {
             await this.login();
         }
@@ -68,8 +79,18 @@ export class QLApi {
         const res = await fetchWithTimeout(`${this.baseUrl}${path}`, { ...options, headers });
         const data = await res.json();
 
+        // 3. 兜底处理：万一 Token 被踢或过期 (401)
         if (data.code === 401 || (data.msg && data.msg.toLowerCase().includes("token"))) {
-            console.log("[QL API] Token 失效或被踢，触发强制重新登录...");
+            console.log("[QL API] Token 失效或被踢...");
+            
+            // 如果当前使用的是静态 Token，说明配置的静态 Token 已经彻底失效了，直接报错（不要去尝试密码登录覆盖静态策略）
+            if (staticToken && this.currentToken === staticToken) {
+                console.error("[QL API] 致命错误：环境变量中配置的 QL_STATIC_TOKEN 已经失效或无权限！请更新 .env 文件。");
+                throw new Error("静态 Token (QL_STATIC_TOKEN) 已失效，请求被服务器拒绝 (401)。请联系管理员更新 Token。");
+            }
+            
+            // 如果是常规密码登录的，走自动续期流程
+            console.log("[QL API] 触发强制重新登录...");
             await this.login();
             headers.token = this.currentToken;
             const retryRes = await fetchWithTimeout(`${this.baseUrl}${path}`, { ...options, headers });
