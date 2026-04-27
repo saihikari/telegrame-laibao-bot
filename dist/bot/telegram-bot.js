@@ -984,17 +984,24 @@ const startBot = async () => {
                     }
                     // 4. Build CSV
                     let csvContent = '\uFEFF'; // BOM for Excel UTF-8
-                    csvContent += '商户名称,登记时间,联系人,联系电话,合同状态,USD余额\n';
+                    csvContent += '商户名称,登记时间,联系人,联系电话,合同状态,USD余额,外部报表\n';
                     targetStores.forEach(s => {
-                        const name = `"${(s.name || '').replace(/"/g, '""')}"`;
+                        const name = `"${(s.storeName || '').replace(/"/g, '""')}"`;
                         const cTime = `"${(s.createTime || s.createdAt || '').replace(/"/g, '""')}"`;
-                        const contact = `"${(s.contactName || s.contact || '').replace(/"/g, '""')}"`;
-                        const phone = `"${(s.phone || s.mobile || '').replace(/"/g, '""')}"`;
-                        const statusStr = s.contractStatus === 1 ? '有效' : (s.contractStatus || s.status || '');
-                        const status = `"${String(statusStr).replace(/"/g, '""')}"`;
-                        const balanceStr = s.money || s.usdBalance || s.balance || '0';
+                        const contact = `"${(s.contactName || '').replace(/"/g, '""')}"`;
+                        const phone = `"${(s.phone || '').replace(/"/g, '""')}"`;
+                        let statusStr = '';
+                        if (s.isEnd === 1)
+                            statusStr = '已结束';
+                        else if (s.isEnd === 0)
+                            statusStr = '进行中';
+                        else
+                            statusStr = s.isEnd !== undefined && s.isEnd !== null ? String(s.isEnd) : '';
+                        const status = `"${statusStr.replace(/"/g, '""')}"`;
+                        const balanceStr = s.usdBalance !== undefined && s.usdBalance !== null ? s.usdBalance : '0';
                         const balance = `"${String(balanceStr).replace(/"/g, '""')}"`;
-                        csvContent += `${name},${cTime},${contact},${phone},${status},${balance}\n`;
+                        const outReport = `"${(s.outReportUrl || '').replace(/"/g, '""')}"`;
+                        csvContent += `${name},${cTime},${contact},${phone},${status},${balance},${outReport}\n`;
                     });
                     const buffer = Buffer.from(csvContent, 'utf-8');
                     const dateStr = new Date().toISOString().substring(0, 10);
