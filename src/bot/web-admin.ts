@@ -1,4 +1,6 @@
 import express from 'express';
+import { storeQueryCache } from './store-query-cache';
+
 import { getConfig, saveConfig, backupConfig, getLastModified, getBackupCount, listBackups, restoreBackup } from './config-loader';
 import { getBotInstance } from './telegram-bot';
 import { processMessage } from './rule-engine';
@@ -362,7 +364,22 @@ app.get('/admin/logout', (req, res) => {
   res.redirect('/admin/login');
 });
 
+
+// Telegram WebApp Routes (Public but protected by UUID)
+app.get('/webapp/store-query', (req, res) => {
+  res.sendFile(path.join(__dirname, '../../public/store-query.html'));
+});
+
+app.get('/webapp/api/store-query', (req, res) => {
+  const id = req.query.id as string;
+  if (!id || !storeQueryCache.has(id)) {
+    return res.status(404).json({ success: false, error: '查询结果不存在或已过期，请在 Telegram 中重新发起查询。' });
+  }
+  res.json({ success: true, data: storeQueryCache.get(id)?.data });
+});
+
 app.use('/admin', requireAuth);
+
 app.use('/api', requireAuth);
 
 // 添加全局无缓存中间件，强制浏览器不缓存 HTML 静态资源

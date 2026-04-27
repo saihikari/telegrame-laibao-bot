@@ -51,7 +51,7 @@ const fastAdSessions = new Map<string, FastAdActionState>();
 interface NewOfferQueryState {
     managers?: any[];
 }
-const newOfferQuerySessions = new Map<string, NewOfferQueryState>();
+const storeQuerySessions = new Map<string, NewOfferQueryState>();
 
 
 
@@ -117,7 +117,7 @@ export const startBot = async () => {
   暂停广告 - 唤起商户列表，支持多选暂停处于开启状态的广告
   开启广告 - 唤起商户列表，支持多选开启处于暂停状态的广告
   下架广告 - 唤起商户列表，支持多选下架当前的广告
-  新包查询 - 唤起经理列表，导出最近 48 小时内新建的包的详细数据(CSV)
+  商户查询 - 唤起经理列表，在 WebApp 中查看最近 1 个月登记的商户信息并导出
     `;
     bot.sendMessage(msg.chat.id, helpText, { parse_mode: 'Markdown' });
   });
@@ -454,7 +454,7 @@ export const startBot = async () => {
   bot.onText(/^(?:\/)?开启广告$/, (msg) => handleAdAction(msg, '开启'));
   bot.onText(/^(?:\/)?下架广告$/, (msg) => handleAdAction(msg, '下架'));
 
-  bot.onText(/^(?:\/)?新包查询$/, async (msg) => {
+  bot.onText(/^(?:\/)?商户查询$/, async (msg) => {
     const sessionKey = `${msg.chat.id}_${msg.from?.id}`;
     
     const loadingMsg = await bot.sendMessage(msg.chat.id, '⏳ 正在为您生成经理列表...', { reply_to_message_id: msg.message_id });
@@ -468,7 +468,7 @@ export const startBot = async () => {
         { roleId: 1, nickname: "arylin", userId: 2, username: "13641611667" },
         { roleId: 3, nickname: "tang.stephy", userId: 679, username: "stephy.tang314@gmail.com" }
       ];
-      newOfferQuerySessions.set(sessionKey, { managers });
+      storeQuerySessions.set(sessionKey, { managers });
 
       const keyboard: any[][] = [];
       let currentRow: any[] = [];
@@ -487,7 +487,7 @@ export const startBot = async () => {
           btnText = typeof m === 'object' ? JSON.stringify(m).substring(0, 10) : '未知人员';
         }
         
-        currentRow.push({ text: btnText, callback_data: `newoffer_mng:${mId}` });
+        currentRow.push({ text: btnText, callback_data: `storequery_mng:${mId}` });
         if (currentRow.length === columns) {
           keyboard.push(currentRow);
           currentRow = [];
@@ -498,10 +498,10 @@ export const startBot = async () => {
         keyboard.push(currentRow);
       }
       
-      keyboard.push([{ text: '查询全部 (耗时较长)', callback_data: `newoffer_mng:ALL` }]);
-      keyboard.push([{ text: '暂不需要', callback_data: `newoffer_cancel` }]);
+      keyboard.push([{ text: '查询全部 (耗时较长)', callback_data: `storequery_mng:ALL` }]);
+      keyboard.push([{ text: '暂不需要', callback_data: `storequery_cancel` }]);
 
-      await bot.editMessageText('请选择要查询的归属人 (查询过去 48 小时新建)：', {
+      await bot.editMessageText('请选择要查询的归属人 (查询最近 1 个月登记)：', {
         chat_id: msg.chat.id,
         message_id: loadingMsg.message_id,
         reply_markup: { inline_keyboard: keyboard }
@@ -1021,9 +1021,9 @@ export const startBot = async () => {
     }
 
 
-    if (data === 'newoffer_cancel') {
+    if (data === 'storequery_cancel') {
       const sessionKey = `${msg.chat.id}_${query.from.id}`;
-      newOfferQuerySessions.delete(sessionKey);
+      storeQuerySessions.delete(sessionKey);
       bot.editMessageText('已取消新包查询。', {
         chat_id: msg.chat.id,
         message_id: msg.message_id
@@ -1032,10 +1032,10 @@ export const startBot = async () => {
       return;
     }
 
-    if (data?.startsWith('newoffer_mng:')) {
-      const mngIdStr = data.split('newoffer_mng:')[1];
+    if (data?.startsWith('storequery_mng:')) {
+      const mngIdStr = data.split('storequery_mng:')[1];
       const sessionKey = `${msg.chat.id}_${query.from.id}`;
-      const session = newOfferQuerySessions.get(sessionKey);
+      const session = storeQuerySessions.get(sessionKey);
       
       if (!session || !session.managers) {
         bot.answerCallbackQuery(query.id, { text: '会话已过期，请重新发送指令' });
@@ -1044,7 +1044,7 @@ export const startBot = async () => {
       
       let targetManagerName = '全部人员';
       if (mngIdStr !== 'ALL') {
-        const m = session.managers.find(x => {
+        const m = session.managers.find((x: any) => {
           const xId = typeof x === 'object' ? (x.userId || x.id) : x;
           return String(xId) === mngIdStr;
         });
@@ -1057,113 +1057,93 @@ export const startBot = async () => {
         }
       }
 
-      await bot.editMessageText(`⏳ 正在拉取【${targetManagerName}】过去 48 小时新建的数据，请稍候...`, {
+      await bot.editMessageText(`⏳ 正在拉取【${targetManagerName}】最近 1 个月登记的数据，请稍候...`, {
         chat_id: msg.chat.id,
         message_id: msg.message_id
       });
 
       const processQuery = async () => {
         try {
-          console.log(`[新包查询] 开始处理: ${targetManagerName}`);
+          console.log(`[商户查询] 开始处理: ${targetManagerName}`);
           const nowTime = Date.now();
-          const fortyEightHoursMs = 48 * 60 * 60 * 1000;
-          const targetOffers: any[] = [];
+          const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+          const targetStores: any[] = [];
+          
+          const mIdParam = mngIdStr === 'ALL' ? '' : `&managerId=${mngIdStr}`;
 
-          // 1 & 2. 边拉取边过滤，基于 createdAt 倒序的“早停算法”
           for (let i = 1; i <= 20; i++) {
-            console.log(`[新包查询] 正在拉取第 ${i} 页广告数据...`);
-            const res = await qlApi.qlFetch(`/api/offer/listOffer?pageNum=${i}&pageRow=200&productType=1`, { method: 'GET', useStaticToken: true });
-            
+            console.log(`[商户查询] 正在拉取第 ${i} 页商户数据...`);
+            const url = `/api/store/listStore?pageNum=${i}&pageRow=200${mIdParam}&showMoney=1`;
+            const res = await qlApi.qlFetch(url, { method: 'GET', useStaticToken: true });
+
             if (res.code === 100 && res.info?.data && res.info.data.length > 0) {
               const pageData = res.info.data;
-              for (const o of pageData) {
-                if (!o.createdAt) continue;
-                const createdTime = new Date(o.createdAt).getTime();
-                if (nowTime - createdTime <= fortyEightHoursMs) {
-                  if (mngIdStr === 'ALL' || String(o.createdBy) === mngIdStr || String(o.managerId) === mngIdStr) {
-                    targetOffers.push(o);
-                  }
+              for (const s of pageData) {
+                const cTimeStr = s.createTime || s.createdAt;
+                if (!cTimeStr) {
+                  targetStores.push(s); // 如果没有时间字段，保守保留
+                  continue;
+                }
+                const createdTime = new Date(cTimeStr).getTime();
+                if (nowTime - createdTime <= thirtyDaysMs) {
+                  targetStores.push(s);
                 }
               }
-              
-              // 获取这页最后一条数据的创建时间，如果已经超过 48 小时，说明后面所有的包都更老，直接早停（跳出循环）！
+
+              // 早停算法：判断本页最后一条是否超出1个月
               const lastItem = pageData[pageData.length - 1];
-              if (lastItem && lastItem.createdAt) {
-                const lastTime = new Date(lastItem.createdAt).getTime();
-                if (nowTime - lastTime > fortyEightHoursMs) {
-                  console.log(`[新包查询] 触及 48 小时边界，触发早停算法，成功拦截后续无用请求！`);
+              const lastTimeStr = lastItem?.createTime || lastItem?.createdAt;
+              if (lastTimeStr) {
+                const lastTime = new Date(lastTimeStr).getTime();
+                if (nowTime - lastTime > thirtyDaysMs) {
+                  console.log(`[商户查询] 触及 1 个月时间边界，触发早停算法！`);
                   break;
                 }
               }
-              
+
               if (pageData.length < 200) break; // 到底了
             } else {
               break;
             }
           }
-          console.log(`[新包查询] 最终过滤出 ${targetOffers.length} 条目标广告，开始获取商户详情...`);
+          console.log(`[商户查询] 最终过滤出 ${targetStores.length} 条目标商户`);
 
-          if (targetOffers.length === 0) {
-            await bot.editMessageText(`🎯 【${targetManagerName}】在过去 48 小时内没有新建任何包。`, {
+          if (targetStores.length === 0) {
+            await bot.editMessageText(`🎯 【${targetManagerName}】在过去 1 个月内没有新建任何商户。`, {
               chat_id: msg.chat.id,
               message_id: msg.message_id
             });
-            newOfferQuerySessions.delete(sessionKey);
+            storeQuerySessions.delete(sessionKey);
             return;
           }
 
-          // 3. We need contact details. The contact is in listStore API.
-          const mIdArg = mngIdStr === 'ALL' ? undefined : parseInt(mngIdStr, 10);
-          const stores = await qlApi.listStores(mIdArg, true);
-          console.log(`[新包查询] 获取了 ${stores.length} 条商户数据`);
-          
-          // Create a lookup map for stores
-          const storeMap = new Map<number, any>();
-          stores.forEach(s => storeMap.set(s.id || s.storeId, s));
+          // 引入 storeQueryCache 并生成 uuid
+          const { storeQueryCache } = await import('./store-query-cache');
+          const queryId = Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+          storeQueryCache.set(queryId, { data: targetStores, timestamp: Date.now() });
 
-          // 4. Build CSV
-          let csvContent = '\uFEFF'; // BOM for Excel UTF-8
-          csvContent += '商户名称,产品名称,投放国家,产品链接,商户联系人,联系电话,创建时间\n';
+          const webAppUrl = `${webDomain}/webapp/store-query?id=${queryId}`;
           
-          targetOffers.forEach(o => {
-            const storeName = `"${(o.storeName || '').replace(/"/g, '""')}"`;
-            const productName = `"${(o.product || o.productName || '').replace(/"/g, '""')}"`;
-            const country = `"${(o.targetCountry || '').replace(/"/g, '""')}"`;
-            const url = `"${(o.productUrl || o.url || '').replace(/"/g, '""')}"`;
-            const createdAt = `"${(o.createdAt || '').replace(/"/g, '""')}"`;
-            
-            let contactName = '""';
-            let phone = '""';
-            
-            if (o.storeId && storeMap.has(o.storeId)) {
-              const storeDetail = storeMap.get(o.storeId);
-              contactName = `"${(storeDetail.contactName || '').replace(/"/g, '""')}"`;
-              phone = `"${(storeDetail.phone || '').replace(/"/g, '""')}"`;
+          await bot.editMessageText(`✅ **【${targetManagerName}】** 最近 1 个月共查询到 **${targetStores.length}** 个商户。\n请点击下方按钮在 WebApp 中查看并导出：`, {
+            chat_id: msg.chat.id,
+            message_id: msg.message_id,
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: "📊 打开商户查询结果", web_app: { url: webAppUrl } }]
+              ]
             }
-            
-            csvContent += `${storeName},${productName},${country},${url},${contactName},${phone},${createdAt}\n`;
           });
 
-          const buffer = Buffer.from(csvContent, 'utf-8');
-          const dateStr = new Date().toISOString().substring(0, 10);
-          const filename = `新包查询_${targetManagerName}_${dateStr}.csv`;
-
-          await bot.sendDocument(msg.chat.id, buffer, {}, {
-            filename: filename,
-            contentType: 'text/csv'
-          });
-
-          await bot.deleteMessage(msg.chat.id, msg.message_id);
         } catch (e: any) {
-          await bot.editMessageText(`❌ 查询或导出失败: ${e.message}`, {
+          await bot.editMessageText(`❌ 商户查询失败: ${e.message}`, {
             chat_id: msg.chat.id,
             message_id: msg.message_id
           });
         } finally {
-          newOfferQuerySessions.delete(sessionKey);
+          storeQuerySessions.delete(sessionKey);
         }
       };
-
       processQuery();
       bot.answerCallbackQuery(query.id);
       return;

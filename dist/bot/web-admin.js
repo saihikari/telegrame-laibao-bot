@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.startWebServer = void 0;
 const express_1 = __importDefault(require("express"));
+const store_query_cache_1 = require("./store-query-cache");
 const config_loader_1 = require("./config-loader");
 const telegram_bot_1 = require("./telegram-bot");
 const rule_engine_1 = require("./rule-engine");
@@ -361,6 +362,17 @@ app.post('/api/logout', (req, res) => {
 app.get('/admin/logout', (req, res) => {
     clearSessionCookie(res);
     res.redirect('/admin/login');
+});
+// Telegram WebApp Routes (Public but protected by UUID)
+app.get('/webapp/store-query', (req, res) => {
+    res.sendFile(path_1.default.join(__dirname, '../../public/store-query.html'));
+});
+app.get('/webapp/api/store-query', (req, res) => {
+    const id = req.query.id;
+    if (!id || !store_query_cache_1.storeQueryCache.has(id)) {
+        return res.status(404).json({ success: false, error: '查询结果不存在或已过期，请在 Telegram 中重新发起查询。' });
+    }
+    res.json({ success: true, data: store_query_cache_1.storeQueryCache.get(id)?.data });
 });
 app.use('/admin', requireAuth);
 app.use('/api', requireAuth);
