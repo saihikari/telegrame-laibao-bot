@@ -117,7 +117,7 @@ export const startBot = async () => {
   暂停广告 - 唤起商户列表，支持多选暂停处于开启状态的广告
   开启广告 - 唤起商户列表，支持多选开启处于暂停状态的广告
   下架广告 - 唤起商户列表，支持多选下架当前的广告
-  商户查询 - 唤起经理列表，在 WebApp 中查看最近 1 个月登记的商户信息并导出
+  商户查询 - 唤起经理列表，导出最近 1 个月登记的商户信息(CSV)
     `;
     bot.sendMessage(msg.chat.id, helpText, { parse_mode: 'Markdown' });
   });
@@ -1117,23 +1117,35 @@ export const startBot = async () => {
             return;
           }
 
-          // 引入 storeQueryCache 并生成 uuid
-          const { storeQueryCache } = await import('./store-query-cache');
-          const queryId = Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
-          storeQueryCache.set(queryId, { data: targetStores, timestamp: Date.now() });
+          // 4. Build CSV
+          let csvContent = '\uFEFF'; // BOM for Excel UTF-8
+          csvContent += '商户名称,登记时间,联系人,联系电话,合同状态,USD余额\n';
 
-          const webAppUrl = `${webDomain}/webapp/store-query?id=${queryId}`;
-          
-          await bot.editMessageText(`✅ **【${targetManagerName}】** 最近 1 个月共查询到 **${targetStores.length}** 个商户。\n请点击下方按钮在 WebApp 中查看并导出：`, {
-            chat_id: msg.chat.id,
-            message_id: msg.message_id,
-            parse_mode: 'Markdown',
-            reply_markup: {
-              inline_keyboard: [
-                [{ text: "📊 打开商户查询结果", web_app: { url: webAppUrl } }]
-              ]
-            }
+          targetStores.forEach(s => {
+            const name = `"${(s.name || '').replace(/"/g, '""')}"`;
+            const cTime = `"${(s.createTime || s.createdAt || '').replace(/"/g, '""')}"`;
+            const contact = `"${(s.contactName || s.contact || '').replace(/"/g, '""')}"`;
+            const phone = `"${(s.phone || s.mobile || '').replace(/"/g, '""')}"`;
+            
+            const statusStr = s.contractStatus === 1 ? '有效' : (s.contractStatus || s.status || '');
+            const status = `"${String(statusStr).replace(/"/g, '""')}"`;
+            
+            const balanceStr = s.money || s.usdBalance || s.balance || '0';
+            const balance = `"${String(balanceStr).replace(/"/g, '""')}"`;
+
+            csvContent += `${name},${cTime},${contact},${phone},${status},${balance}\n`;
           });
+
+          const buffer = Buffer.from(csvContent, 'utf-8');
+          const dateStr = new Date().toISOString().substring(0, 10);
+          const filename = `商户查询_${targetManagerName}_${dateStr}.csv`;
+
+          await bot.sendDocument(msg.chat.id, buffer, {}, {
+            filename: filename,
+            contentType: 'text/csv'
+          });
+
+          await bot.deleteMessage(msg.chat.id, msg.message_id);
 
         } catch (e: any) {
           await bot.editMessageText(`❌ 商户查询失败: ${e.message}`, {
