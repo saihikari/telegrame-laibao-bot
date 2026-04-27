@@ -1119,7 +1119,7 @@ export const startBot = async () => {
 
           // 4. Build CSV
           let csvContent = '\uFEFF'; // BOM for Excel UTF-8
-          csvContent += '商户名称,登记时间,联系人,联系电话,合同状态,USD余额,外部报表\n';
+          csvContent += '商户名称,登记时间,联系人,联系电话,合同状态,USD余额,外部报表,商务经理\n';
 
           targetStores.forEach(s => {
             const name = `"${(s.storeName || '').replace(/"/g, '""')}"`;
@@ -1137,8 +1137,9 @@ export const startBot = async () => {
             const balance = `"${String(balanceStr).replace(/"/g, '""')}"`;
 
             const outReport = `"${(s.outReportUrl || '').replace(/"/g, '""')}"`;
+            const manager = `"${(s.managerName || s.managerBName || '').replace(/"/g, '""')}"`;
 
-            csvContent += `${name},${cTime},${contact},${phone},${status},${balance},${outReport}\n`;
+            csvContent += `${name},${cTime},${contact},${phone},${status},${balance},${outReport},${manager}\n`;
           });
 
           const buffer = Buffer.from(csvContent, 'utf-8');
