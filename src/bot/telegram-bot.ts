@@ -7,8 +7,7 @@ import { qlApi } from './ql-api';
 import { getAdminTgIds, addAdminTgId, removeAdminTgId } from '../utils/env-editor';
 import { recognizeChargeImage } from './ocr-service';
 import { appendRecordLog } from './record-log';
-import { buildAdActionSuccessReceipt } from './ad-action-receipt';
-import { filterOffersForAdAction, type AdActionType } from './telegram-bot-actions';
+import { generateOffersScreenshot } from './offer-screenshot';
 
 const token = process.env.BOT_TOKEN || '';
 const internalChatIds = (process.env.INTERNAL_CHAT_IDS || '').split(',').map(id => id.trim());
@@ -35,7 +34,7 @@ interface ChargeState {
 const chargeSessions = new Map<string, ChargeState>();
 
 interface AdActionState {
-    actionType: AdActionType;
+    actionType: '暂停' | '开启' | '下架';
     step: 'WAIT_STORE_SELECTION' | 'WAIT_STORE_NAME_MANUAL' | 'WAIT_PRODUCT_SELECTION';
     storeName?: string;
     storeId?: number;
@@ -156,7 +155,7 @@ export const startBot = async () => {
 
     const csvEscape = (v: unknown) => {
       const s = v === null || v === undefined ? '' : String(v);
-      return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+      return /[\",\n\r]/.test(s) ? `\"${s.replace(/\"/g, '\"\"')}\"` : s;
     };
 
     try {
@@ -371,7 +370,7 @@ export const startBot = async () => {
     }
 
     let currentRow: any[] = [];
-    const columns = config.keyboardColumns || 3;
+    const columns = getConfig().keyboardColumns || 3;
     for (const c of customers) {
       const shortName = c.length > 15 ? c.substring(0, 13) + '..' : c;
       currentRow.push({ text: shortName, callback_data: `${callbackPrefix}:${c}` });
@@ -711,7 +710,12 @@ export const startBot = async () => {
         const offers = await qlApi.listOffer(targetStore.storeId, 100);
         
         const actionType = pauseAdSession.actionType;
-        const activeOffers = filterOffersForAdAction(offers, actionType);
+        const activeOffers = offers.filter(o => {
+          if (actionType === '暂停') return o.pStatus === '开启' || o.status === 1;
+          if (actionType === '开启') return o.pStatus === '暂停' || o.status === 2;
+          if (actionType === '下架') return o.pStatus !== '下架' && o.status !== 3;
+          return true;
+        });
         pauseAdSession.activeOffers = activeOffers;
         pauseAdSession.selectedOffers = new Set<number>();
         pauseAdSession.step = 'WAIT_PRODUCT_SELECTION';
@@ -726,7 +730,8 @@ export const startBot = async () => {
           return;
         }
 
-        const columns = 2; // 固定为2列
+        const config = getConfig();
+        const columns = config.keyboardColumns || 3;
         const keyboard = buildOfferKeyboard(activeOffers, pauseAdSession.selectedOffers!, columns);
 
         await bot.editMessageText(`你选择的商户是“${targetStore.storeName}”，请点击打勾选择需要操作广告的产品：`, {
@@ -766,7 +771,7 @@ export const startBot = async () => {
 
       // 5.2 Format summary
       let summaryText = `✔️ 来包信息清洗完毕。共计 ${results.length} 条来包信息如下：\n\n`;
-      results.forEach((res, idx) => {
+      results.forEach((res: ParsedRecord, idx: number) => {
         summaryText += `客户：${res.customerName}\n`;
         for (const [key, val] of Object.entries(res.data)) {
           summaryText += `${key}：${val}\n`;
@@ -974,7 +979,12 @@ export const startBot = async () => {
           return qlApi.listOffer(targetStore.storeId, 100).then(offers => ({ targetStore, offers }));
         }).then(({ targetStore, offers }) => {
           const actionType = session.actionType;
-          const activeOffers = filterOffersForAdAction(offers, actionType);
+          const activeOffers = offers.filter(o => {
+            if (actionType === '暂停') return o.pStatus === '开启' || o.status === 1;
+            if (actionType === '开启') return o.pStatus === '暂停' || o.status === 2;
+            if (actionType === '下架') return o.pStatus !== '下架' && o.status !== 3;
+            return true;
+          });
           session.activeOffers = activeOffers;
           session.selectedOffers = new Set<number>();
           session.step = 'WAIT_PRODUCT_SELECTION';
@@ -989,7 +999,8 @@ export const startBot = async () => {
             return;
           }
 
-          const columns = 2; // 固定为2列
+          const config = getConfig();
+          const columns = 1; // config.keyboardColumns || 3; Modified to 1 column per user request
           const keyboard = buildOfferKeyboard(activeOffers, session.selectedOffers!, columns);
 
           bot.editMessageText(`你选择的商户是“${targetStore.storeName}”，请点击打勾选择需要操作广告的产品：`, {
@@ -1039,7 +1050,7 @@ export const startBot = async () => {
         });
         if (m) {
           targetManagerName = typeof m === 'object' 
-            ? String(m.nickname || m.nickName || m.userName || m.realName || m.name || m.account || m.phone || m.userId || m.id || mngIdStr) 
+            ? String(m.nickname || m.nickName || m.userName || m.realName || m.name || m.account || m.phone || mIdStr) 
             : String(m);
         } else {
           targetManagerName = mngIdStr;
@@ -1111,22 +1122,22 @@ export const startBot = async () => {
           csvContent += '商户名称,登记时间,联系人,联系电话,合同状态,USD余额,外部报表,商务经理\n';
 
           targetStores.forEach(s => {
-            const name = `"${(s.storeName || '').replace(/"/g, '""')}"`;
-            const cTime = `"${(s.createTime || s.createdAt || '').replace(/"/g, '""')}"`;
-            const contact = `"${(s.contactName || '').replace(/"/g, '""')}"`;
-            const phone = `"${(s.phone || '').replace(/"/g, '""')}"`;
+            const name = `\"${(s.storeName || '').replace(/\"/g, '\"\"')}\"`;
+            const cTime = `\"${(s.createTime || s.createdAt || '').replace(/\"/g, '\"\"')}\"`;
+            const contact = `\"${(s.contactName || '').replace(/\"/g, '\"\"')}\"`;
+            const phone = `\"${(s.phone || '').replace(/\"/g, '\"\"')}\"`;
 
             let statusStr = '';
             if (s.isEnd === 1) statusStr = '已结束';
             else if (s.isEnd === 0) statusStr = '进行中';
             else statusStr = s.isEnd !== undefined && s.isEnd !== null ? String(s.isEnd) : '';
-            const status = `"${statusStr.replace(/"/g, '""')}"`;
+            const status = `\"${statusStr.replace(/\"/g, '\"\"')}\"`;
 
             const balanceStr = s.usdBalance !== undefined && s.usdBalance !== null ? s.usdBalance : '0';
-            const balance = `"${String(balanceStr).replace(/"/g, '""')}"`;
+            const balance = `\"${String(balanceStr).replace(/\"/g, '\"\"')}\"`;
 
-            const outReport = `"${(s.outReportUrl || '').replace(/"/g, '""')}"`;
-            const manager = `"${(s.managerName || s.managerBName || '').replace(/"/g, '""')}"`;
+            const outReport = `\"${(s.outReportUrl || '').replace(/\"/g, '\"\"')}\"`;
+            const manager = `\"${(s.managerName || s.managerBName || '').replace(/\"/g, '\"\"')}\"`;
 
             csvContent += `${name},${cTime},${contact},${phone},${status},${balance},${outReport},${manager}\n`;
           });
@@ -1184,7 +1195,8 @@ export const startBot = async () => {
       }
 
       // Re-render keyboard
-      const columns = 2; // 固定为2列
+      const config = getConfig();
+      const columns = 1; // config.keyboardColumns || 3; Modified to 1 column per user request
       const keyboard = buildOfferKeyboard(session.activeOffers, session.selectedOffers!, columns);
 
       bot.editMessageReplyMarkup({ inline_keyboard: keyboard }, {
@@ -1234,35 +1246,29 @@ export const startBot = async () => {
             }
           }
           
-          if (pausedOffers.length > 0) {
-            let managerNameById: Record<string, string> = {};
-            try {
-              const managers = await qlApi.listManagers();
-              managerNameById = Object.fromEntries(
-                managers.map((manager: any) => [
-                  String(manager.userId),
-                  String(manager.nickname || manager.username || manager.userId || '').trim(),
-                ])
-              );
-            } catch (managerErr: any) {
-              console.warn(`[Ad Action] 获取投手昵称失败: ${managerErr.message}`);
-            }
+          await bot.editMessageText(`✅ 批量操作完成！\n\n🎯 成功：${successCount} 个\n❌ 失败：${failCount} 个`, {
+            chat_id: msg.chat.id,
+            message_id: msg.message_id
+          });
 
-            const receiptText = buildAdActionSuccessReceipt(
-              session.actionType,
-              session.storeName || '未知商户',
-              pausedOffers,
-              managerNameById
-            );
-            await bot.editMessageText(receiptText, {
-              chat_id: msg.chat.id,
-              message_id: msg.message_id
+          if (pausedOffers.length > 0) {
+            const loadingMsg = await bot.sendMessage(msg.chat.id, `📸 正在生成网页截图证明，请稍候...`, {
+              reply_to_message_id: msg.message_id
             });
-          } else {
-            await bot.editMessageText(`❌ 操作失败，本次成功 0 个，失败 ${failCount} 个`, {
-              chat_id: msg.chat.id,
-              message_id: msg.message_id
-            });
+            try {
+              const imageBuffer = await generateOffersScreenshot(pausedOffers);
+              await bot.sendPhoto(msg.chat.id, imageBuffer, {
+                caption: `✅ 商户【${session.storeName}】广告操作已在系统中生效`,
+                reply_to_message_id: msg.message_id
+              });
+              await bot.deleteMessage(msg.chat.id, loadingMsg.message_id);
+            } catch (err: any) {
+              console.error('Screenshot error:', err);
+              await bot.editMessageText(`⚠️ 截图生成失败，但操作已成功。(${err.message})`, {
+                chat_id: msg.chat.id,
+                message_id: loadingMsg.message_id
+              });
+            }
           }
         } catch (err: any) {
           bot.editMessageText(`❌ 操作失败：${err.message}`, {
@@ -1332,6 +1338,17 @@ export const startBot = async () => {
             chat_id: msg.chat.id,
             message_id: msg.message_id
           });
+
+          if (operatedOffers.length > 0) {
+            const picMsg = await bot.sendMessage(msg.chat.id, `📸 正在生成截图证明...`, { reply_to_message_id: msg.message_id });
+            try {
+              const buffer = await generateOffersScreenshot(operatedOffers);
+              await bot.sendPhoto(msg.chat.id, buffer, { reply_to_message_id: msg.message_id });
+              await bot.deleteMessage(msg.chat.id, picMsg.message_id);
+            } catch (e: any) {
+              await bot.editMessageText(`⚠️ 截图生成失败: ${e.message}`, { chat_id: msg.chat.id, message_id: picMsg.message_id });
+            }
+          }
         } finally {
           fastAdSessions.delete(sessionKey);
         }
