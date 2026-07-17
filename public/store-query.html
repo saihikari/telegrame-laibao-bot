@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>商户查询结果</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--tg-theme-secondary-bg-color, #f4f4f5);
+      color: var(--tg-theme-text-color, #222);
+      margin: 0;
+      padding: 16px;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+    .btn {
+      background-color: var(--tg-theme-button-color, #3390ec);
+      color: var(--tg-theme-button-text-color, #fff);
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .card {
+      background-color: var(--tg-theme-bg-color, #fff);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    .row:last-child {
+      margin-bottom: 0;
+    }
+    .label {
+      color: var(--tg-theme-hint-color, #888);
+    }
+    .value {
+      font-weight: 500;
+      text-align: right;
+    }
+    #loading {
+      text-align: center;
+      padding: 40px 0;
+      color: var(--tg-theme-hint-color, #888);
+    }
+    .error {
+      color: #e53935;
+      text-align: center;
+      padding: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h2 id="title">商户查询结果</h2>
+    <button class="btn" id="exportBtn" style="display:none;" onclick="exportCSV()">导出 CSV</button>
+  </div>
+
+  <div id="loading">加载中...</div>
+  <div id="error" class="error" style="display:none;"></div>
+  <div id="container"></div>
+
+  <script>
+    let globalData = [];
+
+    // 获取 URL 参数
+    const urlParams = new URLSearchParams(window.location.search);
+    const id = urlParams.get('id');
+
+    if (!id) {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('error').style.display = 'block';
+      document.getElementById('error').innerText = '缺少查询参数，请从 Telegram 重新进入';
+    } else {
+      fetchData();
+    }
+
+    async function fetchData() {
+      try {
+        const res = await fetch('/webapp/api/store-query?id=' + id);
+        const json = await res.json();
+        
+        document.getElementById('loading').style.display = 'none';
+
+        if (json.success && json.data) {
+          globalData = json.data;
+          renderData(globalData);
+          if (globalData.length > 0) {
+            document.getElementById('exportBtn').style.display = 'block';
+            document.getElementById('title').innerText = `商户结果 (${globalData.length})`;
+          } else {
+            document.getElementById('container').innerHTML = '<div style="text-align:center;padding:20px;color:#888;">暂无符合条件的商户</div>';
+          }
+        } else {
+          document.getElementById('error').style.display = 'block';
+          document.getElementById('error').innerText = json.error || '获取数据失败';
+        }
+      } catch (err) {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('error').style.display = 'block';
+        document.getElementById('error').innerText = '网络异常，请重试';
+      }
+    }
+
+    function renderData(data) {
+      const container = document.getElementById('container');
+      let html = '';
+      data.forEach(item => {
+        html += `
+          <div class="card">
+            <div class="row"><span class="label">商户名称</span><span class="value">${item.name || '-'}</span></div>
+            <div class="row"><span class="label">登记时间</span><span class="value">${item.createTime || item.createdAt || '-'}</span></div>
+            <div class="row"><span class="label">联系人</span><span class="value">${item.contactName || item.contact || '-'}</span></div>
+            <div class="row"><span class="label">联系电话</span><span class="value">${item.phone || item.mobile || '-'}</span></div>
+            <div class="row"><span class="label">合同状态</span><span class="value">${item.contractStatus === 1 ? '有效' : (item.contractStatus || item.status || '-')}</span></div>
+            <div class="row"><span class="label">USD余额</span><span class="value" style="color:#2e7d32;">$${item.money || item.usdBalance || item.balance || '0'}</span></div>
+          </div>
+        `;
+      });
+      container.innerHTML = html;
+    }
+
+    function exportCSV() {
+      if (!globalData || globalData.length === 0) return;
+      
+      let csvContent = '\uFEFF';
+      csvContent += '商户名称,登记时间,联系人,联系电话,合同状态,USD余额\n';
+      
+      globalData.forEach(item => {
+        const name = `"${(item.name || '').replace(/"/g, '""')}"`;
+        const cTime = `"${(item.createTime || item.createdAt || '').replace(/"/g, '""')}"`;
+        const contact = `"${(item.contactName || item.contact || '').replace(/"/g, '""')}"`;
+        const phone = `"${(item.phone || item.mobile || '').replace(/"/g, '""')}"`;
+        const status = `"${(item.contractStatus === 1 ? '有效' : (item.contractStatus || item.status || '')).toString().replace(/"/g, '""')}"`;
+        const balance = `"${(item.money || item.usdBalance || item.balance || '0').toString().replace(/"/g, '""')}"`;
+        
+        csvContent += `${name},${cTime},${contact},${phone},${status},${balance}\n`;
+      });
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      const dateStr = new Date().toISOString().substring(0, 10);
+      link.setAttribute("download", `商户查询_${dateStr}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      if (window.Telegram && window.Telegram.WebApp) {
+        window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+      }
+    }
+
+    if (window.Telegram && window.Telegram.WebApp) {
+      window.Telegram.WebApp.expand();
+    }
+  </script>
+</body>
+</html>
