@@ -8,6 +8,7 @@ import { getAdminTgIds, addAdminTgId, removeAdminTgId } from '../utils/env-edito
 import { recognizeChargeImage } from './ocr-service';
 import { appendRecordLog } from './record-log';
 import { generateOffersScreenshot } from './offer-screenshot';
+import { buildOfferKeyboard } from './offer-keyboard'; // <--- 新增导入
 
 const token = process.env.BOT_TOKEN || '';
 const internalChatIds = (process.env.INTERNAL_CHAT_IDS || '').split(',').map(id => id.trim());
@@ -155,7 +156,7 @@ export const startBot = async () => {
 
     const csvEscape = (v: unknown) => {
       const s = v === null || v === undefined ? '' : String(v);
-      return /[\",\n\r]/.test(s) ? `\"${s.replace(/\"/g, '\"\"')}\"` : s;
+      return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
 
     try {
@@ -282,50 +283,6 @@ export const startBot = async () => {
     }
   });
 
-  
-  const buildOfferKeyboard = (activeOffers: any[], selectedOffers: Set<number>, columns: number): any[][] => {
-    const keyboard: any[][] = [];
-    let currentRow: any[] = [];
-    
-    activeOffers.forEach(o => {
-      const isSelected = selectedOffers.has(o.id);
-      let rawName = o.product || o.productName || '';
-      
-      // 如果包含 '-GG-'，则直接截取它后面的内容作为显示名称
-      if (rawName.includes('-GG-')) {
-        const parts = rawName.split('-GG-');
-        rawName = parts[parts.length - 1]; // 取最后一部分，比如 'APK103'
-      } else {
-        // 如果没有 '-GG-'，则走备用的安全长度截断逻辑
-        let maxLength = 10; 
-        if (columns === 2) maxLength = 15;
-        if (columns === 1) maxLength = 999;
-        
-        if (rawName.length > maxLength) {
-          rawName = '..' + rawName.substring(rawName.length - (maxLength - 2));
-        }
-      }
-      
-      const text = `${isSelected ? '✅' : '⬜'} ${rawName}`;
-      currentRow.push({ text, callback_data: `adaction_prod:${o.id}` });
-      
-      if (currentRow.length === columns) {
-        keyboard.push(currentRow);
-        currentRow = [];
-      }
-    });
-    
-    if (currentRow.length > 0) {
-      keyboard.push(currentRow);
-    }
-    
-    keyboard.push([{ text: '✅ 全选 / 🟩 全不选', callback_data: `adaction_prod:ALL` }]);
-    keyboard.push([{ text: `▶️ 确定操作已选 (${selectedOffers.size})`, callback_data: `adaction_confirm` }]);
-    keyboard.push([{ text: '暂不需要', callback_data: `adaction_cancel` }]);
-    
-    return keyboard;
-  };
-
   const getStoreKeyboard = (callbackPrefix = 'charge_store'): any[][] => {
     const config = getConfig();
     const textCollator = new Intl.Collator('en', { sensitivity: 'base' });
@@ -370,7 +327,7 @@ export const startBot = async () => {
     }
 
     let currentRow: any[] = [];
-    const columns = getConfig().keyboardColumns || 3;
+    const columns = config.keyboardColumns || 3;
     for (const c of customers) {
       const shortName = c.length > 15 ? c.substring(0, 13) + '..' : c;
       currentRow.push({ text: shortName, callback_data: `${callbackPrefix}:${c}` });
@@ -730,9 +687,11 @@ export const startBot = async () => {
           return;
         }
 
-        const config = getConfig();
-        const columns = config.keyboardColumns || 3;
-        const keyboard = buildOfferKeyboard(activeOffers, pauseAdSession.selectedOffers!, columns);
+        const keyboard = buildOfferKeyboard(
+          activeOffers,
+          pauseAdSession.selectedOffers!,
+          AD_ACTION_KEYBOARD_COLUMNS
+        );
 
         await bot.editMessageText(`你选择的商户是“${targetStore.storeName}”，请点击打勾选择需要操作广告的产品：`, {
           chat_id: msg.chat.id,
@@ -771,7 +730,7 @@ export const startBot = async () => {
 
       // 5.2 Format summary
       let summaryText = `✔️ 来包信息清洗完毕。共计 ${results.length} 条来包信息如下：\n\n`;
-      results.forEach((res: ParsedRecord, idx: number) => {
+      results.forEach((res, idx) => {
         summaryText += `客户：${res.customerName}\n`;
         for (const [key, val] of Object.entries(res.data)) {
           summaryText += `${key}：${val}\n`;
@@ -999,9 +958,11 @@ export const startBot = async () => {
             return;
           }
 
-          const config = getConfig();
-          const columns = 1; // config.keyboardColumns || 3; Modified to 1 column per user request
-          const keyboard = buildOfferKeyboard(activeOffers, session.selectedOffers!, columns);
+          const keyboard = buildOfferKeyboard(
+            activeOffers,
+            session.selectedOffers!,
+            AD_ACTION_KEYBOARD_COLUMNS
+          );
 
           bot.editMessageText(`你选择的商户是“${targetStore.storeName}”，请点击打勾选择需要操作广告的产品：`, {
             chat_id: msg.chat.id,
@@ -1050,7 +1011,7 @@ export const startBot = async () => {
         });
         if (m) {
           targetManagerName = typeof m === 'object' 
-            ? String(m.nickname || m.nickName || m.userName || m.realName || m.name || m.account || m.phone || mIdStr) 
+            ? String(m.nickname || m.nickName || m.userName || m.realName || m.name || m.account || m.phone || m.userId || m.id || mngIdStr) 
             : String(m);
         } else {
           targetManagerName = mngIdStr;
@@ -1122,22 +1083,22 @@ export const startBot = async () => {
           csvContent += '商户名称,登记时间,联系人,联系电话,合同状态,USD余额,外部报表,商务经理\n';
 
           targetStores.forEach(s => {
-            const name = `\"${(s.storeName || '').replace(/\"/g, '\"\"')}\"`;
-            const cTime = `\"${(s.createTime || s.createdAt || '').replace(/\"/g, '\"\"')}\"`;
-            const contact = `\"${(s.contactName || '').replace(/\"/g, '\"\"')}\"`;
-            const phone = `\"${(s.phone || '').replace(/\"/g, '\"\"')}\"`;
+            const name = `"${(s.storeName || '').replace(/"/g, '""')}"`;
+            const cTime = `"${(s.createTime || s.createdAt || '').replace(/"/g, '""')}"`;
+            const contact = `"${(s.contactName || '').replace(/"/g, '""')}"`;
+            const phone = `"${(s.phone || '').replace(/"/g, '""')}"`;
 
             let statusStr = '';
             if (s.isEnd === 1) statusStr = '已结束';
             else if (s.isEnd === 0) statusStr = '进行中';
             else statusStr = s.isEnd !== undefined && s.isEnd !== null ? String(s.isEnd) : '';
-            const status = `\"${statusStr.replace(/\"/g, '\"\"')}\"`;
+            const status = `"${statusStr.replace(/"/g, '""')}"`;
 
             const balanceStr = s.usdBalance !== undefined && s.usdBalance !== null ? s.usdBalance : '0';
-            const balance = `\"${String(balanceStr).replace(/\"/g, '\"\"')}\"`;
+            const balance = `"${String(balanceStr).replace(/"/g, '""')}"`;
 
-            const outReport = `\"${(s.outReportUrl || '').replace(/\"/g, '\"\"')}\"`;
-            const manager = `\"${(s.managerName || s.managerBName || '').replace(/\"/g, '\"\"')}\"`;
+            const outReport = `"${(s.outReportUrl || '').replace(/"/g, '""')}"`;
+            const manager = `"${(s.managerName || s.managerBName || '').replace(/"/g, '""')}"`;
 
             csvContent += `${name},${cTime},${contact},${phone},${status},${balance},${outReport},${manager}\n`;
           });
@@ -1195,9 +1156,11 @@ export const startBot = async () => {
       }
 
       // Re-render keyboard
-      const config = getConfig();
-      const columns = 1; // config.keyboardColumns || 3; Modified to 1 column per user request
-      const keyboard = buildOfferKeyboard(session.activeOffers, session.selectedOffers!, columns);
+      const keyboard = buildOfferKeyboard(
+        session.activeOffers,
+        session.selectedOffers!,
+        AD_ACTION_KEYBOARD_COLUMNS
+      );
 
       bot.editMessageReplyMarkup({ inline_keyboard: keyboard }, {
         chat_id: msg.chat.id,
@@ -1252,23 +1215,23 @@ export const startBot = async () => {
           });
 
           if (pausedOffers.length > 0) {
-            const loadingMsg = await bot.sendMessage(msg.chat.id, `📸 正在生成网页截图证明，请稍候...`, {
-              reply_to_message_id: msg.message_id
+            // 构建详细的回复消息
+            let detailMessage = `✅ 已${session.actionType}广告（本次成功 ${pausedOffers.length} 个）\n\n`;
+            detailMessage += `商户：${session.storeName}\n\n`; // 使用 session.storeName 获取商户名称
+
+            pausedOffers.forEach((offer, index) => {
+                const pitcherNames = (offer.managerBIds || []) // 假设 managerBIds 是投手 ID 数组
+                                      .map((id: number) => managerMap.get(id) || `未知投手(${id})`)
+                                      .join('/');
+                
+                detailMessage += `${index + 1}) 编号：${offer.id || 'N/A'}\n`; // 假设 offer.id 是编号
+                detailMessage += `   GGCode：${offer.ggCode || 'N/A'}\n`; // 假设 offer.ggCode 是 GGCode
+                detailMessage += `   投手：${pitcherNames || 'N/A'}\n\n`;
             });
-            try {
-              const imageBuffer = await generateOffersScreenshot(pausedOffers);
-              await bot.sendPhoto(msg.chat.id, imageBuffer, {
-                caption: `✅ 商户【${session.storeName}】广告操作已在系统中生效`,
+
+            await bot.sendMessage(msg.chat.id, detailMessage, {
                 reply_to_message_id: msg.message_id
-              });
-              await bot.deleteMessage(msg.chat.id, loadingMsg.message_id);
-            } catch (err: any) {
-              console.error('Screenshot error:', err);
-              await bot.editMessageText(`⚠️ 截图生成失败，但操作已成功。(${err.message})`, {
-                chat_id: msg.chat.id,
-                message_id: loadingMsg.message_id
-              });
-            }
+            });
           }
         } catch (err: any) {
           bot.editMessageText(`❌ 操作失败：${err.message}`, {
