@@ -56,7 +56,57 @@ interface NewOfferQueryState {
 }
 const storeQuerySessions = new Map<string, NewOfferQueryState>();
 
+// ============ 商户列表缓存（API 优先，routes.json 兜底） ============
+interface StoreCacheEntry {
+  names: string[];      // 已排序的商户名称列表
+  expiredAt: number;   // 过期时间戳(ms)
+}
+let storeNameCache: StoreCacheEntry | null = null;
+const STORE_CACHE_TTL_MS = 60 * 1000; // 60 秒缓存
+const STORE_FILTER_MANAGER = '小咸'; // 只列出该经理负责的商户
 
+/**
+ * 拉取商户名称列表：
+ * 1) 调用 qlApi.listStoreToSelect()，过滤 managerName === '小咸'，按 updatedAt 倒序
+ * 2) API 失败时回退到 config/routes.json 的 customers.name 列表（按字母序）
+ */
+async function fetchStoreList(): Promise<string[]> {
+  // 1) 命中缓存直接返回
+  if (storeNameCache && Date.now() < storeNameCache.expiredAt) {
+    return storeNameCache.names;
+  }
+
+  // 2) 走 API
+  try {
+    const stores = await qlApi.listStoreToSelect();
+    const filtered = stores
+      .filter((s: any) => (s.managerName || '').trim() === STORE_FILTER_MANAGER)
+      .sort((a: any, b: any) => {
+        const ta = new Date(a.updatedAt || a.createdAt || 0).getTime();
+        const tb = new Date(b.updatedAt || b.createdAt || 0).getTime();
+        return tb - ta; // 最近的排在最前面
+      })
+      .map((s: any) => s.storeName)
+      .filter(Boolean);
+
+    if (filtered.length > 0) {
+      storeNameCache = { names: filtered, expiredAt: Date.now() + STORE_CACHE_TTL_MS };
+      console.log(`[StoreList] fetched ${filtered.length} stores from API (manager=${STORE_FILTER_MANAGER})`);
+      return filtered;
+    }
+    console.warn(`[StoreList] API returned 0 stores for manager=${STORE_FILTER_MANAGER}, fallback to routes.json`);
+  } catch (e: any) {
+    console.warn(`[StoreList] API fetch failed: ${e.message}, fallback to routes.json`);
+  }
+
+  // 3) routes.json 兜底
+  const config = getConfig();
+  const fallback = (config.customers || [])
+    .map(c => (c.name || '').trim())
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b));
+  return fallback;
+}
 
 export const getBotInstance = () => bot;
 
@@ -77,6 +127,11 @@ export const startBot = async () => {
   });
 
   console.log('[Bot] Telegram Bot started in polling mode.');
+
+  // 预热商户列表缓存（不阻塞启动）
+  fetchStoreList()
+    .then(names => console.log(`[StoreList] preheated: ${names.length} stores (manager=${STORE_FILTER_MANAGER})`))
+    .catch(e => console.warn(`[StoreList] preheat failed: ${e.message}`));
 
   // Check if API is ready (or just proceed, maybe token is fetching)
   try {
@@ -271,43 +326,8 @@ export const startBot = async () => {
     }
   });
 
-  const getStoreKeyboard = (callbackPrefix = 'charge_store'): any[][] => {
-    const config = getConfig();
-    const textCollator = new Intl.Collator('en', { sensitivity: 'base' });
-    const naturalCompare = (a: string, b: string) => {
-      const ax = (a || '').trim();
-      const bx = (b || '').trim();
-      const aParts = ax.match(/(\d+|[^\d]+)/g) || [];
-      const bParts = bx.match(/(\d+|[^\d]+)/g) || [];
-
-      const len = Math.min(aParts.length, bParts.length);
-      for (let i = 0; i < len; i++) {
-        const ap = aParts[i];
-        const bp = bParts[i];
-        const an = /^\d+$/.test(ap);
-        const bn = /^\d+$/.test(bp);
-        if (an && bn) {
-          const av = parseInt(ap, 10);
-          const bv = parseInt(bp, 10);
-          if (av !== bv) return av - bv;
-        } else if (!an && !bn) {
-          const cmp = textCollator.compare(ap, bp);
-          if (cmp !== 0) return cmp;
-        } else {
-          return an ? 1 : -1;
-        }
-      }
-      return aParts.length - bParts.length;
-    };
-    const customers = config.customers
-      .map(c => (c.name || '').trim())
-      .filter(Boolean)
-      .sort((a, b) => {
-        const aDigit = /^\d/.test(a);
-        const bDigit = /^\d/.test(b);
-        if (aDigit !== bDigit) return aDigit ? 1 : -1;
-        return naturalCompare(a, b);
-      });
+  const getStoreKeyboard = async (callbackPrefix = 'charge_store'): Promise<any[][]> => {
+    const customers = await fetchStoreList();
 
     const keyboard: any[][] = [];
     if (callbackPrefix === 'charge_store') {
@@ -315,7 +335,7 @@ export const startBot = async () => {
     }
 
     let currentRow: any[] = [];
-    const columns = config.keyboardColumns || 3;
+    const columns = 2; // 固定 2 列布局（参考 a344b75 约定）
     for (const c of customers) {
       const shortName = c.length > 15 ? c.substring(0, 13) + '..' : c;
       currentRow.push({ text: shortName, callback_data: `${callbackPrefix}:${c}` });
@@ -372,8 +392,8 @@ export const startBot = async () => {
     }
   };
 
-  bot.onText(/商户充值/, (msg) => {
-    const keyboard = getStoreKeyboard();
+  bot.onText(/商户充值/, async (msg) => {
+    const keyboard = await getStoreKeyboard();
     keyboard.push([{ text: '暂不需要', callback_data: `charge_cancel` }]);
     bot.sendMessage(msg.chat.id, '请选择充值商户：', {
       reply_markup: {
@@ -382,11 +402,11 @@ export const startBot = async () => {
     });
   });
 
-  const handleAdAction = (msg: TelegramBot.Message, actionType: '暂停' | '开启' | '下架') => {
+  const handleAdAction = async (msg: TelegramBot.Message, actionType: '暂停' | '开启' | '下架') => {
     const sessionKey = `${msg.chat.id}_${msg.from?.id}`;
     adActionSessions.set(sessionKey, { actionType, step: 'WAIT_STORE_SELECTION' });
 
-    const keyboard = getStoreKeyboard('adaction_store');
+    const keyboard = await getStoreKeyboard('adaction_store');
     keyboard.push([{ text: '暂不需要', callback_data: `adaction_cancel` }]);
     bot.sendMessage(msg.chat.id, `请选择需要${actionType}广告的商户：`, {
       reply_markup: {
@@ -578,7 +598,7 @@ export const startBot = async () => {
         await runOcrProcess(msg.chat.id, msg.from!.id, photoId, session.storeName!, processingMsg.message_id);
       } else {
         // New flow: User sends photo directly, trigger auto charge prompt
-        const keyboard = getStoreKeyboard();
+        const keyboard = await getStoreKeyboard();
         keyboard.push([{ text: '暂不需要', callback_data: `charge_cancel` }]);
         
         chargeSessions.set(sessionKey, {
