@@ -186,7 +186,7 @@ export async function generateOffersScreenshot(offers: any[]): Promise<Buffer> {
     try {
         const page = await browser.newPage();
         await page.setViewport({ width: 1400, height: 800, deviceScaleFactor: 2 });
-        await page.setContent(html, { waitUntil: 'networkidle0' });
+        await page.setContent(html, { waitUntil: ['networkidle0'] });
         
         // Wait for fonts to load
         await page.evaluate(() => document.fonts.ready);

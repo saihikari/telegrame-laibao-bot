@@ -13,10 +13,6 @@ type OfferTemplateFields = {
 
 const CODE_PROFILE_PATTERN = /^(.*?)(\d+)$/;
 const CODE_CANDIDATE_PATTERN = /[\u4e00-\u9fffA-Za-z0-9]+/g;
-const CONDENSED_APK_CODE_PATTERN = /^(\d+)-apk(\d+)$/i;
-const TEMPLATE_APK_CODE_PATTERN = /(\d[\d-]*?(?:-)?(?:gg)?apk-?\d+)/ig;
-const TEMPLATE_APK_CODE_PROFILE_PATTERN = /^(\d[\d-]*?)(?:-)?(?:gg)?apk-?(\d+)$/i;
-const TEMPLATE_APK_RENDER_PATTERN = /^(.*?(?:ggapk-|apk-|ggapk|apk))(\d+)$/i;
 
 // Definition of the structure output by rule-engine
 export interface ParsedRecord {
@@ -44,58 +40,13 @@ function extractCodeCandidates(text: string): string[] {
     return [...new Set(matches.filter((token) => /\d/.test(token)))];
 }
 
-function parseCondensedApkCode(code: string) {
-    const normalized = String(code || '').trim();
-    const match = normalized.match(CONDENSED_APK_CODE_PATTERN);
-    if (!match) return null;
-
-    return {
-        raw: normalized,
-        leadingDigits: match[1],
-        apkDigits: match[2]
-    };
-}
-
-function extractTemplateApkCodeCandidates(text: string): string[] {
-    const matches = String(text || '').match(TEMPLATE_APK_CODE_PATTERN) || [];
-    return [...new Set(matches.map((token) => token.trim()))];
-}
-
-function parseTemplateApkCode(code: string) {
-    const normalized = String(code || '').trim();
-    const match = normalized.match(TEMPLATE_APK_CODE_PROFILE_PATTERN);
-    if (!match) return null;
-
-    return {
-        raw: normalized,
-        leadingDigits: match[1].replace(/-/g, ''),
-        apkDigits: match[2]
-    };
-}
-
-function renderCodeLikeTemplate(oldCode: string, newCode: string) {
-    const condensedApkCode = parseCondensedApkCode(newCode);
-    if (!condensedApkCode) {
-        return newCode;
-    }
-
-    const templateMatch = String(oldCode || '').trim().match(TEMPLATE_APK_RENDER_PATTERN);
-    if (!templateMatch) {
-        return newCode;
-    }
-
-    return `${templateMatch[1]}${condensedApkCode.apkDigits}`;
-}
-
 export function detectOldCodeFromTemplate(baseOffer: OfferTemplateFields, newCode: string): string {
     const profile = parseCodeProfile(newCode);
-    const condensedApkCode = parseCondensedApkCode(newCode);
-    if (!profile && !condensedApkCode) {
+    if (!profile) {
         throw new Error(`新编号格式无法识别: ${newCode}`);
     }
 
     const fieldOrder = ['bianHao', 'product', 'thirdName', 'adName'] as const;
-    const templateApkMatchesByField = new Map<string, string[]>();
     const exactMatchesByField = new Map<string, string[]>();
     const relaxedMatchesByField = new Map<string, string[]>();
 
@@ -103,27 +54,14 @@ export function detectOldCodeFromTemplate(baseOffer: OfferTemplateFields, newCod
         const value = String(baseOffer[field] || '');
         if (!value) continue;
 
-        if (condensedApkCode) {
-            const templateMatches = extractTemplateApkCodeCandidates(value).filter((token) => {
-                const candidateProfile = parseTemplateApkCode(token);
-                return !!candidateProfile && candidateProfile.leadingDigits.startsWith(condensedApkCode.leadingDigits);
-            });
-
-            if (templateMatches.length > 0) {
-                templateApkMatchesByField.set(field, [...new Set(templateMatches)]);
-            }
-        }
-
         const tokens = extractCodeCandidates(value);
         const exactMatchedTokens = tokens.filter((token) => {
-            if (!profile) return false;
             const candidateProfile = parseCodeProfile(token);
             return !!candidateProfile
                 && candidateProfile.prefix === profile.prefix
                 && candidateProfile.digitLength === profile.digitLength;
         });
         const relaxedMatchedTokens = tokens.filter((token) => {
-            if (!profile) return false;
             const candidateProfile = parseCodeProfile(token);
             return !!candidateProfile && candidateProfile.prefix === profile.prefix;
         });
@@ -151,15 +89,6 @@ export function detectOldCodeFromTemplate(baseOffer: OfferTemplateFields, newCod
         return uniqueTokens;
     };
 
-    const templateApkMatchResult = pickUniqueMatch(templateApkMatchesByField);
-    if (typeof templateApkMatchResult === 'string') {
-        return templateApkMatchResult;
-    }
-
-    if (templateApkMatchResult.length > 1) {
-        throw new Error(`母本中匹配到多个旧编号候选: ${templateApkMatchResult.join(', ')}`);
-    }
-
     const exactMatchResult = pickUniqueMatch(exactMatchesByField);
     if (typeof exactMatchResult === 'string') {
         return exactMatchResult;
@@ -184,7 +113,6 @@ export function detectOldCodeFromTemplate(baseOffer: OfferTemplateFields, newCod
 export function replaceOfferCodesByTemplate(baseOffer: OfferTemplateFields, newCode: string): OfferTemplateFields {
     const normalizedNewCode = String(newCode || '').trim();
     const oldCode = detectOldCodeFromTemplate(baseOffer, normalizedNewCode);
-    const replacementCode = renderCodeLikeTemplate(oldCode, normalizedNewCode);
     const updatedOffer = { ...baseOffer };
 
     for (const field of ['product', 'bianHao', 'thirdName', 'adName'] as const) {
@@ -198,7 +126,7 @@ export function replaceOfferCodesByTemplate(baseOffer: OfferTemplateFields, newC
             continue;
         }
 
-        updatedOffer[field] = text.slice(0, index) + replacementCode + text.slice(index + oldCode.length);
+        updatedOffer[field] = text.slice(0, index) + normalizedNewCode + text.slice(index + oldCode.length);
     }
 
     return updatedOffer;

@@ -165,24 +165,6 @@ function testDetectOldCodeFromTemplateSupportsThreeDigitToFourDigitExpansion() {
   assert.equal(updated.adName, '广告 APK100-【-3】QL');
 }
 
-function testReplaceOfferCodesByTemplateSupportsCondensedApkCodeFormat() {
-  const baseOffer = {
-    bianHao: '600113-ggapk-28',
-    product: '600113-ggapk-28',
-    thirdName: '渠道 600113-ggapk-28',
-    adName: '广告 600113-ggapk-28',
-  };
-
-  const oldCode = detectOldCodeFromTemplate(baseOffer, '6001-apk29');
-  const updated = replaceOfferCodesByTemplate(baseOffer, '6001-apk29');
-
-  assert.equal(oldCode, '600113-ggapk-28');
-  assert.equal(updated.bianHao, '600113-ggapk-29');
-  assert.equal(updated.product, '600113-ggapk-29');
-  assert.equal(updated.thirdName, '渠道 600113-ggapk-29');
-  assert.equal(updated.adName, '广告 600113-ggapk-29');
-}
-
 function run() {
   testDetectOldCodeFromTemplateUsesPrefixAndDigitLength();
   testReplaceOfferCodesByTemplateKeepsSuffixDescription();
@@ -194,7 +176,6 @@ function run() {
   testDetectOldCodeFromTemplateSupportsAlphaNumericPrefixCodes();
   testDetectOldCodeFromTemplateSupportsDigitLengthExpansion();
   testDetectOldCodeFromTemplateSupportsThreeDigitToFourDigitExpansion();
-  testReplaceOfferCodesByTemplateSupportsCondensedApkCodeFormat();
   console.log('ql-writer tests passed');
 }
 
