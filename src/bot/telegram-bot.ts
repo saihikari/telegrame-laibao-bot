@@ -678,6 +678,7 @@ export const startBot = async () => {
         const keyboard = buildOfferKeyboard(
           activeOffers,
           pauseAdSession.selectedOffers!,
+          'adaction_prod:',
           AD_ACTION_KEYBOARD_COLUMNS
         );
 
@@ -949,6 +950,7 @@ export const startBot = async () => {
           const keyboard = buildOfferKeyboard(
             activeOffers,
             session.selectedOffers!,
+            'adaction_prod:',
             AD_ACTION_KEYBOARD_COLUMNS
           );
 
@@ -1147,6 +1149,7 @@ export const startBot = async () => {
       const keyboard = buildOfferKeyboard(
         session.activeOffers,
         session.selectedOffers!,
+        'adaction_prod:',
         AD_ACTION_KEYBOARD_COLUMNS
       );
 
@@ -1179,6 +1182,17 @@ export const startBot = async () => {
 
       const processPause = async () => {
         try {
+          // 先拉取投手列表，构建 id → userName 映射
+          let managerMap: Map<number, string> = new Map();
+          try {
+            const managers = await qlApi.listManagers();
+            for (const m of managers) {
+              managerMap.set(m.id, m.userName || m.name || `未知投手(${m.id})`);
+            }
+          } catch (e) {
+            console.warn('[listManagers] failed, fallback to id display', e);
+          }
+
           let successCount = 0;
           let failCount = 0;
           const pausedOffers: any[] = [];
@@ -1326,9 +1340,7 @@ export const startBot = async () => {
           chat_id: msg.chat.id,
           message_id: msg.message_id
         });
-      }
-
-    } else if (action === 'yes') {
+      } else if (action === 'yes') {
         if (!session.usdAmount || !session.payDay || !session.imgUrl || !session.storeName) {
           bot.editMessageText('❌ 信息不完整，请确保金额和日期均已识别或纠正。', {
             chat_id: msg.chat.id,
@@ -1497,10 +1509,10 @@ export const startBot = async () => {
           tgMsgId: msg.message_id.toString(),
           rawMsg: msg.text || '',
           summary: pendingData.summaryText,
-        }));
+        })) as unknown as ParsedRecord[];
 
         // Append to QL system via API
-        await processAndWriteToQL(recordsToSave);
+        await processAndWriteToQL(recordsToSave, Date.now());
 
         bot.editMessageText(summaryText + '\n\n✅ 录入成功！', {
           chat_id: msg.chat.id,
@@ -1544,7 +1556,7 @@ export const startBot = async () => {
       const stores = await qlApi.listStoreToSelect();
       const filteredStores = stores.filter(s => s.storeName.includes(text) || s.storeId.toString().includes(text));
 
-      const results = filteredStores.slice(offset, offset + 20).map(s => ({
+      const results: any[] = filteredStores.slice(offset, offset + 20).map(s => ({
         id: s.storeId.toString(),
         type: 'article',
         title: s.storeName,

@@ -9,7 +9,7 @@ export interface OCRResult {
 export async function recognizeChargeImage(imageBuffer: Buffer): Promise<OCRResult> {
     // Run OCR (using eng + chi_sim if needed, but eng is usually enough for USDT and dates)
     const result = await Tesseract.recognize(imageBuffer, 'eng+chi_sim', {
-        logger: m => console.log(m)
+        logger: (m: any) => console.log(m)
     });
     const text = result.data.text;
     console.log("[OCR] Raw Text:", text);

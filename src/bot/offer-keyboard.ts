@@ -1,57 +1,53 @@
-import { Markup } from 'telegraf';
-import { InlineKeyboardButton } from 'telegraf/typings/core/types/typegram';
+import { InlineKeyboardButton } from 'node-telegram-bot-api';
 
 interface Offer {
-    id: string;
+    id: number;
     name: string;
-    // Add other properties of Offer if necessary
 }
 
-interface SelectedOffers {
-    [key: string]: boolean;
-}
+type SelectedOffers = Set<number>;
 
 /**
- * Builds an inline keyboard for offer selection with a fixed number of columns.
- * @param offers - Array of available offers.
- * @param selectedOffers - Object indicating which offers are currently selected.
- * @param actionPrefix - Prefix for callback data (e.g., 'pause_', 'resume_', 'remove_').
- * @param columns - Number of columns for the offer buttons.
- * @returns Telegraf inline keyboard markup.
+ * 构建广告操作的内联键盘（每行固定 2 列）
+ * @param offers 可选广告列表
+ * @param selectedOffers 已选中的广告 id 集合
+ * @param actionPrefix 回调前缀（如 'adaction_prod:'）
+ * @param columns 每行按钮数，默认 2
+ * @returns node-telegram-bot-api 原生 inline_keyboard 二维数组
  */
 export function buildOfferKeyboard(
     offers: Offer[],
     selectedOffers: SelectedOffers,
     actionPrefix: string,
-    columns: number = 2 // Fixed to 2 columns as per requirement
-) {
-    const offerButtons: InlineKeyboardButton[][] = [];
+    columns: number = 2
+): InlineKeyboardButton[][] {
+    const rows: InlineKeyboardButton[][] = [];
     let currentRow: InlineKeyboardButton[] = [];
 
-    offers.forEach(offer => {
-        const isSelected = selectedOffers[offer.id];
+    for (const offer of offers) {
+        const isSelected = selectedOffers.has(offer.id);
         const buttonText = isSelected ? `✅ ${offer.name}` : offer.name;
-        currentRow.push(
-            Markup.button.callback(buttonText, `${actionPrefix}${offer.id}`)
-        );
+        currentRow.push({
+            text: buttonText,
+            callback_data: `${actionPrefix}${offer.id}`
+        });
 
         if (currentRow.length === columns) {
-            offerButtons.push(currentRow);
+            rows.push(currentRow);
             currentRow = [];
         }
-    });
-
-    if (currentRow.length > 0) {
-        offerButtons.push(currentRow);
     }
 
-    const controlButtons = [
-        Markup.button.callback('全选', `${actionPrefix}all`),
-        Markup.button.callback('确认', `${actionPrefix}confirm`),
-        Markup.button.callback('取消', `${actionPrefix}cancel`),
-    ];
+    if (currentRow.length > 0) {
+        rows.push(currentRow);
+    }
 
-    offerButtons.push(controlButtons);
+    // 控制按钮（全选 / 确认 / 取消），单独成行
+    rows.push([
+        { text: '全选', callback_data: `${actionPrefix}ALL` },
+        { text: '确认', callback_data: 'adaction_confirm' },
+        { text: '取消', callback_data: 'adaction_cancel' }
+    ]);
 
-    return Markup.inlineKeyboard(offerButtons);
+    return rows;
 }
